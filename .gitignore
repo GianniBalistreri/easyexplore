@@ -1,0 +1,21 @@
+# Git Stuff:
+.DS_Store
+
+# Python:
+venv
+.idea
+
+# Jupyter Notebook:
+.ipynb_checkpoints
+
+# File types:
+*.csv
+*.html
+*.jpeg
+*.json
+*.p
+*.pickle
+*.pkl
+*.png
+*.xls
+*.xlsx
