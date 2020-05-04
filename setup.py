@@ -7,6 +7,11 @@ subprocess.run('python3 -m pip install jupyter_contrib_nbextensions && jupyter c
 with open('README.md', 'r') as _read_me:
     long_description = _read_me.read()
 
+with open('requirements.txt', 'r') as _requirements:
+    requires = _requirements.read()
+
+requires = [r.strip() for r in requires if ((r.strip()[0] != "#") and (len(r.strip()) > 3) and "-e git://" not in r)]
+
 setuptools.setup(
     name='easyexplore',
     version='0.0.1',
@@ -15,7 +20,9 @@ setuptools.setup(
     description='Toolbox for easy and effective data exploration',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/pypa/sampleproject',
+    keywords='data exploration interactive machine learning',
+    license='GNU',
+    url='https://github.com/GianniBalistreri/easyexplore',
     packages=setuptools.find_packages(),
     package_data={'easyexplore': ['LICENCE',
                                   'README.md',
@@ -44,18 +51,5 @@ setuptools.setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
-    install_requires=['geojson>=2.5.0',
-                      'ipywidgets>=0.5.1',
-                      'joblib>=0.14.1',
-                      'networkx>=2.2',
-                      'numpy>=1.18.1',
-                      'pandas==0.25.3',
-                      'plotly>=4.5.4',
-                      'pyod>=0.7.7.1',
-                      'psutil>=5.5.1',
-                      'scipy>=1.4.1',
-                      'sqlalchemy>=1.3.15',
-                      'statsmodels>=0.9.0',
-                      'xlrd>=1.2.0'
-                      ]
+    install_requires=requires
 )

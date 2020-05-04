@@ -1,7 +1,6 @@
 geojson>=2.5.0
 ipywidgets>=0.5.1
 joblib>=0.14.1
-jupyter_contrib_nbextensions>=0.5.1
 networkx>=2.2
 numpy>=1.18.1
 pandas==0.25.3

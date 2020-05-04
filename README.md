@@ -91,7 +91,7 @@ You can easily install EasyExplore via pip install easyexplore on every operatin
 - Data Visualizer:
 
 Let's make data visualization great again!
-Visualize your data set very easily using Plot.ly an interactive visualization library under the hood. The DataVisualizer is an effiecient wrapper to abstract the most important elements for data exploration:
+Visualize your data set very easily using Plot.ly an interactive visualization library under the hood. The DataVisualizer is an efficient wrapper to abstract the most important elements for data exploration:
 
     -- Table Chart:
         Visualize matrix (Pandas DataFrame) as an interactive table
