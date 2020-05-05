@@ -32,18 +32,12 @@ setuptools.setup(
                                   ]
                   },
     include_package_data=True,
-    scripts=['src/anomaly_detector.py',
-             'src/data_explorer.py',
-             'src/data_import_export.py',
-             'src/data_visualizer.py',
-             'src/interactive_visualizer.py',
-             'src/utils.py',
-             'src/test/test_anomaly_detector.py',
-             'src/test/test_data_explorer.py',
-             'src/test/test_data_import_export.py',
-             'src/test/test_data_visualizer.py',
-             'src/test/test_interactive_visualizer.py',
-             'src/test/test_utils.py'
+    scripts=['/anomaly_detector.py',
+             '/data_explorer.py',
+             '/data_import_export.py',
+             '/data_visualizer.py',
+             '/interactive_visualizer.py',
+             '/utils.py'
              ],
     classifiers=[
         'Programming Language :: Python :: 3',
