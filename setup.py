@@ -32,12 +32,12 @@ setuptools.setup(
                                   ]
                   },
     include_package_data=True,
-    scripts=['/anomaly_detector.py',
-             '/data_explorer.py',
-             '/data_import_export.py',
-             '/data_visualizer.py',
-             '/interactive_visualizer.py',
-             '/utils.py'
+    scripts=['easyexplore/anomaly_detector.py',
+             'easyexplore/data_explorer.py',
+             'easyexplore/data_import_export.py',
+             'easyexplore/data_visualizer.py',
+             'easyexplore/interactive_visualizer.py',
+             'easyexplore/utils.py'
              ],
     classifiers=[
         'Programming Language :: Python :: 3',

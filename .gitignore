@@ -4,6 +4,7 @@
 # Python:
 venv
 .idea
+*__pycache__
 
 # Jupyter Notebook:
 .ipynb_checkpoints
