@@ -24,7 +24,7 @@ setuptools.setup(
     license='GNU',
     url='https://github.com/GianniBalistreri/easyexplore',
     packages=setuptools.find_packages(),
-    package_data={'easyexplore': ['LICENCE',
+    package_data={'easyexplore': ['LICENSE',
                                   'README.md',
                                   'requirements.txt',
                                   'setup.py',
