@@ -2,7 +2,7 @@ import setuptools
 import subprocess
 
 # Install jupyter notebook extensions:
-subprocess.run('python3 -m pip install jupyter_contrib_nbextensions && jupyter contrib nbextension install')
+subprocess.run(['python3 -m pip install jupyter_contrib_nbextensions && jupyter contrib nbextension install'], shell=True)
 
 with open('README.md', 'r') as _read_me:
     long_description = _read_me.read()
@@ -10,7 +10,7 @@ with open('README.md', 'r') as _read_me:
 with open('requirements.txt', 'r') as _requirements:
     requires = _requirements.read()
 
-requires = [r.strip() for r in requires if ((r.strip()[0] != "#") and (len(r.strip()) > 3) and "-e git://" not in r)]
+requires = [r.strip() for r in requires.split('\n') if ((r.strip()[0] != "#") and (len(r.strip()) > 3) and "-e git://" not in r)]
 
 setuptools.setup(
     name='easyexplore',
