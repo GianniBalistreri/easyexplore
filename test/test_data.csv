@@ -1,0 +1,11 @@
+A,B,C,D,E,F,G,H,I,J,K
+0,0.0,0.04,2020-04-04,bla,Hamburg,53.550341,10.000654,0,de,0.0
+1,1.0,0.14,2020-04-04,blabla,Koeln,50.938361,6.959974,1,de,1.0
+2,3.0,0.34,2020-04-04,blablabla,Frankfurt,50.112537,8.687993,,de,3.0
+4,3.0,0.44,2020-04-05,blablablabla,Berlin,52.516181,13.376935,4,de,3.0
+5,3.0,0.54,2020-04-05,blablablablabla,Hamburg,53.550341,10.000654,5,de,3.0
+4,6.0,0.64,2020-04-06,blablablablablabla,Hamburg,53.550341,10.000654,,de,6.0
+9,7.0,0.74,2020-04-06,blablablablablablabla,Koeln,50.938361,6.959974,9,de,7.0
+8,8.0,0.84,2020-04-06,blablablablablablablabla,Hamburg,53.550341,10.000654,8,de,8.0
+9,8.0,0.94,2020-04-07,blablablablablablablablabla,Koeln,50.938361,6.959974,,de,8.0
+2,1.0,0.24,2020-04-04,blablablablablablablablablabla,Berlin,52.516181,13.376935,2,de,1.0

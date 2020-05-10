@@ -5,13 +5,18 @@
 venv
 .idea
 *__pycache__
+.pytest_cache
+/build
+/dist
+*.egg-info
 
 # Jupyter Notebook:
 .ipynb_checkpoints
 
 # File types:
-*.csv
-*.html
+#*.csv
+*.db
+#*.html
 *.jpeg
 *.json
 *.p

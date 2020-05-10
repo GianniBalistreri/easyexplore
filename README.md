@@ -53,7 +53,7 @@ You can easily install EasyExplore via pip install easyexplore on every operatin
 
     -- Data Typing:
 
-        Check whether represented data types of Pandas is equal the real data types occuring in the data
+        Check whether represented data types of Pandas is equal to the real data types occuring in the data
 
     -- Data Health Check:
 
