@@ -1,36 +1,27 @@
 import geojson
 import glob
 import itertools
-import json
 import logging
 import os
 import numpy as np
 import networkx as nx
 import pandas as pd
 import psutil
-import random
 import subprocess
 import zipfile
 
-from .data_import_export import DataExporter, DataImporter, FileUtils
+from .data_import_export import DataExporter, FileUtils
 from datetime import datetime
 from ipywidgets import FloatProgress
-from IPython.display import Image, display, HTML
-from itertools import accumulate, islice
-from operator import mul
+from IPython.display import display, HTML
+from itertools import islice
 from scipy.stats import anderson, chi2, chi2_contingency, f_oneway, friedmanchisquare, mannwhitneyu, normaltest, kendalltau,\
                         kruskal, kstest, pearsonr, powerlaw, shapiro, spearmanr, stats, ttest_ind, ttest_rel, wilcoxon
 from statsmodels.stats.weightstats import ztest
-from typing import Dict, List, Mapping, Tuple
+from typing import Dict, List, Tuple
 
-
-MAX_INTEGER: int = 100000000000
-MIN_MAX_FLOAT: Tuple[float, float] = (1e-320, 1e+300)
 INVALID_VALUES: list = ['nan', 'NaN', 'NaT', np.nan, 'none', 'None', 'inf', '-inf', np.inf, -np.inf] # None
 PERCENTILES: List[float] = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
-
-# TODO:
-#  Write unit test
 
 
 class EasyExplore:
@@ -261,142 +252,6 @@ class Log:
                 self._write()
             else:
                 print(self.msg)
-
-
-class Logger:
-    """
-
-    Class for handling logging
-
-    """
-    def __init__(self,
-                 write: bool = False,
-                 logger_name: str = None,
-                 logger_file_path: str = None,
-                 logger_file_env: str = 'prod',
-                 logger_level: str = 'debug',
-                 log_ram_usage: bool = True,
-                 log_cpu_usage: bool = False
-                 ):
-        """
-        Parameters
-        ----------
-        write: bool
-            Write message to log file or print it in console
-
-        logger_name: str
-            Name of the logger
-                -> None: Name of the current python file is used
-
-        logger_file_path: str
-            Complete file path of the logger
-                -> None: Path of current working directory is used
-
-        logger_file_env: str
-            Set logger file environment
-                -> dev: Write logging file at INFO level
-                -> stage: Write logging file at WARNING level
-                -> prod: Write logging file at ERROR level
-
-        logger_level: str
-            Set logger level
-                -> debug: Level 1
-                -> info: Level 2
-                -> warning: Level 3
-                -> error: Level 4
-                -> critical: level 5
-        """
-        self.write: bool = write
-        if log_ram_usage:
-            _ram: str = ' - RAM {}% - '.format(psutil.virtual_memory().percent)
-        else:
-            _ram: str = ' - '
-        if log_cpu_usage:
-            _cpu: str = ' - CPU {}% - '.format(psutil.cpu_percent(percpu=False))
-        else:
-            _cpu: str = ' - '
-        self.formatter = {'dev': '%(asctime)s {} %(message)s'.format(_ram, _cpu),
-                          'stage': '%(asctime)s {} %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'.format(_ram, _cpu),
-                          'prod': '%(asctime)s {} %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'.format(_ram, _cpu)
-                          }
-        if write:
-            if logger_file_path is None:
-                self.log_file_path: str = os.path.join(os.getcwd(), 'log.txt')
-            else:
-                self.log_file_path: str = logger_file_path
-            FileUtils(file_path=self.log_file_path, create_dir=True).make_dir()
-        else:
-            self.log_file_path: str = None
-        if logger_file_env in self.formatter.keys():
-            _env: str = logger_file_env
-        else:
-            _env: str = 'dev'
-        if logger_level == 'debug':
-            _level: logging = logging.DEBUG
-        elif logger_level == 'info':
-            _level: logging = logging.INFO
-        elif logger_level == 'warning':
-            _level: logging = logging.WARNING
-        elif logger_level == 'error':
-            _level: logging = logging.ERROR
-        elif logger_level == 'critical':
-            _level: logging = logging.CRITICAL
-        else:
-            _level: logging = logging.DEBUG
-        logging.basicConfig(filename=self.log_file_path, filemode='a', format=self.formatter.get(_env), level=_level)
-        _name: str = __name__ if logger_name is None else logger_name
-        self.log: logging.getLogger = logging.getLogger(_name)
-
-    def set(self) -> logging:
-        """
-        Set logger
-
-        Returns
-        -------
-        logging: Preconfigured logger object
-        """
-        return self.log
-
-
-class RequestUtilsException(Exception):
-    """
-
-    Class for handling exceptions for class RequestUtils
-
-    """
-    pass
-
-
-class RequestUtils(FileUtils):
-    """
-
-    Class for handling requests
-
-    """
-    def __init__(self, url: List[str], parallel: bool = True, file_path: str = None):
-        """
-        Parameters
-        ----------
-        url: List[str]
-            URL's for requesting payloads
-
-        parallel: bool
-            Request payloads in parallel or not
-
-        file_path: str
-            Complete file path either of imported files for sending or exported files for receiving payload
-        """
-        super().__init__(file_path=file_path, create_dir=True)
-        self.url: List[str] = url
-        self.parallel: bool = parallel
-        self.file_path: str = file_path
-        self.payload = None
-
-    def get_payload(self):
-        pass
-
-    def send_payload(self):
-        pass
 
 
 class StatsUtils:
@@ -762,133 +617,6 @@ class StatsUtils:
         return self.data_set[self.features].skew(axis=_axis).to_dict()
 
 
-class PalladiumUtils:
-    """
-
-    Class for running machine learning models on palladium framework
-
-    """
-    def __init__(self, file_path: str):
-        """
-        :param file_path: String containing the complete file path either of the config.py or request.json
-        """
-        self.full_path: str = file_path.replace('\\', '/')
-        self.file_name: str = file_path.replace('\\', '/').split('/')[-1]
-        self.file_path: str = file_path.replace(self.file_name, '')
-
-    def generate_config_py(self,
-                           train_path: str = None,
-                           test_path: str = None,
-                           local: bool = True,
-                           sep: str = ',',
-                           sql_query: str = None,
-                           use_numpy: bool = False
-                           ):
-        """
-
-        Generate pre-configured config.py
-
-        :param train_path: String containing the path of the train data set (either data base or file)
-        :param test_path: String containing the path of the test data set (either data base or file)
-        :param local: Boolean indicating whether to generate config.py file for local testing or not
-        :param sep: String containing the separator value
-        :param sql_query: String containing the SQL query to fetch data from data base
-        :param use_numpy: Boolean indicating whether to use Numpy ndarray or Pandas DataFrame
-        """
-        _config_py = {'data_loader_train': dict(),
-                      'data_loader_test': dict(),
-                      'model': dict(),
-                      'predict_service': dict(),
-                      'model_persister': dict()
-                      }
-        if local:
-            _config_py['data_loader_train'].update({'__factory__': 'palladium.dataset.Table'})
-            if train_path is None:
-                raise UtilsException('Path for the train data set is empty')
-            _config_py['data_loader_train'].update({'path': train_path})
-            _config_py['data_loader_train'].update({'sep': sep})
-            _config_py['data_loader_train'].update({'ndarray': use_numpy})
-            _config_py['data_loader_test'].update({'__factory__': 'palladium.dataset.Table'})
-            if test_path is None:
-                _config_py['data_loader_test']['path'] = ''
-            else:
-                _config_py['data_loader_test'].update({'path': train_path})
-            _config_py['data_loader_test'].update({'sep': sep})
-            _config_py['data_loader_test'].update({'ndarray': use_numpy})
-        else:
-            _config_py['data_loader_train'].update({'__factory__': 'palladium.dataset.SQL'})
-        _config_py['model'].update({'__factory__': '{}.request_adapter.RequestAdapter'.format(__name__)})
-        _config_py['predict_service'].update({'__factory__': '{}.request_adapter.RequestAdapter'.format(__name__),
-                                              'mapping': [],
-                                              'entry_point': '/{}'.format(__name__)
-                                              })
-        _config_py['model_persister'].update({'__factory__': 'palladium.persistence.CachedUpdatePersister',
-                                              'impl': {'__factory__': 'palladium.persistence.Database',
-                                                       'url': 'sqlite:///model.db'
-                                                       }
-                                              })
-        DataExporter(obj=_config_py,
-                     file_path=self.full_path,
-                     overwrite=True,
-                     create_dir=True
-                     ).file()
-        os.environ['PALLADIUM_CONFIG'] = '{}{}'.format(self.file_path, self.file_name)
-
-    def generate_json(self, data_file_path: str, action: str, sample: int = None):
-        """
-
-        Generate json file for testing purposes
-
-        :param data_file_path: String containing the complete path of the test data file path
-        :param action: String containing the actual model name on the AnalyticsPlatform
-        :param sample: Integer indicating the amount of cases to sample randomly
-        """
-        _df = DataImporter(file_path=data_file_path.replace('\\', '/'), create_dir=True).file()
-        _data = {'actions': list()}
-        if sample is None:
-            _case = range(0, _df.shape[0], 1)
-        else:
-            _case = random.sample(population=[i for i in range(0, _df.shape[0], 1)], k=sample)
-        for case in _case:
-            _actions = [{'action': action, 'features': [dict()]}]
-            for feature in _df.keys():
-                _actions[0]['features'][0].update({feature: str(_df[feature][case])})
-            _data['actions'].append(_actions)
-        DataExporter(obj=_data,
-                     file_path=self.full_path,
-                     overwrite=True,
-                     create_dir=True
-                     ).file()
-
-    def generate_request(self, payload: List[Mapping[str, str]] = None, end_point: str = 'questions') -> json:
-        """
-
-        Generate request for palladium dev-server
-
-        :param end_point: String containing the name of the configured end point
-        :param payload: Dictionary containing the test data for prediction
-        :return:
-        """
-        if payload is None:
-            _payload: List[Mapping[str, str]] = DataImporter(file_path=self.full_path).file().to_json()
-        else:
-            _payload: List[Mapping[str, str]] = payload
-        try:
-            _response = requests.post('http://localhost:5000/{}'.format(end_point), json=_payload)
-        except ConnectionError as e:
-            raise UtilsException('Error occured while reqesting prediction: {}'.format(e))
-        return _response.json()
-
-    def local_test(self):
-        """
-
-        Run local training and prediction tests
-
-        :return:
-        """
-        raise UtilsException('Method not implemented yet :-(')
-
-
 class UtilsException(Exception):
     """
 
@@ -908,63 +636,6 @@ class Utils:
         """
         """
         pass
-
-    @staticmethod
-    def bayesian_blocks(df: pd.DataFrame, feature: str) -> dict:
-        """
-        Optimal univariate binning using Bayesian Blocks
-
-        Returns
-        -------
-        dict: Binning edges (changepoints) and labels
-        """
-        _x: np.array = df[feature].sort_values(axis=0, ascending=True, inplace=False).values
-        _edges: np.ndarray = np.concatenate([_x[:1], 0.5 * (_x[1:] + _x[:-1]), _x[-1:]])
-        _block_length = _x[-1] - _edges
-        _ones_arr: np.array = np.ones(_x.size)
-        _best: list = []
-        _last: list = []
-        for k in range(0, _x.size, 1):
-            # Compute the width and count of the final bin for all possible
-            # locations of the K^th changepoint
-            _width = _block_length[:k + 1] - _block_length[k + 1]
-            _count_vec = np.cumsum(_ones_arr[:k + 1][::-1])[::-1]
-
-            # evaluate fitness function for these possibilities
-            _fit_vec: np.array = _count_vec * (np.log(_count_vec) - np.log(_width))
-            _fit_vec -= 4  # 4 comes from the prior on the number of changepoints
-            _fit_vec[1:] += _best[:k]
-
-            # find the max of the fitness: this is the K^th changepoint
-            _last.append(np.argmax(_fit_vec))
-            _best.append(_fit_vec[np.argmax(_fit_vec)])
-
-        # -----------------------------------------------------------------
-        # Recover changepoints by iteratively peeling off the last block
-        # -----------------------------------------------------------------
-        _change_points = np.zeros(_x.size, dtype=int)
-        _i: int = _x.size
-        _idx: int = _x.size
-        while True:
-            _i -= 1
-            _change_points[_i] = _idx
-            if _idx == 0:
-                break
-            _idx = _last[_idx - 1]
-        _bayesian_blocks: dict = dict(edges=_edges[_change_points[_idx:]], labels=[])
-        _bayesian_blocks['labels'] = [np.argmin(np.abs(val - _bayesian_blocks.get('edges'))) for val in _x.tolist()]
-        return _bayesian_blocks
-
-    @staticmethod
-    def cat_array(array_with_nan: np.array) -> np.array:
-        """
-
-        Convert categorical float typed Numpy array into integer typed array
-
-        :param array_with_nan: Numpy array containing the categorical data with missing values (float typed)
-        :return: Numpy array containing the categorical data as integer without missing values
-        """
-        return np.array(array_with_nan[~pd.isnull(array_with_nan)], dtype=np.int_)
 
     @staticmethod
     def check_dtypes(df: pd.DataFrame, date_edges: Tuple[str, str] = None) -> dict:
@@ -1220,60 +891,6 @@ class Utils:
         return _graph
 
     @staticmethod
-    def generate_time_series_arrays(data_set: np.ndarray, lag: int = 1, train: bool = True) -> dict:
-        """
-
-        Generate n-dimensional numpy arrays formated for LSTM and Convolutional neural networks especially
-
-        :param data_set: np.ndarray: Data set as n-dimensional numpy array
-        :param lag: int: Number of previous values to look back
-        :param train: bool: Generate train data set or test data set
-        :return: dict: Time series train and test data sets
-        """
-        if lag < 1:
-            _lag: int = 1
-        else:
-            _lag: int = lag
-        _x_train: list = []
-        _y_train: list = []
-        _x_test: list = []
-        _y_test: list = []
-        for x in range(_lag, len(data_set)):
-            if train:
-                _x_train.append(data_set[x - _lag:x, : -2])
-                _y_train.append(data_set[x - 1, -2])
-                _x_test.append(data_set[x - _lag:x, 1:-1])
-                _y_test.append(data_set[x - 1, -1])
-            else:
-                _x_train.append(data_set[x - _lag:x, : -1])
-                _y_train.append(data_set[x - 1, -1])
-                _x_test.append(data_set[x - _lag:x, 1:])
-        return dict(x_train=np.array(_x_train),
-                    y_train=np.array(_y_train),
-                    x_test=np.array(_x_test),
-                    y_test=np.array(_y_test)
-                    )
-
-    @staticmethod
-    def geometric_progression(n: int = 10, ratio: int = 2) -> List[int]:
-        """
-        Generate list of geometric progression values
-
-        Parameters
-        ----------
-        n: int
-            Amount of values of the geometric progression
-
-        ratio: float
-            Base ratio value of the geometric progression
-
-        Returns
-        -------
-        List[int]: Geometric progression
-        """
-        return list(accumulate([ratio] * n, mul))
-
-    @staticmethod
     def get_duplicates(df: pd.DataFrame, cases: bool = True, features: bool = True) -> Dict[str, list]:
         """
         Get duplicate cases and / or features
@@ -1333,7 +950,7 @@ class Utils:
         _str: list = []
         _date: list = []
         _ordinal: list = []
-        #TODO: Check date edges
+        _max_cats: int = max_cats if max_cats > 0 else 500
         if date_edges is None:
             _date_edges = None
         else:
@@ -1341,8 +958,9 @@ class Utils:
                 assert pd.to_datetime(date_edges[0])
                 assert pd.to_datetime(date_edges[1])
                 _date_edges: tuple = tuple([pd.to_datetime(date_edges[0]), pd.to_datetime(date_edges[1])])
-            except:
+            except Exception as e:
                 _date_edges = None
+                Log(write=False, level='warning').log(msg='Date edges ({}) cannot be converted into datetime\nError: {}'.format(date_edges, e))
         for i, feature in enumerate(features):
             if date is not None:
                 if feature in date:
@@ -1415,62 +1033,51 @@ class Utils:
                     else:
                         _cat.append(feature)
             elif str(dtypes[i]).find('object') >= 0:
-                try:
-                    _ar: np.ndarray = df[feature].astype(float).values
-                    if any(pd.isnull(_ar)):
-                        _unique: np.array = df[feature].unique()
+                _unique: np.array = df[feature].unique()
+                _digits: int = 0
+                _dot: bool = False
+                for text in _unique:
+                    if text.find('.'):
+                        _dot = True
+                    if text.replace('.', '').isdigit():
+                        _digits += 1
+                if _digits == len(_unique):
+                    if _dot:
                         if any(_unique[~pd.isnull(_unique)] % 1) != 0:
                             _num.append(feature)
                         else:
-                            if len(str(df[feature].min()).split('.')[0]) >= 4:
-                                try:
-                                    assert pd.to_datetime(df[feature])
-                                    _date.append(feature)
-                                except (TypeError, ValueError):
-                                    _str.append(feature)
+                            if df.shape[0] == len(df[feature].unique()):
+                                _str.append(feature)
                             else:
-                                _cat.append(feature)
-                except (TypeError, ValueError):
-                    # TODO: check regex for values like 120,00
-                    if len(df[feature].unique()) <= max_cats:
+                                if len(str(df[feature].min()).split('.')[0]) >= 4:
+                                    _str.append(feature)
+                                else:
+                                    _cat.append(feature)
+                    else:
+                        _cat.append(feature)
+                else:
+                    try:
+                        _date_time: datetime = pd.to_datetime(df[feature])
+                        if _date_edges is None:
+                            _date.append(feature)
+                        else:
+                            if (_date_edges[0] < pd.to_datetime(_unique.min())) or (_date_edges[1] > pd.to_datetime(_unique.max())):
+                                _str.append(feature)
+                            else:
+                                _date.append(feature)
+                    except (TypeError, ValueError):
                         if df.shape[0] == len(df[feature].unique()):
                             _str.append(feature)
                         else:
-                            try:
-                                assert int(df[feature].min())
+                            if len(_unique) > _max_cats:
+                                _str.append(feature)
+                            else:
                                 _cat.append(feature)
-                            except (AssertionError, TypeError, ValueError):
-                                try:
-                                    assert pd.to_datetime(df[feature])
-                                    _date.append(feature)
-                                except (TypeError, ValueError):
-                                    _cat.append(feature)
-                    else:
-                        _str.append(feature)
             elif str(dtypes[i]).find('date') >= 0:
                 _date.append(feature)
             elif str(dtypes[i]).find('bool') >= 0:
                 _cat.append(feature)
         return dict(continuous=_num, categorical=_cat, ordinal=_ordinal, date=_date, text=_str)
-
-    @staticmethod
-    def get_float_threshold() -> Tuple[float, float]:
-        """
-        Get minimum and maximum threshold of float value
-            -> after minimum threshold float value => 0.0
-            -> after maximum threshold float value => inf / -inf
-
-        :return:
-        Tuple[float, float]: Minimum and maximum float value
-        """
-        _i: int = 1
-        _threshold: Tuple[float, float] = (0.0, 0.0)
-        while True:
-            if 1e+1 + _i == 0:
-                break
-            else:
-                _i += 1
-        return _threshold
 
     @staticmethod
     def get_geojson(df: pd.DataFrame,
@@ -1506,32 +1113,6 @@ class Utils:
                       encoding='utf8') as fp:
                 geojson.dump(geojson.FeatureCollection(features), fp, sort_keys=True, ensure_ascii=False)
         return dict
-
-    @staticmethod
-    def get_ml_type(values: np.array) -> str:
-        """
-        Get supervised machine learning problem type from value of target feature
-
-        Parameters
-        ----------
-        values: np.array
-            Value of target feature
-
-        Returns
-        -------
-        str: Supervised machine learning type
-                -> reg: Regression
-                -> clf_multi: Classification with multi class output
-                -> clf_binary: Classification with binary class output
-        """
-        _unique: np.array = pd.unique(values=values)
-        if any(_unique[~pd.isnull(_unique)] % 1) != 0:
-            return 'reg'
-        else:
-            if len(_unique[~pd.isnull(_unique)]) == 2:
-                return 'clf_binary'
-            else:
-                return 'clf_multi'
 
     @staticmethod
     def get_list_of_files(file_path: str) -> List[str]:
@@ -1673,57 +1254,6 @@ class Utils:
         return _df_perc
 
     @staticmethod
-    def get_random_perm(shape: int) -> np.random:
-        """
-
-        Get random permutation
-
-        :param shape: int: Maximum threshold of range to permutate randomly
-        :return: np.random: Randomly permutated range
-        """
-        np.random.seed(seed=1234)
-        return np.random.permutation(x=shape)
-
-    @staticmethod
-    def index_to_label(idx: List[int], labels: List[str]) -> List[str]:
-        """
-
-        Get list of labels based on a list of indices
-
-        :param idx: List of integers containing the indices
-        :param labels: List of integers containing the labels
-        :return: List of string containing the subset of labels
-        """
-        return [labels[i] for i in idx]
-
-    @staticmethod
-    def label_to_index(all_labels: List[str], labels: List[str]) -> List[int]:
-        """
-
-        Get list of indices based on a list if labels
-
-        :param labels: List of integers containing the indices
-        :param all_labels: List of integers containing the labels
-        :return: List of integers indicating the subset of indices
-        """
-        return [all_labels.index(i) for i in labels]
-
-    @staticmethod
-    def replace_dict_keys(d: dict, new_keys: List[str]) -> dict:
-        """
-
-        Replace keys of a dictionary by values of given list
-
-        :param d:
-        :param new_keys:
-        :return:
-        """
-        _d = dict()
-        for k in d.keys():
-            _d[k] = new_keys[k]
-        return _d
-
-    @staticmethod
     def search_for_file(key_word: str, starting_dir: str) -> List[str]:
         """
 
@@ -1734,51 +1264,3 @@ class Utils:
         :return: List[str]: Names of the files found under given key word
         """
         return glob.glob(pathname=key_word)
-
-    @staticmethod
-    def subset_array(arr: np.array, idx: List[int]) -> np.array:
-        """
-
-        Subset Numpy array
-
-        :param arr: Numpy array containing the data set
-        :param idx: List of integers containing the indices to remove
-        :return: Numpy array containing the data subset
-        """
-        return np.array(list(itertools.compress(data=arr, selectors=[i not in idx for i in range(len(idx))])))
-
-    @staticmethod
-    def subset_dict(d: dict, threshold: float) -> dict:
-        """
-
-        Subset dictionary by given threshold value
-
-        :param d:
-        :param threshold:
-        :return:
-        """
-        _d = {}
-        for k in d.keys():
-            if d.get(k) >= threshold:
-                _d[k] = d.get(k)
-        return _d
-
-    @staticmethod
-    def rename_dict_keys(d: dict, old_keys: List[str], new_keys: List[str]) -> dict:
-        """
-
-        Rename keys of a dictionary
-
-        :param d: Dictionary containing data
-        :param old_keys: List of strings containing the old (current) key names
-        :param new_keys: List of strings containing the new key names
-        :return: Dictionary containing the renamed dictionary
-        """
-        if len(old_keys) != len(new_keys):
-            raise UtilsException('Length of the two lists are unequal (old={}, new={}'.format(len(old_keys),
-                                                                                              len(new_keys))
-                                 )
-        _d = d
-        for i, k in enumerate(old_keys):
-            _d = json.loads(json.dumps(_d).replace(k, new_keys[i]))
-        return _d

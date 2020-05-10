@@ -33,8 +33,6 @@ class FileUtils:
         if len(file_path) == 0:
             raise FileUtilsException('No file path found')
         self.full_path: str = file_path.replace('\\', '/')
-        if self.full_path.find('/') < 0:
-            raise FileUtilsException('Invalid file path "{}"'.format(self.full_path))
         self.file_name: str = self.full_path.split('/')[-1]
         self.file_path: str = self.full_path.replace(self.file_name, '')
         _file_type = self.file_name.split('.')
@@ -44,7 +42,8 @@ class FileUtils:
             self.file_type = None
         self.create_dir = create_dir
         if self.create_dir:
-            self.make_dir()
+            if self.full_path.find('/') >= 0:
+                self.make_dir()
 
     def make_dir(self, other_dir: str = None):
         """
@@ -423,7 +422,7 @@ class DataImporter(FileUtils):
 class DataExporter(FileUtils):
     """
 
-    Class for import data from external file types
+    Class for export data to local files
 
     """
     def __init__(self,
@@ -525,7 +524,7 @@ class DataExporter(FileUtils):
         """
         if self.file_type in ['csv', 'txt']:
             return self._text()
-        elif self.file_type in ['', 'p', 'pickle']:
+        elif self.file_type in ['', 'p', 'pkl', 'pickle']:
             return self._pickle()
         elif self.file_type == 'json':
             return self._json()

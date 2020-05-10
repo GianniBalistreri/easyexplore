@@ -22,7 +22,7 @@ from typing import Dict, List
 # Show all code cells outputs
 InteractiveShell.ast_node_interactivity = 'all'
 # Supported visualization frameworks
-framework: Dict[str, List[str]] = dict(interactive=['plotly'], static=['seaborn'])
+framework: Dict[str, List[str]] = dict(interactive=['plotly'], static=[])
 # Supported visualization methods
 plots: List[str] = ['bar',
                     'box',
@@ -33,8 +33,8 @@ plots: List[str] = ['bar',
                     'dendro',
                     'density',
                     'distplot',
-                    'funnel',
-                    'funnel_area',
+                    #'funnel',
+                    #'funnel_area',
                     'geo',
                     'heat',
                     'hist',
@@ -43,7 +43,7 @@ plots: List[str] = ['bar',
                     'line',
                     'multi',
                     'network',
-                    'radar',
+                    #'radar',
                     'ridgeline',
                     'parcats',
                     'parcoords',
@@ -51,9 +51,9 @@ plots: List[str] = ['bar',
                     'scatter',
                     'scatter3d',
                     'silhouette',
-                    'sunburst',
+                    #'sunburst',
                     'table',
-                    'tree',
+                    #'tree',
                     'violin'
                     ]
 
@@ -221,7 +221,8 @@ class DataVisualizer:
         self.seed: int = 1234
         if self.file_path is not None:
             if len(self.file_path) > 0:
-                FileUtils(file_path=file_path).make_dir()
+                if self.file_path.replace('\\', '/').find('/') >= 0:
+                    FileUtils(file_path=file_path).make_dir()
             else:
                 Log(write=False).log('Invalid file path ({})'.format(self.file_path))
                 self.file_path = None

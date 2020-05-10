@@ -12,15 +12,13 @@ from pyod.models.hbos import HBOS
 from pyod.models.iforest import IForest
 from pyod.models.knn import KNN
 from scipy import linalg, stats
-from sklearn.covariance import EllipticEnvelope
 from typing import Dict, List, Mapping, Tuple
 
 # TODO:
 #  Correlation -> Partial + Final Heat Map
 #  Data Distribution: Color + Annotations
-#  Check Categorical Breakdown
 #  Move MissingDataAnalysis class to utils.py
-#  Parallelize actions like data health check, data_typing, distribution, non-factorial break down
+#  Parallelization
 
 
 class DataExplorerException(Exception):
@@ -35,7 +33,7 @@ class DataExplorerException(Exception):
 class DataExplorer:
     """
 
-    Class for data exploration (especially with jupyter notebooks)
+    Class for data exploration
 
     """
     def __init__(self,
@@ -362,31 +360,42 @@ class DataExplorer:
         """
         return self.df[self.target].unique()
 
-    def break_down(self, plot_type: str = 'radar') -> dict:
+    def break_down(self, include_cat: bool = True, plot_type: str = 'violin') -> dict:
         """
 
         Generate univariate statistics of continuous features grouped by categorical features
 
-        :param str plot_type: Name of the visualization type
-                                -> radar: Radar Chart for level 1 overview
-                                -> parcoords: Parallel Coordinate Chart for level 2 overview
-                                -> sunburst: Sunburst Chart for level 2 overview
-                                -> tree: Treemap Chart for level 2 overview
-                                -> hist: Histogram Chart for level 2 overview
-                                -> violin: Violin Chart for level 3 overview
+        :param include_cat: bool
+            Whether to include categorical features into the statistical analysis or just as group by features
+
+        :param plot_type: str
+            Name of the visualization type:
+                -> radar: Radar Chart for level 1 overview
+                -> parcoords: Parallel Coordinate Chart for level 2 overview
+                -> sunburst: Sunburst Chart for level 2 overview
+                -> tree: Treemap Chart for level 2 overview
+                -> hist: Histogram Chart for level 2 overview
+                -> violin: Violin Chart for level 3 overview
         :return dict: Breakdown statistics
         """
         _break_down_stats: dict = {}
         if plot_type not in ['radar', 'parcoords', 'sunburst', 'tree', 'hist', 'violin']:
             raise DataExplorerException('Plot type ({}) for visualizing categorical breakdown not supported'.format(plot_type))
-        for cat in self.feature_types.get('categorical'):
+        if len(self.feature_types.get('categorical')) == 0:
+            raise DataExplorerException('No categorical features found to breakdown')
+        _features: List[str] = self.feature_types.get('categorical') + self.feature_types.get('ordinal')
+        for cat in _features:
+            _cats: List[str] = _features
+            del _cats[_cats.index(cat)]
             if cat in self.df.keys():
                 for val in self.df[cat].unique():
-                    _break_down_stats.update({cat: {val: self.df.loc[self.df[cat] == val, self.feature_types.get('continuous')].describe(percentiles=PERCENTILES).to_dict()}})
+                    _break_down_stats.update({'continuous': {cat: {val: self.df.loc[self.df[cat] == val, self.feature_types.get('continuous')].describe(PERCENTILES).to_dict()}}})
+                    if include_cat:
+                        _break_down_stats.update({'categorical': {cat: {val: self.df.loc[self.df[cat] == val, _features].describe(PERCENTILES).to_dict()}}})
         if self.plot:
             DataVisualizer(title='Breakdown Statistics',
                            df=self.df,
-                           features=self.feature_types.get('continuous') + self.feature_types.get('categorical'),
+                           features=self.feature_types.get('continuous') + _features,
                            group_by=self.feature_types.get('categorical'),
                            plot_type=plot_type,
                            melt=False,
@@ -512,10 +521,11 @@ class DataExplorer:
         _supported_cat_plot_types: List[str] = ['bar', 'pie']
         _supported_conti_plot_types: List[str] = ['box', 'histo', 'violin']
         if categorical:
-            for ft in self.feature_types.get('categorical'):
+            _categorical_features: List[str] = self.feature_types.get('ordinal') + self.feature_types.get('categorical')
+            for ft in _categorical_features:
                 _distribution[ft] = self.df[ft].value_counts(normalize=False, sort=True, ascending=False, bins=None, dropna=self.include_nan).to_dict()
             _subplots.update({'Categorical Features': dict(data=self.df,
-                                                           features=self.feature_types.get('categorical'),
+                                                           features=_categorical_features,
                                                            plot_type='bar',
                                                            melt=False
                                                            )
@@ -549,6 +559,8 @@ class DataExplorer:
             if len(self.feature_types.get('date')) == 0:
                 Log(write=False, level='error').log('No time feature found in data set')
             else:
+                for ft in self.feature_types.get('date'):
+                    _distribution[ft] = self.df[ft].value_counts(normalize=False, sort=True, ascending=False, bins=None, dropna=self.include_nan).to_dict()
                 _subplots.update({'Distribution over Time': dict(data=self.df,
                                                                  features=self.feature_types.get('continuous'),
                                                                  time_features=self.feature_types.get('date'),
@@ -575,7 +587,7 @@ class DataExplorer:
                           nan_heat_map: bool = True,
                           nan_threshold: float = 0.95,
                           other_mis: list = None,
-                          ) -> Mapping[str, list]:
+                          ) -> Dict[str, list]:
         """
 
         Check the quality of the data set in terms of sparsity, anomalies, duplicates, invariance
@@ -889,7 +901,7 @@ class DataExplorer:
                                df=_df,
                                plot_type='table',
                                interactive=True,
-                               height=int(0.15 * self.n_cases),
+                               height=500,
                                width=500,
                                render=True if self.file_path is None else False,
                                file_path=self.file_path,
@@ -897,7 +909,7 @@ class DataExplorer:
                                ).run()
         return _typing
 
-    def get_feature_types(self) -> Mapping[str, List[str]]:
+    def get_feature_types(self) -> Dict[str, List[str]]:
         """
 
         Get and return data types of each feature
