@@ -52,7 +52,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'License :: GNU GENERAL PUBLIC LICENSE',
+        #'License :: GNU GENERAL PUBLIC LICENSE',
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
