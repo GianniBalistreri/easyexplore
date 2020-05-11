@@ -14,7 +14,7 @@ requires = [r.strip() for r in requires.split('\n') if ((r.strip()[0] != "#") an
 
 setuptools.setup(
     name='easyexplore',
-    version='0.1.0',
+    version='0.1.1',
     author='Gianni Francesco Balistreri',
     author_email='gbalistreri@gmx.de',
     description='Toolbox for easy and effective data exploration',
@@ -23,6 +23,7 @@ setuptools.setup(
     keywords='data exploration interactive visualization machine learning',
     license='GNU',
     url='https://github.com/GianniBalistreri/easyexplore',
+    include_package_data=True,
     packages=setuptools.find_packages(),
     package_data={'easyexplore': ['LICENSE',
                                   'README.md',
@@ -31,14 +32,13 @@ setuptools.setup(
                                   'EasyExplore_examples.ipynb'
                                   ]
                   },
-    include_package_data=True,
-    scripts=['src/anomaly_detector.py',
-             'src/data_explorer.py',
-             'src/data_import_export.py',
-             'src/data_visualizer.py',
-             'src/interactive_visualizer.py',
-             'src/utils.py'
-             ],
+    #scripts=['anomaly_detector.py',
+    #         'data_explorer.py',
+    #         'data_import_export.py',
+    #         'data_visualizer.py',
+    #         'interactive_visualizer.py',
+    #         'utils.py'
+    #         ],
     data_file=[('test', ['test/test_anomaly_detector.py',
                          'test/test_data.csv',
                          'test/test_data_explorer.py',
@@ -52,7 +52,6 @@ setuptools.setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        #'License :: GNU GENERAL PUBLIC LICENSE',
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',

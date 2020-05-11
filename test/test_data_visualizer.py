@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import unittest
 
-from src.data_visualizer import DataVisualizer
+from easyexplore.data_visualizer import DataVisualizer
 
 DATA_SET: pd.DataFrame = pd.read_csv(filepath_or_buffer='test_data.csv', sep=',')
 

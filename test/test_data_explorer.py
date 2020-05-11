@@ -1,7 +1,7 @@
 import pandas as pd
 import unittest
 
-from src.data_explorer import DataExplorer
+from easyexplore.data_explorer import DataExplorer
 
 DATA_SET: pd.DataFrame = pd.read_csv(filepath_or_buffer='test_data.csv', sep=',')
 

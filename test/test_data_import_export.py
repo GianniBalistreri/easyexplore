@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import unittest
 
-from src.data_import_export import DataExporter, DataImporter
+from easyexplore.data_import_export import DataExporter, DataImporter
 
 
 class DataImporterTest(unittest.TestCase):
