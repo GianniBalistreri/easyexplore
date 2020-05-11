@@ -11,13 +11,12 @@ from pyod.models.knn import KNN
 from pyod.models.loci import LOCI
 from pyod.models.lof import LOF
 from pyod.models.lmdd import LMDD
-from pyod.models.lscp import LSCP
 from pyod.models.mcd import MCD
 from pyod.models.ocsvm import OCSVM
 from pyod.models.pca import PCA
 from pyod.models.sod import SOD
 from pyod.models.sos import SOS
-from src.anomaly_detector import AnomalyDetector
+from easyexplore.anomaly_detector import AnomalyDetector
 
 DATA_SET: pd.DataFrame = pd.read_csv(filepath_or_buffer='test_data.csv', sep=',')
 

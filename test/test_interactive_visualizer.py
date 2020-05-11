@@ -1,8 +1,7 @@
-import plotly.figure_factory as ff
 import plotly.graph_objs as go
 import unittest
 
-from src.interactive_visualizer import PlotlyAdapter
+from easyexplore.interactive_visualizer import PlotlyAdapter
 
 PLOT: dict = dict(df=None, kwargs={})
 
