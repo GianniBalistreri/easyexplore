@@ -1037,19 +1037,29 @@ class Utils:
                 _digits: int = 0
                 _dot: bool = False
                 for text in _unique:
-                    if text.find('.'):
-                        _dot = True
-                    if text.replace('.', '').isdigit():
-                        _digits += 1
+                    if text == text:
+                        if text.find('.'):
+                            _dot = True
+                        if text.replace('.', '').isdigit():
+                            _digits += 1
                 if _digits == len(_unique):
                     if _dot:
-                        if any(_unique[~pd.isnull(_unique)] % 1) != 0:
-                            _num.append(feature)
-                        else:
-                            if df.shape[0] == len(df[feature].unique()):
+                        try:
+                            if any(_unique[~pd.isnull(_unique)] % 1) != 0:
+                                _num.append(feature)
+                            else:
+                                if df.shape[0] == len(df[feature].unique()):
+                                    _str.append(feature)
+                                else:
+                                    if len(str(df[feature].min()).split('.')[0]) >= 4:
+                                        _str.append(feature)
+                                    else:
+                                        _cat.append(feature)
+                        except (TypeError, ValueError):
+                            if df.shape[0] == len(_unique):
                                 _str.append(feature)
                             else:
-                                if len(str(df[feature].min()).split('.')[0]) >= 4:
+                                if len(_unique) > _max_cats:
                                     _str.append(feature)
                                 else:
                                     _cat.append(feature)
@@ -1066,7 +1076,7 @@ class Utils:
                             else:
                                 _date.append(feature)
                     except (TypeError, ValueError):
-                        if df.shape[0] == len(df[feature].unique()):
+                        if df.shape[0] == len(_unique):
                             _str.append(feature)
                         else:
                             if len(_unique) > _max_cats:
