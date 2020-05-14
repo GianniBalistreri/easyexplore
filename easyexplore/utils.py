@@ -771,7 +771,10 @@ class Utils:
                         -> rst: reStructuredText
                         -> script: Python / Julia / R script (depending on kernel settings of ipynb file)
         """
-        subprocess.run('jupyter nbconvert "{}" --to {}'.format(notebook_name, to))
+        if to in ['html', 'pdf', 'latex', 'markdown', 'rst', 'script']:
+            subprocess.run(['jupyter nbconvert "{}" --to {}'.format(notebook_name, to)], shell=True)
+        else:
+            raise UtilsException('Jupyter notebook could not be converted into "{}" file'.format(to))
 
     @staticmethod
     def extract_tuple_el_in_list(list_of_tuples: List[tuple], tuple_pos: int) -> list:
@@ -798,7 +801,7 @@ class Utils:
         """
         data: np.array = np.asarray(data_points, dtype=np.float_)
         iqr = stats.iqr(data, rng=(25, 75), scale='raw', nan_policy='omit')
-        rng = data.max() - data.min()
+        rng = max(data) - min(data)
         return int((rng / ((2 * iqr) / np.power(data.size, 1 / 3))) + 1)
 
     @staticmethod
@@ -832,7 +835,7 @@ class Utils:
             if len(exclude_files) > 0:
                 for f in exclude_files:
                     _gitignore = _gitignore + f
-        DataExporter(obj=_gitignore, file_path=file_path, create_dir=True, overwrite=False).file()
+        DataExporter(obj=_gitignore, file_path='{}.gitignore'.format(file_path), create_dir=False, overwrite=False).file()
 
     @staticmethod
     def generate_network(df: pd.DataFrame, node_feature: str, edge_feature: str, kind: str = 'undirected', **kwargs) -> nx:
