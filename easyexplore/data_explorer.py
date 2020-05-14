@@ -12,7 +12,7 @@ from pyod.models.hbos import HBOS
 from pyod.models.iforest import IForest
 from pyod.models.knn import KNN
 from scipy import linalg, stats
-from typing import Dict, List, Mapping, Tuple
+from typing import Dict, List, Tuple
 
 # TODO:
 #  Correlation -> Partial + Final Heat Map
