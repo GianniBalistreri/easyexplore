@@ -351,7 +351,7 @@ class StatsUtils:
 
         :return: List of strings containing the names of the tailed features
         """
-        raise UtilsException('Method not supported yet')
+        raise NotImplementedError('Method not supported yet')
 
     def correlation(self, meth: str = 'pearson', min_obs: int = 1) -> pd.DataFrame:
         """
@@ -389,7 +389,7 @@ class StatsUtils:
                 _cor: pd.DataFrame = pd.DataFrame()
                 Log(write=False, level='info').log(msg='Can not calculate coefficients for partial correlation because of the high missing data rate')
         else:
-            raise UtilsException('Method for calculating correlation coefficient ({}) not supported'.format(meth))
+            raise EasyExploreUtilsException('Method for calculating correlation coefficient ({}) not supported'.format(meth))
         return _cor
 
     def correlation_test(self,
@@ -429,7 +429,7 @@ class StatsUtils:
         elif meth == 'chi-squared':
             _correlation_test = chi2_contingency(observed=freq_table, correction=yates_correction, lambda_=power_divergence)
         else:
-            raise UtilsException('Method for correlation test not supported')
+            raise EasyExploreUtilsException('Method for correlation test not supported')
         if _correlation_test[1] <= self.p:
             _reject = False
         else:
@@ -455,7 +455,7 @@ class StatsUtils:
         elif meth == 'bartlette':
             pass
         else:
-            raise UtilsException('Method for testing "factoriability" ({}) not supported'.format(meth))
+            raise EasyExploreUtilsException('Method for testing "factoriability" ({}) not supported'.format(meth))
         return {}
 
     def non_parametric_test(self,
@@ -541,7 +541,7 @@ class StatsUtils:
             elif meth == 'dagostino':
                 _stat, _p = self._dagostino_k2_test(feature=feature)
             else:
-                raise UtilsException('Method ({}) for testing normality not supported'.format(meth))
+                raise EasyExploreUtilsException('Method ({}) for testing normality not supported'.format(meth))
             _normality.update({feature: dict(stat=_stat, p=_p, normality=_p > _alpha)})
         return _normality
 
@@ -595,7 +595,7 @@ class StatsUtils:
         :param moments:
         :return:
         """
-        raise UtilsException('Method not implemented yet :-(')
+        raise NotImplementedError('Method not implemented yet')
 
     def skewness_test(self, axis: str = 'col', threshold_interval: Tuple[float, float] = (-0.5, 0.5)) -> dict:
         """
@@ -613,20 +613,20 @@ class StatsUtils:
         elif axis == 'row':
             _axis = 1
         else:
-            raise UtilsException('Axis ({}) not supported'.format(axis))
+            raise EasyExploreUtilsException('Axis ({}) not supported'.format(axis))
         return self.data_set[self.features].skew(axis=_axis).to_dict()
 
 
-class UtilsException(Exception):
+class EasyExploreUtilsException(Exception):
     """
 
-    Class for setting up exceptions for class Utils
+    Class for setting up exceptions for class EasyExploreUtils
 
     """
     pass
 
 
-class Utils:
+class EasyExploreUtils:
     """
 
     Class for applying general utility methods
@@ -656,11 +656,11 @@ class Utils:
         _typing: dict = dict(meta={}, conversion={})
         _features: List[str] = list(df.keys())
         _dtypes: List[str] = [str(dt) for dt in df.dtypes.tolist()]
-        _feature_types: Dict[str, List[str]] = Utils().get_feature_types(df=df,
-                                                                         features=_features,
-                                                                         dtypes=df.dtypes.tolist(),
-                                                                         date_edges=date_edges
-                                                                         )
+        _feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=df,
+                                                                                    features=_features,
+                                                                                    dtypes=df.dtypes.tolist(),
+                                                                                    date_edges=date_edges
+                                                                                    )
         _table: Dict[str, List[str]] = {'feature_type': [], 'data_type': [], 'rec': []}
         for i in range(0, len(_features), 1):
             if any(df[_features[i]].isnull()):
@@ -774,7 +774,7 @@ class Utils:
         if to in ['html', 'pdf', 'latex', 'markdown', 'rst', 'script']:
             subprocess.run(['jupyter nbconvert "{}" --to {}'.format(notebook_name, to)], shell=True)
         else:
-            raise UtilsException('Jupyter notebook could not be converted into "{}" file'.format(to))
+            raise EasyExploreUtilsException('Jupyter notebook could not be converted into "{}" file'.format(to))
 
     @staticmethod
     def extract_tuple_el_in_list(list_of_tuples: List[tuple], tuple_pos: int) -> list:
@@ -787,7 +787,7 @@ class Utils:
         :return: list: List of elements of tuple
         """
         if tuple_pos < 0:
-            raise UtilsException('Position of element in tuple cannot be negative ({})'.format(tuple_pos))
+            raise EasyExploreUtilsException('Position of element in tuple cannot be negative ({})'.format(tuple_pos))
         return next(islice(zip(*list_of_tuples), tuple_pos, None))
 
     @staticmethod
@@ -876,11 +876,11 @@ class Utils:
                                                    seed=None
                                                    )
         else:
-            raise UtilsException('Network graph type ({}) not supported'.format(kind))
+            raise EasyExploreUtilsException('Network graph type ({}) not supported'.format(kind))
         if node_feature not in df.keys():
-            raise UtilsException('Node feature ({}) not found'.format(node_feature))
+            raise EasyExploreUtilsException('Node feature ({}) not found'.format(node_feature))
         if edge_feature not in df.keys():
-            raise UtilsException('Edge feature ({}) not found'.format(edge_feature))
+            raise EasyExploreUtilsException('Edge feature ({}) not found'.format(edge_feature))
         _group_by = df.groupby(by=edge_feature).aggregate({node_feature: 'count'})[1:]
         _nodes: list = df[node_feature].unique().tolist()
         _graph.add_nodes_from(nodes_for_adding=_nodes)
@@ -1125,7 +1125,7 @@ class Utils:
             with open('/Users/balistrerig/PycharmProjects/data_science/src/data_science/test/data/test.geojson', 'w',
                       encoding='utf8') as fp:
                 geojson.dump(geojson.FeatureCollection(features), fp, sort_keys=True, ensure_ascii=False)
-        return dict
+        return {}
 
     @staticmethod
     def get_list_of_files(file_path: str) -> List[str]:
@@ -1142,7 +1142,7 @@ class Utils:
             else:
                 return [f for f in os.listdir(file_path) if os.path.isfile(os.path.join(file_path, f))]
         else:
-            raise UtilsException('File path not found ({})'.format(file_path))
+            raise EasyExploreUtilsException('File path not found ({})'.format(file_path))
 
     @staticmethod
     def get_list_of_objects(file_path: str) -> List[str]:
@@ -1190,7 +1190,11 @@ class Utils:
         :param int max_features_each_pair: Maximum number of features for each pair
         :return: List[tuple]: List of features pairs
         """
-        return [pair for pair in itertools.combinations(iterable=list(set(features)), r=max_features_each_pair)]
+        _features: List[str] = []
+        for feature in features:
+            if feature not in _features:
+                _features.append(feature)
+        return [pair for pair in itertools.combinations(iterable=_features, r=max_features_each_pair)]
 
     @staticmethod
     def get_group_by_percentile(data: pd.DataFrame,
@@ -1221,13 +1225,13 @@ class Utils:
         if group_by in data.keys():
             _df[group_by] = data[group_by]
             if len(aggregate_by) == 0:
-                raise UtilsException('No features for aggregation found')
+                raise EasyExploreUtilsException('No features for aggregation found')
             for agg in aggregate_by:
                 if agg in data.keys():
                     _aggre.append(agg)
                     _df[agg] = data[agg]
         else:
-            raise UtilsException('No feature for grouping found')
+            raise EasyExploreUtilsException('No feature for grouping found')
         if include_group:
             _aggre.append(group_by)
         _q: tuple = pd.qcut(_df[group_by], q=percentiles, retbins=True, duplicates='drop')
@@ -1277,3 +1281,19 @@ class Utils:
         :return: List[str]: Names of the files found under given key word
         """
         return glob.glob(pathname=key_word)
+
+    @staticmethod
+    def subset_dict(d: dict, threshold: float) -> dict:
+        """
+
+        Subset dictionary by given threshold value
+
+        :param d:
+        :param threshold:
+        :return:
+        """
+        _d = {}
+        for k in d.keys():
+            if d.get(k) >= threshold:
+                _d[k] = d.get(k)
+        return _d
