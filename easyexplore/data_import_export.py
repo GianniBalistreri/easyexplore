@@ -53,7 +53,10 @@ class FileUtils:
         :param other_dir: String containing the name of the additional directory to create
         """
         if not os.path.exists(self.file_path):
-            os.mkdir(path=self.file_path)
+            try:
+                os.mkdir(path=self.file_path)
+            except FileNotFoundError:
+                raise FileUtilsException('Invalid file path ({})'.format(self.file_path))
         if other_dir is not None:
             if len(other_dir) > 0:
                 os.mkdir(path=other_dir)
@@ -381,7 +384,7 @@ class DataImporter(FileUtils):
 
         :return: File content
         """
-        if self.file_type in ['csv', 'txt']:
+        if self.file_type in ['csv', 'tsv', 'txt']:
             return self._text_as_df() if self.as_df else self._file()
         elif self.file_type in ['p', 'pkl', 'pickle']:
             return self._pickle_as_df() if self.as_df else self._pickle()
