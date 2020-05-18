@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import pandas as pd
 
@@ -17,6 +18,7 @@ from pyod.models.ocsvm import OCSVM
 from pyod.models.pca import PCA
 from pyod.models.sod import SOD
 from pyod.models.sos import SOS
+from scipy import stats
 from typing import Dict, List
 
 
@@ -63,6 +65,7 @@ class AnomalyDetector:
     """
     def __init__(self,
                  df: pd.DataFrame,
+                 feature_types: Dict[str, List[str]],
                  features: List[str] = None,
                  meth: List[str] = None,
                  params: dict = None,
@@ -75,6 +78,9 @@ class AnomalyDetector:
         ----------
         df: pd.DataFrame
             Data set
+
+        feature_types: Dict[str, List[str]]
+            Feature types containing list of feature names
 
         features: List[str]
             Names of the features
@@ -110,7 +116,8 @@ class AnomalyDetector:
         """
         self.seed: int = seed if seed > 0 else 1234
         self.df: pd.DataFrame = df
-        self.features: List[str] = features
+        self.features: List[str] = list(df.keys()) if features is None else features
+        self.feature_types: Dict[str, List[str]] = feature_types
         self.cases: list = []
         self.outlier_threshold: float = outlier_threshold if outlier_threshold > 0 else 0.15
         self.params: dict = params
@@ -428,18 +435,62 @@ class AnomalyDetector:
             _univariate[feature]['pred'] = [1 if case in self.cases else 0 for case in range(0, self.df.shape[0], 1)]
         return _univariate
 
-    def multivariate(self) -> dict:
+    def multivariate(self, contour_plot: bool = False) -> dict:
         """
         Detect multivariate outliers by using supervised machine learning algorithms
+
+        :param contour_plot: bool
+            Generate contour chart (Attention: very time consuming)
 
         Returns
         -------
         dict:
         """
+        _cases: list = []
+        _array: np.array = None
         _anomaly_detection: dict = {}
         for ml in self.meth:
             _anomaly_detection.update({ml: {}})
             _model = getattr(self, ANOMALY_METH.get(ml))()
-            _model.fit(self.df[self.features].values)
-            _anomaly_detection[ml].update({'pred': _model.predict(self.df[self.features].values)})
+            #_model.fit(self.df[self.features].values)
+            #_anomaly_detection[ml].update({'model': copy.deepcopy(_model)})
+            _df: pd.DataFrame = self.df[self.feature_types['continuous']].dropna(axis=0)
+            _min: list = [_df[ft].min() for ft in self.feature_types.get('continuous')]
+            _max: list = [_df[ft].max() for ft in self.feature_types.get('continuous')]
+            for i, cont in enumerate(self.feature_types.get('continuous')):
+                if i == 0:
+                    _array: np.array = _df[cont].values.reshape(-1, 1)
+                else:
+                    _array = np.concatenate((_array, _df[cont].values.reshape(-1, 1)), axis=1)
+            _xx, _yy = np.meshgrid(np.linspace(min(_min), max(_max), _array.shape[0]),
+                                   np.linspace(min(_min), max(_max), _array.shape[0])
+                                   )
+            _model.fit(_array)
+            _anomaly_detection[ml].update({'model': copy.deepcopy(_model)})
+            _anomaly_detection[ml].update({'pred': _model.predict(_array)})
+            _anomaly_detection[ml].update({'scores_pred': _model.decision_function(_array) * -1})
+            _xx, _yy = np.meshgrid(np.linspace(min(_anomaly_detection[ml].get('scores_pred')),
+                                               max(_anomaly_detection[ml].get('scores_pred')),
+                                               _array.shape[0]
+                                               ),
+                                   np.linspace(min(_anomaly_detection[ml].get('scores_pred')),
+                                               max(_anomaly_detection[ml].get('scores_pred')),
+                                               _array.shape[0]
+                                               )
+                                   )
+            _anomaly_detection[ml].update({'threshold': stats.scoreatpercentile(_anomaly_detection[ml].get('scores_pred'), 100 * self.outlier_threshold)})
+            _anomaly_detection[ml].update({'space': np.linspace(min(_min), max(_max), _df.shape[0])})
+            if contour_plot:
+                _z = _model.decision_function(np.c_[_xx.ravel(), _yy.ravel()]) * -1
+                _z = _z.reshape(_xx.shape)
+            else:
+                _z = None
+            _outliers: list = []
+            for i, pred in enumerate(_anomaly_detection[ml].get('pred')):
+                if pred == 1:
+                    _outliers.append(i)
+            _anomaly_detection[ml].update({'outliers': _outliers})
+            _anomaly_detection[ml].update({'anomaly_score': _z})
+            _cases = _cases + _outliers
+            _anomaly_detection[ml].update({'cases': list(set(_cases))})
         return _anomaly_detection

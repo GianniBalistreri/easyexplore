@@ -394,10 +394,12 @@ class DataImporter(FileUtils):
         else:
             raise FileUtilsException('File type ({}) not supported'.format(self.file_type))
 
-    def zip(self, files: List[str], as_df: bool = False) -> dict:
+    def zip(self, files: List[str]) -> dict:
         """
+        Import data file from compressed zip collection
+
         :param files: List[str]: File to look for in zip file
-        :param as_df: bool: Store detected files in dictionary as pandas data frames or not
+
         :return: dict: Detected file names and file objects
         """
         _zip_content: dict = {self.file_name: {}}
@@ -415,7 +417,7 @@ class DataImporter(FileUtils):
                                ) as uncompressed_file:
                     _zip_content[self.file_name].update({file: uncompressed_file.read()})
             except Exception as e:
-                print('Could not open file ({}) because of the following error\n{}'.format(file, e))
+                FileUtilsException('Could not open file ({}) because of the following error\n{}'.format(file, e))
         return _zip_content
 
 
@@ -548,7 +550,7 @@ class DBUtilsException(Exception):
 class DBUtils:
     """
 
-    Class for handling local SQLite3 database
+    Class for importing / exporting data from / to database
 
     """
     def __init__(self,
@@ -560,13 +562,23 @@ class DBUtils:
                  file_path: str = None
                  ):
         """
-        :param df: Pandas DataFrame containing the data set
-        :param table_name: String containing the table name
-        :param con: SQLite3 connection
-        :param database: String containing the name of the database
-                            -> sqlite: SQLite3 (local db)
-                            -> postgresql: Postgres db
-        :param file_path: String containing the file path of the database
+        :param df
+            Data set
+
+        :param table_name
+            Name of the table
+
+        :param con
+            Data base connection
+
+        :param database
+            Name of the database
+                -> sqlite: SQLite3 (local db)
+                -> postgresql: Postgres db
+
+        :param file_path
+            File path of the local SQLite3 database
+
         """
         self.df = df
         self.table_name = table_name
@@ -615,6 +627,7 @@ class DBUtils:
             if self.database == 'sqlite':
                 self.con = sqlite3.connect(self.file_path)
             else:
+                self._get_creds()
                 self.con = create_engine(self._get_creds())
         except sqlite3.Error as e:
             self.con = None
@@ -656,11 +669,3 @@ class DBUtils:
         """
         cursor = self.con.cursor()
         cursor.execute("DROP TABLE '{}'".format(self.table_name))
-
-    def close_connection(self):
-        """
-
-        Close connection to SQLite3 database
-
-        """
-        self.con.close()

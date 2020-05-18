@@ -1,7 +1,7 @@
 import setuptools
 import subprocess
 
-# Install jupyter notebook extensions:
+# Install jupyter notebook extensions for using EasyExplore_examples.ipynb more conveniently:
 subprocess.run(['python3 -m pip install jupyter_contrib_nbextensions && jupyter contrib nbextension install'], shell=True)
 
 with open('README.md', 'r') as _read_me:
@@ -14,7 +14,7 @@ requires = [r.strip() for r in requires.split('\n') if ((r.strip()[0] != "#") an
 
 setuptools.setup(
     name='easyexplore',
-    version='0.1.2',
+    version='0.1.3',
     author='Gianni Francesco Balistreri',
     author_email='gbalistreri@gmx.de',
     description='Toolbox for easy and effective data exploration',
@@ -32,13 +32,6 @@ setuptools.setup(
                                   'EasyExplore_examples.ipynb'
                                   ]
                   },
-    #scripts=['anomaly_detector.py',
-    #         'data_explorer.py',
-    #         'data_import_export.py',
-    #         'data_visualizer.py',
-    #         'interactive_visualizer.py',
-    #         'utils.py'
-    #         ],
     data_file=[('test', ['test/test_anomaly_detector.py',
                          'test/test_data.csv',
                          'test/test_data_explorer.py',

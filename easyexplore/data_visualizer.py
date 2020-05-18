@@ -1,7 +1,6 @@
 import ipywidgets as widgets
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objs as go
 import re
@@ -9,11 +8,11 @@ import string
 
 from .data_import_export import DataImporter, FileUtils
 from .interactive_visualizer import PlotlyAdapter
-from .utils import INVALID_VALUES, Log, Utils
+from .utils import EasyExploreUtils, INVALID_VALUES, Log
 from IPython.core.interactiveshell import InteractiveShell
 from IPython.display import Image, display, HTML
 from plotly.colors import n_colors
-from plotly.offline import init_notebook_mode, iplot, plot
+from plotly.offline import init_notebook_mode, iplot
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import pdist, squareform
 from sklearn.preprocessing import LabelEncoder
@@ -27,7 +26,7 @@ framework: Dict[str, List[str]] = dict(interactive=['plotly'], static=[])
 plots: List[str] = ['bar',
                     'box',
                     'candlestick',
-                    'choro',
+                    #'choro',
                     'contour',
                     'contour_hist',
                     'dendro',
@@ -179,17 +178,17 @@ class DataVisualizer:
         if self.df is None:
             self.feature_types: Dict[str, List[str]] = {}
         else:
-            self.feature_types: Dict[str, List[str]] = Utils().get_feature_types(df=self.df,
-                                                                                 features=self.features,
-                                                                                 dtypes=self.df[self.features].dtypes.tolist(),
-                                                                                 continuous=None,
-                                                                                 categorical=None,
-                                                                                 ordinal=None,
-                                                                                 date=None,
-                                                                                 text=None,
-                                                                                 max_cats=500,
-                                                                                 date_edges=None
-                                                                                 )
+            self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.df,
+                                                                                            features=self.features,
+                                                                                            dtypes=self.df[self.features].dtypes.tolist(),
+                                                                                            continuous=None,
+                                                                                            categorical=None,
+                                                                                            ordinal=None,
+                                                                                            date=None,
+                                                                                            text=None,
+                                                                                            max_cats=500,
+                                                                                            date_edges=None
+                                                                                            )
         self.plot: dict = {}
         self.plot_type: str = plot_type
         self.subplots: dict = subplots
@@ -590,17 +589,17 @@ class DataVisualizer:
             if self.plot.get('yaxis_label') is not None:
                 self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=self.plot.get('yaxis_label')[t]))})
             if self.plot.get('features') is not None:
-                self.feature_types: Dict[str, List[str]] = Utils().get_feature_types(df=self.df,
-                                                                                     features=self.plot.get('features'),
-                                                                                     dtypes=self.df[self.plot.get('features')].dtypes.tolist(),
-                                                                                     continuous=None,
-                                                                                     categorical=None,
-                                                                                     ordinal=None,
-                                                                                     date=None,
-                                                                                     text=None,
-                                                                                     max_cats=500,
-                                                                                     date_edges=None
-                                                                                     )
+                self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.df,
+                                                                                                features=self.plot.get('features'),
+                                                                                                dtypes=self.df[self.plot.get('features')].dtypes.tolist(),
+                                                                                                continuous=None,
+                                                                                                categorical=None,
+                                                                                                ordinal=None,
+                                                                                                date=None,
+                                                                                                text=None,
+                                                                                                max_cats=500,
+                                                                                                date_edges=None
+                                                                                                )
             if self.plot.get('color_feature') is not None:
                 if str(self.df[self.plot.get('color_feature')].dtype).find('object') >= 0:
                     _color_feature = LabelEncoder().fit_transform(y=self.df[self.plot.get('color_feature')])
@@ -743,7 +742,7 @@ class DataVisualizer:
                         self._show_plotly_offline()
                     else:
                         Log(write=False, level='warn').log('Parents and ids are not unique')
-                        _pairs: List[tuple] = Utils().get_pairs(features=self.group_by, max_features_each_pair=2)
+                        _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=self.group_by, max_features_each_pair=2)
                         for pair in _pairs:
                             self.df = self.df[[pair[0], pair[1]]]
                             _hierarchical_df = self._hierarchical_data_set(value_feature=conti,
@@ -867,7 +866,7 @@ class DataVisualizer:
                 if len(_features) < 2:
                     raise DataVisualizerException(
                         'Not enough features ({}) for generating scatter plot'.format(len(_features)))
-                _pairs: List[tuple] = Utils().get_pairs(features=_features, max_features_each_pair=2)
+                _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_features, max_features_each_pair=2)
                 if self.plot.get('group_by') is None:
                     for j, pair in enumerate(_pairs, start=1):
                         _fig: go.Figure = go.Figure()
@@ -1250,7 +1249,7 @@ class DataVisualizer:
                                 # Display figure
                                 display(widgets.VBox([self.color_toggle, _fig]))
                     else:
-                        _pairs: List[tuple] = Utils().get_pairs(features=_brushing, max_features_each_pair=2)
+                        _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_brushing, max_features_each_pair=2)
                         for pair in _pairs:
                             self.file_path_extension = self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
                             self.plot['kwargs'].update({'x': self.df[pair[0]].values,
@@ -1635,7 +1634,7 @@ class DataVisualizer:
                 if len(_features) < 2:
                     raise DataVisualizerException(
                         'Not enough features ({}) for generating scatter plot'.format(len(_features)))
-                _pairs: List[tuple] = Utils().get_pairs(features=_features, max_features_each_pair=2)
+                _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_features, max_features_each_pair=2)
                 if self.plot.get('group_by') is None:
                     for j, pair in enumerate(_pairs, start=1):
                         _fig: go.Figure = go.Figure()
@@ -1835,6 +1834,7 @@ class DataVisualizer:
                         if self.plot.get('melt'):
                             _data: List[go] = []
                             _sorted_df: pd.DataFrame = self.df.sort_values(by=[tft])
+                            self.file_path_extension = self._trim(input_str=tft)
                             for k, ft in enumerate(self.plot.get('features'), start=1):
                                 self.plot['kwargs'].update({'x': _sorted_df[tft].values,
                                                             'y': _sorted_df[ft].values,
@@ -1905,10 +1905,9 @@ class DataVisualizer:
                 if len(_features) < 2:
                     raise DataVisualizerException(
                         'Not enough features ({}) for generating scatter chart'.format(len(_features)))
-                _pairs: List[tuple] = Utils().get_pairs(features=_features, max_features_each_pair=2)
+                _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_features, max_features_each_pair=2)
                 if self.plot.get('group_by') is None:
                     for i, pair in enumerate(_pairs, start=1):
-                        self.file_path_extension = self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
                         self.plot['kwargs'].update({'x': self.df[pair[0]].values,
                                                     'y': self.df[pair[1]].values,
                                                     'mode': 'markers' if self.plot['kwargs'].get('mode') is None else self.plot['kwargs'].get('mode'),
@@ -1922,6 +1921,9 @@ class DataVisualizer:
                                                         'showlegend') is None else self.plot['kwargs'].get('showlegend')
                                                     })
                         if self.plot.get('melt'):
+                            self.file_path_extension = '{}_{}'.format(self.file_path_extension,
+                                                                      self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
+                                                                      )
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter_gl())
                             if i == len(_pairs):
                                 self.fig = _data
@@ -1931,6 +1933,7 @@ class DataVisualizer:
                                 self.plot['kwargs']['layout'].update({'xaxis': dict(title=dict(text=pair[0]))})
                             if self.plot.get('yaxis_label') is None:
                                 self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
+                            self.file_path_extension = self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatter_gl()
                             self._show_plotly_offline()
                 else:
@@ -1938,7 +1941,6 @@ class DataVisualizer:
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
                             _group_val: np.array = self.df[group].unique()
                             for val in _group_val:
-                                self.file_path_extension = self._trim(input_str='{}_{}_{}_{}'.format(pair[0], pair[1], group, val))
                                 self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                     'mode') is None else self.plot['kwargs'].get('mode'),
                                                             'marker': dict(size=12,
@@ -1969,10 +1971,21 @@ class DataVisualizer:
                                     self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
                             if self.plot.get('melt'):
                                 if i == len(_pairs) and j == len(self.plot.get('group_by')):
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(pair[0],
+                                                                                                      pair[1],
+                                                                                                      group
+                                                                                                      )
+                                                                          )
                                     self.fig = _data
                                     self._show_plotly_offline()
                             else:
                                 if j == len(self.plot.get('group_by')):
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}_{}'.format(pair[0],
+                                                                                                         pair[1],
+                                                                                                         group,
+                                                                                                         val
+                                                                                                         )
+                                                                          )
                                     self.fig = _data
                                     self._show_plotly_offline()
                                     _data = []
@@ -1984,10 +1997,9 @@ class DataVisualizer:
                 if len(_features) < 3:
                     raise DataVisualizerException(
                         'Not enough features ({}) for generating scatter 3D chart'.format(len(_features)))
-                _pairs: List[tuple] = Utils().get_pairs(features=_features, max_features_each_pair=3)
+                _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_features, max_features_each_pair=3)
                 if self.plot.get('group_by') is None:
                     for i, pair in enumerate(_pairs, start=1):
-                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(pair[0], pair[1], pair[2]))
                         self.plot['kwargs'].update({'x': self.df[pair[0]].values,
                                                     'y': self.df[pair[1]].values,
                                                     'z': self.df[pair[2]].values,
@@ -2005,6 +2017,13 @@ class DataVisualizer:
                                                         'showlegend') is None else self.plot['kwargs'].get('showlegend')
                                                     })
                         if self.plot.get('melt'):
+                            self.file_path_extension = '{}_{}'.format(self.file_path_extension,
+                                                                      self._trim(input_str='{}_{}_{}'.format(pair[0],
+                                                                                                             pair[1],
+                                                                                                             pair[2]
+                                                                                                             )
+                                                                                 )
+                                                                      )
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter3d())
                             if i == len(_pairs):
                                 self.fig = _data
@@ -2016,6 +2035,11 @@ class DataVisualizer:
                                 self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
                             if self.plot.get('zaxis_label') is None:
                                 self.plot['kwargs']['layout'].update({'zaxis': dict(title=dict(text=pair[2]))})
+                            self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(pair[0],
+                                                                                              pair[1],
+                                                                                              pair[2]
+                                                                                              )
+                                                                  )
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatter3d()
                             self._show_plotly_offline()
                 else:
@@ -2023,7 +2047,6 @@ class DataVisualizer:
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
                             _group_val: np.array = self.df[group].unique()
                             for val in _group_val:
-                                self.file_path_extension = self._trim(input_str='{}_{}_{}_{}_{}'.format(pair[0], pair[1], pair[2], group, val))
                                 self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                     'mode') is None else self.plot['kwargs'].get('mode'),
                                                             'marker': dict(size=12,
@@ -2054,10 +2077,23 @@ class DataVisualizer:
                                 _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter3d())
                             if self.plot.get('melt'):
                                 if i == len(_pairs) and j == len(self.plot.get('group_by')):
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}_{}'.format(pair[0],
+                                                                                                         pair[1],
+                                                                                                         pair[2],
+                                                                                                         group
+                                                                                                         )
+                                                                          )
                                     self.fig = _data
                                     self._show_plotly_offline()
                             else:
                                 if j == len(self.plot.get('group_by')):
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}_{}_{}'.format(pair[0],
+                                                                                                            pair[1],
+                                                                                                            pair[2],
+                                                                                                            group,
+                                                                                                            val
+                                                                                                            )
+                                                                          )
                                     self.fig = _data
                                     self._show_plotly_offline()
                                     _data = []
@@ -2077,12 +2113,12 @@ class DataVisualizer:
                                                radius=0.2,
                                                pos=_pos
                                                )
-                _graph: nx = Utils().generate_network(df=self.df,
-                                                      node_feature=self.plot['graph_features'].get('node'),
-                                                      edge_feature=self.plot['graph_features'].get('edge'),
-                                                      kind='geometric',
-                                                      **_geometric_params
-                                                      )
+                _graph: nx = EasyExploreUtils().generate_network(df=self.df,
+                                                                 node_feature=self.plot['graph_features'].get('node'),
+                                                                 edge_feature=self.plot['graph_features'].get('edge'),
+                                                                 kind='geometric',
+                                                                 **_geometric_params
+                                                                 )
                 # Set edges:
                 _edge_x: list = []
                 _edge_y: list = []
@@ -2247,7 +2283,6 @@ class DataVisualizer:
                                 dropna=False if self.plot['kwargs'].get('dropna') is None else self.plot['kwargs'].get(
                                     'dropna')
                                 )
-                            self.file_path_extension = self._trim(input_str=ft)
                             self.plot['kwargs'].update({'x': _freq.index.values,
                                                         'y': _freq.values,
                                                         'base': 0 if self.plot['kwargs'].get('base') is None else
@@ -2270,12 +2305,14 @@ class DataVisualizer:
                                                             'marker') is None else self.plot['kwargs'].get('marker')
                                                         })
                             if self.plot.get('melt'):
+                                self.file_path_extension = '{}_{}'.format(self.file_path_extension, self._trim(input_str=ft))
                                 self.plot['kwargs'].update({'share_yaxis': True})
                                 _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
                                 if i == len(self.plot.get('features')):
                                     self.fig = _data
                                     self._show_plotly_offline()
                             else:
+                                self.file_path_extension = self._trim(input_str=ft)
                                 self.fig = PlotlyAdapter(plot=self.plot, offline=True).bar()
                                 self._show_plotly_offline()
                         else:
@@ -2290,7 +2327,6 @@ class DataVisualizer:
                                         _freq: pd.DataFrame = self.df.loc[self.df[group].isnull(), ft].value_counts()
                                     else:
                                         _freq: pd.DataFrame = self.df.loc[self.df[group] == val, ft].value_counts()
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
                                     self.plot['kwargs'].update({'x': _freq.index.values,
                                                                 'y': _freq.values,
                                                                 'base': 0 if self.plot['kwargs'].get(
@@ -2320,11 +2356,17 @@ class DataVisualizer:
                                     if self.plot.get('melt'):
                                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
                                         if k == len(self.df[group].unique()) and i == len(self.plot.get('features')):
+                                            self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                             self.fig = _data
                                             self._show_plotly_offline()
                                     else:
                                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
                                         if k == len(self.df[group].unique()):
+                                            self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
+                                                                                                              group,
+                                                                                                              val
+                                                                                                              )
+                                                                                  )
                                             self.fig = _data
                                             self._show_plotly_offline()
                                             _data = []
@@ -2343,7 +2385,6 @@ class DataVisualizer:
                             dropna=False if self.plot['kwargs'].get('dropna') is None else self.plot['kwargs'].get(
                                 'dropna')
                             )
-                        self.file_path_extension = self._trim(input_str=ft)
                         self.plot['kwargs'].update({'x': self.df[ft].values if self.plot['kwargs'].get(
                             'x') is None or i > 1 else self.plot['kwargs'].get('x'),
                                                     'y': self.plot['kwargs'].get('y'),
@@ -2362,6 +2403,7 @@ class DataVisualizer:
                                                     self.plot['kwargs'].get('marker')
                                                     })
                         if self.plot.get('melt'):
+                            self.file_path_extension = '{}_{}'.format(self.file_path_extension, self._trim(input_str=ft))
                             self.plot['kwargs'].update({'barmode': 'overlay',
                                                         'share_yaxis': True
                                                         })
@@ -2370,6 +2412,7 @@ class DataVisualizer:
                                 self.fig = _data
                                 self._show_plotly_offline()
                         else:
+                            self.file_path_extension = self._trim(input_str=ft)
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).histo()
                             self._show_plotly_offline()
                     else:
@@ -2381,7 +2424,6 @@ class DataVisualizer:
                                     _x: np.array = self.df.loc[self.df[group].isnull(), ft].values
                                 else:
                                     _x: np.array = self.df.loc[self.df[group] == val, ft].values
-                                self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
                                 self.plot['kwargs'].update({'x': _x,
                                                             'y': self.plot['kwargs'].get('y'),
                                                             'name': self._trim(
@@ -2404,11 +2446,17 @@ class DataVisualizer:
                                                                 })
                                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
                                     if k == len(self.df[group].unique()) and i == len(self.plot.get('features')):
+                                        self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                         self.fig = _data
                                         self._show_plotly_offline()
                                 else:
                                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
                                     if k == len(self.df[group].unique()):
+                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
+                                                                                                          group,
+                                                                                                          val
+                                                                                                          )
+                                                                              )
                                         self.fig = _data
                                         self._show_plotly_offline()
                                         _data = []
@@ -2420,7 +2468,6 @@ class DataVisualizer:
                 _labels: List[str] = []
                 for i, ft in enumerate(self.plot.get('features'), start=1):
                     if self.plot.get('group_by') is None:
-                        self.file_path_extension = self._trim(input_str=ft)
                         self.plot['kwargs'].update({'bin_size': 1.0 if self.plot['kwargs'].get(
                             'bin_size') is None or i > 1 else self.plot['kwargs'].get('bin_size'),
                                                     'curve_type': 'kde' if self.plot['kwargs'].get(
@@ -2440,6 +2487,7 @@ class DataVisualizer:
                                                         'colorscale') is None else self.plot['kwargs'].get('colorscale')
                                                     })
                         if self.plot.get('melt'):
+                            self.file_path_extension = '{}_{}'.format(self.file_path_extension, self._trim(input_str=ft))
                             _ft.append(self.df.loc[~self.df[ft].isnull(), ft].values)
                             _labels.append(ft)
                             if i == len(self.plot.get('features')):
@@ -2459,6 +2507,7 @@ class DataVisualizer:
                                                             'group_labels') is None or i > 1 else self.plot[
                                                             'kwargs'].get('group_labels'),
                                                         })
+                            self.file_path_extension = self._trim(input_str=ft)
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
                             self._show_plotly_offline()
                     else:
@@ -2470,7 +2519,6 @@ class DataVisualizer:
                                     _x: np.array = self.df.loc[self.df[group].isnull(), ft].values
                                 else:
                                     _x: np.array = self.df.loc[self.df[group] == val, ft].values
-                                self.file_path_extension = self._trim(input_str='{}_{_{}'.format(ft, group, val))
                                 self.plot['kwargs'].update({'bin_size': 1.0 if self.plot['kwargs'].get(
                                     'bin_size') is None or i > 1 else self.plot['kwargs'].get('bin_size'),
                                                             'curve_type': 'kde' if self.plot['kwargs'].get(
@@ -2505,6 +2553,7 @@ class DataVisualizer:
                                                                         'group_labels') is None or i > 1 else self.plot[
                                                                         'kwargs'].get('group_labels')
                                                                     })
+                                        self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
                                         self._show_plotly_offline()
                                 else:
@@ -2515,6 +2564,7 @@ class DataVisualizer:
                                                                         'group_labels') is None or i > 1 else self.plot[
                                                                         'kwargs'].get('group_labels')
                                                                     })
+                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
                                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
                                         self._show_plotly_offline()
             ###############################
@@ -2524,7 +2574,6 @@ class DataVisualizer:
                 _sub_fig = None
                 for i, ft in enumerate(self.plot.get('features'), start=1):
                     if self.plot.get('group_by') is None:
-                        self.file_path_extension = self._trim(input_str=ft)
                         if self.plot.get('plot_type') == 'box':
                             self.plot['kwargs'].update({'x': self.plot['kwargs'].get('x'),
                                                         'y': self.df[ft].values,
@@ -2564,11 +2613,13 @@ class DataVisualizer:
                                                         })
                             _sub_fig: go.Violin = PlotlyAdapter(plot=self.plot, offline=True).violin()
                         if self.plot.get('melt'):
+                            self.file_path_extension = '{}_{}'.format(self.file_path_extension, self._trim(input_str=ft))
                             _data.append(_sub_fig)
                             if i == len(self.plot.get('features')):
                                 self.fig = _data
                                 self._show_plotly_offline()
                         else:
+                            self.file_path_extension = self._trim(input_str=ft)
                             self.fig = _sub_fig
                             self._show_plotly_offline()
                     else:
@@ -2586,7 +2637,6 @@ class DataVisualizer:
                                         _values: np.array = self.df.loc[self.df[group].isnull(), ft].values
                                     else:
                                         _values: np.array = self.df.loc[self.df[group] == val, ft].values
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
                                     if self.plot.get('plot_type') == 'box':
                                         self.plot['kwargs'].update({'x': self.plot['kwargs'].get('x'),
                                                                     'y': _values,
@@ -2639,9 +2689,11 @@ class DataVisualizer:
                                     _data.append(_sub_fig)
                                 if self.plot.get('melt'):
                                     if i == len(self.plot.get('features')):
+                                        self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                         self.fig = _data
                                         self._show_plotly_offline()
                                 else:
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
                                     self.fig = _data
                                     self._show_plotly_offline()
                                     _data = []
@@ -2731,54 +2783,27 @@ class DataVisualizer:
             ###########################
             elif self.plot.get('plot_type') == 'hist_decile':
                 for group in self.plot.get('group_by'):
-                    _perc_table: pd.DataFrame = Utils().get_group_by_percentile(data=self.df,
-                                                                                group_by=group,
-                                                                                aggregate_by=self.plot.get('features'),
-                                                                                aggregation='median' if self.plot[
-                                                                                                            'kwargs'].get(
-                                                                                    'aggregation') is None else
-                                                                                self.plot['kwargs'].get('aggregation'),
-                                                                                percentiles=10 if self.plot[
-                                                                                                      'kwargs'].get(
-                                                                                    'percentiles') is None else
-                                                                                self.plot['kwargs'].get('percentiles'),
-                                                                                include_group=True if self.plot[
-                                                                                                          'kwargs'].get(
-                                                                                    'include_group') is None else
-                                                                                self.plot['kwargs'].get('include_group')
-                                                                                )
-                    _min_table: pd.DataFrame = Utils().get_group_by_percentile(data=self.df,
-                                                                               group_by=group,
-                                                                               aggregate_by=self.plot.get('features'),
-                                                                               aggregation='min' if self.plot[
-                                                                                                        'kwargs'].get(
-                                                                                   'error_bar_1') is None else
-                                                                               self.plot['kwargs'].get('error_bar_1'),
-                                                                               percentiles=10 if self.plot[
-                                                                                                     'kwargs'].get(
-                                                                                   'percentiles') is None else
-                                                                               self.plot['kwargs'].get('percentiles'),
-                                                                               include_group=True if self.plot[
-                                                                                                         'kwargs'].get(
-                                                                                   'include_group') is None else
-                                                                               self.plot['kwargs'].get('include_group')
-                                                                               )
-                    _max_table: pd.DataFrame = Utils().get_group_by_percentile(data=self.df,
-                                                                               group_by=group,
-                                                                               aggregate_by=self.plot.get('features'),
-                                                                               aggregation='max' if self.plot[
-                                                                                                        'kwargs'].get(
-                                                                                   'error_bar_2') is None else
-                                                                               self.plot['kwargs'].get('error_bar_2'),
-                                                                               percentiles=10 if self.plot[
-                                                                                                     'kwargs'].get(
-                                                                                   'percentiles') is None else
-                                                                               self.plot['kwargs'].get('percentiles'),
-                                                                               include_group=True if self.plot[
-                                                                                                         'kwargs'].get(
-                                                                                   'include_group') is None else
-                                                                               self.plot['kwargs'].get('include_group')
-                                                                               )
+                    _perc_table: pd.DataFrame = EasyExploreUtils().get_group_by_percentile(data=self.df,
+                                                                                           group_by=group,
+                                                                                           aggregate_by=self.plot.get('features'),
+                                                                                           aggregation='median' if self.plot['kwargs'].get('aggregation') is None else self.plot['kwargs'].get('aggregation'),
+                                                                                           percentiles=10 if self.plot['kwargs'].get('percentiles') is None else self.plot['kwargs'].get('percentiles'),
+                                                                                           include_group=True if self.plot['kwargs'].get('include_group') is None else self.plot['kwargs'].get('include_group')
+                                                                                           )
+                    _min_table: pd.DataFrame = EasyExploreUtils().get_group_by_percentile(data=self.df,
+                                                                                          group_by=group,
+                                                                                          aggregate_by=self.plot.get('features'),
+                                                                                          aggregation='min' if self.plot['kwargs'].get('error_bar_1') is None else self.plot['kwargs'].get('error_bar_1'),
+                                                                                          percentiles=10 if self.plot['kwargs'].get('percentiles') is None else self.plot['kwargs'].get('percentiles'),
+                                                                                          include_group=True if self.plot['kwargs'].get('include_group') is None else self.plot['kwargs'].get('include_group')
+                                                                                          )
+                    _max_table: pd.DataFrame = EasyExploreUtils().get_group_by_percentile(data=self.df,
+                                                                                          group_by=group,
+                                                                                          aggregate_by=self.plot.get('features'),
+                                                                                          aggregation='max' if self.plot['kwargs'].get('error_bar_2') is None else self.plot['kwargs'].get('error_bar_2'),
+                                                                                          percentiles=10 if self.plot['kwargs'].get('percentiles') is None else self.plot['kwargs'].get('percentiles'),
+                                                                                          include_group=True if self.plot['kwargs'].get('include_group') is None else self.plot['kwargs'].get('include_group')
+                                                                                          )
                     _multi: list = []
                     for col in _perc_table.keys():
                         self.plot['kwargs'].update({'y': _perc_table[col].values,
@@ -2975,7 +3000,10 @@ class DataVisualizer:
             if len(self.plot.get('file_path')) > 0:
                 if len(self.file_path_extension) > 0:
                     _file_type: str = self.plot.get('file_path').split('.')[-1]
-                    self.plot['file_path'] = self.plot.get('file_path').replace(_file_type, '_{}.{}'.format(self.file_path_extension, _file_type))
+                    self.plot['file_path'] = self.plot.get('file_path').replace('.{}'.format(_file_type),
+                                                                                '_{}.{}'.format(self.file_path_extension, _file_type)
+                                                                                )
+                    self.file_path_extension = ''
                 Log(write=False).log('Saving plotly chart locally at: {}'.format(self.plot.get('file_path')))
                 PlotlyAdapter(plot=self.plot, offline=True, fig=_fig).save()
             else:

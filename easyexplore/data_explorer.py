@@ -4,7 +4,7 @@ import pandas as pd
 
 from .anomaly_detector import AnomalyDetector
 from .data_visualizer import DataVisualizer
-from .utils import Log, PERCENTILES, StatsUtils, Utils
+from .utils import Log, PERCENTILES, StatsUtils, EasyExploreUtils
 from pyod.models.abod import ABOD
 from pyod.models.cblof import CBLOF
 from pyod.models.feature_bagging import FeatureBagging
@@ -117,121 +117,6 @@ class DataExplorer:
         self.invalid_values: List[str] = ['nan', 'NaN', 'NaT', 'none', 'None', 'inf', '-inf']
         self.df = self.df.replace(self.invalid_values, np.nan)
 
-    def _check_anomalies(self,
-                         meth: List[str],
-                         outliers_fraction: float = 0.15,
-                         contour: bool = False,
-                         ) -> dict:
-        """
-
-        Get multivariate outliers or anomalies
-
-        :param meth: List of strings containing the name of the used outlier detection method
-                        -> abod: Angle-based Outlier Detector (ABOD)
-                        -> cblof: Cluster-based Local Outlier Factor (CBLOF)
-                        -> fb: Feature Bagging
-                        -> hbos: Histogram-based Outlier Detection (HBOS)
-                        -> if: Isolation Forest
-                        -> knn: K-Nearest-Neighbors (KNN)
-                        -> avgknn: Average K-Nearest Neighbors
-        :param outliers_fraction: Float indicating the outliers threshold
-        :param bool contour: Generate data for contour chart
-        :return: dict: Results of anomaly or outlier analysis
-        """
-        _cases: list = []
-        _classifiers: dict = {}
-        _outlier_detector: dict = {}
-        for m in meth:
-            if m == 'abod':
-                _classifiers[m] = ABOD(contamination=outliers_fraction, n_neighbors=5, method='original')
-            elif m == 'cblof':
-                _classifiers[m] = CBLOF(contamination=outliers_fraction, check_estimator=False, random_state=self.seed)
-            elif m == 'fb':
-                _classifiers[m] = FeatureBagging(base_estimator=None,
-                                                 n_estimators=10,
-                                                 contamination=outliers_fraction,
-                                                 max_features=1.0,
-                                                 bootstrap_features=True,
-                                                 check_detector=True,
-                                                 check_estimator=False,
-                                                 n_jobs=1,
-                                                 random_state=self.seed,
-                                                 combination='average')
-            elif m == 'hbos':
-                _classifiers[m] = HBOS(n_bins=10, alpha=0.1, tol=0.5, contamination=outliers_fraction)
-            elif m == 'if':
-                _classifiers[m] = IForest(n_estimators=100,
-                                          max_samples='auto',
-                                          contamination=outliers_fraction,
-                                          max_features=1,
-                                          bootstrap=True,
-                                          n_jobs=1,
-                                          behaviour='old',
-                                          random_state=self.seed)
-            elif m == 'knn':
-                _classifiers[m] = KNN(contamination=outliers_fraction,
-                                      n_neighbors=5,
-                                      method='largest',
-                                      radius=1.0,
-                                      algorithm='auto',
-                                      leaf_size=30,
-                                      metric='minkowski',
-                                      p=2,
-                                      n_jobs=1)
-            elif m == 'avgknn':
-                _classifiers[m] = KNN(contamination=outliers_fraction,
-                                      n_neighbors=5,
-                                      method='mean',
-                                      radius=1.0,
-                                      algorithm='auto',
-                                      leaf_size=30,
-                                      metric='minkowski',
-                                      p=2,
-                                      n_jobs=1)
-        if len(_classifiers.keys()) == 0:
-            raise DataExplorerException('Methods for anomaly detection ({}) not supported'.format(meth))
-        _df: pd.DataFrame = self.df[self.feature_types['continuous']].dropna(axis=0)
-        _min: list = [_df[ft].min() for ft in self.feature_types.get('continuous')]
-        _max: list = [_df[ft].max() for ft in self.feature_types.get('continuous')]
-        for i, cont in enumerate(self.feature_types.get('continuous')):
-            if i == 0:
-                _array: np.array = _df[cont].values.reshape(-1, 1)
-            else:
-                _array = np.concatenate((_array, _df[cont].values.reshape(-1, 1)), axis=1)
-        for clf in _classifiers.keys():
-            _xx, _yy = np.meshgrid(np.linspace(min(_min), max(_max), _array.shape[0]),
-                                   np.linspace(min(_min), max(_max), _array.shape[0])
-                                   )
-            _classifiers[clf].fit(_array)
-            # calculate raw anomaly score:
-            _scores_pred = _classifiers[clf].decision_function(_array) * -1
-            _xx, _yy = np.meshgrid(np.linspace(min(_scores_pred), max(_scores_pred), _array.shape[0]),
-                                   np.linspace(min(_scores_pred), max(_scores_pred), _array.shape[0])
-                                   )
-            _threshold: float = stats.scoreatpercentile(_scores_pred, 100 * outliers_fraction)
-            _pred: List[int] = _classifiers[clf].predict(_array)
-            if contour:
-                _z = _classifiers[clf].decision_function(np.c_[_xx.ravel(), _yy.ravel()]) * -1
-                _z = _z.reshape(_xx.shape)
-            else:
-                _z = None
-            _outliers: list = []
-            for i, pred in enumerate(_pred):
-                if pred == 1:
-                    _outliers.append(i)
-            #_labels: pd.DataFrame = pd.DataFrame(data=_classifiers[clf].labels_, columns=['labels'])
-            #_cases = _cases + _labels[_labels['labels'] == 1].index.tolist()
-            _cases = _cases + _outliers
-            _outlier_detector.update({clf: dict(pred=_pred,
-                                                outliers=_outliers,
-                                                anomaly_score=_z,
-                                                threshold=_threshold,
-                                                space=np.linspace(min(_min), max(_max), _df.shape[0])
-                                                )
-                                      })
-        _outlier_detector.update({'cases': list(set(_cases))})
-        return _outlier_detector
-
     def _check_data_types(self) -> Dict[str, List[str]]:
         """
 
@@ -239,17 +124,17 @@ class DataExplorer:
 
         :return: Dict[str, List[str]]: Dictionary containing the names of the features and the regarding data types
         """
-        return Utils().get_feature_types(df=self.df,
-                                         features=self.features,
-                                         dtypes=self.data_types,
-                                         continuous=None,
-                                         categorical=None,
-                                         ordinal=self.ordinal,
-                                         date=self.date,
-                                         text=None,
-                                         max_cats=self.max_cats,
-                                         date_edges=None
-                                         )
+        return EasyExploreUtils().get_feature_types(df=self.df,
+                                                    features=self.features,
+                                                    dtypes=self.data_types,
+                                                    continuous=None,
+                                                    categorical=None,
+                                                    ordinal=self.ordinal,
+                                                    date=self.date,
+                                                    text=None,
+                                                    max_cats=self.max_cats,
+                                                    date_edges=None
+                                                    )
 
     def _check_duplicates(self, by_row: bool = True, by_col: bool = True) -> Dict[str, list]:
         """
@@ -621,9 +506,11 @@ class DataExplorer:
             _mis_analysis = MissingDataAnalysis(data=self.df.to_numpy(), features=self.features).freq_nan()
             _nan_cases = len(_mis_analysis['cases']['abs'].keys())
             _nan_features = len(_mis_analysis['features']['abs'].keys())
-            _data_health['sparsity']['cases'] = list(Utils().subset_dict(d=_mis_analysis['cases']['rel'],
-                                                                         threshold=_nan_threshold).keys())
-            _data_health['sparsity']['features'] = [self.features[ft] for ft in Utils().subset_dict(d=_mis_analysis['features']['rel'], threshold=_nan_threshold).keys()]
+            _data_health['sparsity']['cases'] = list(EasyExploreUtils().subset_dict(d=_mis_analysis['cases']['rel'],
+                                                                                    threshold=_nan_threshold
+                                                                                    ).keys()
+                                                     )
+            _data_health['sparsity']['features'] = [self.features[ft] for ft in EasyExploreUtils().subset_dict(d=_mis_analysis['features']['rel'], threshold=_nan_threshold).keys()]
             _info_table['sparsity_cases'] = '{} ({} %)'.format(_nan_cases,
                                                                str(100 * round(_nan_cases / self.n_cases, 3))
                                                                )
@@ -635,9 +522,9 @@ class DataExplorer:
             if self.plot:
                 _df_feature_mis = pd.DataFrame(data=_mis_analysis['features'])
                 _df_feature_mis = _df_feature_mis.rename(columns={'abs': 'N', 'rel': '%'},
-                                                         index=Utils().replace_dict_keys(d=_mis_analysis['features']['rel'],
-                                                                                         new_keys=self.features
-                                                                                         )
+                                                         index=EasyExploreUtils().replace_dict_keys(d=_mis_analysis['features']['rel'],
+                                                                                                    new_keys=self.features
+                                                                                                    )
                                                          )
                 if any(self.df.isnull()):
                     _df_case_mis = pd.DataFrame(data=_mis_analysis['cases'])
@@ -794,7 +681,8 @@ class DataExplorer:
                            file_path=self.file_path
                            ).run()
         return dict(cases=list(set(_cases)),
-                    features=list(set(_features)))
+                    features=list(set(_features))
+                    )
 
     def data_typing(self) -> dict:
         """
@@ -1016,7 +904,9 @@ class DataExplorer:
             if len(self.features) < 2:
                 raise DataExplorerException('Not enough features for running a multivariate outlier detection')
             _multi_meth: List[str] = ['knn'] if multi_meth is None else multi_meth
-            _anomaly_detection: dict = self._check_anomalies(meth=_multi_meth)
+            _anomaly_detection: dict = AnomalyDetector(df=self.df,
+                                                       feature_types=self.feature_types
+                                                       ).multivariate(contour_plot=contour)
             for meth in _multi_meth:
                 _outlier.update({'multi': _anomaly_detection.get('cases')})
                 self.df['outlier'] = _anomaly_detection[meth].get('pred')
@@ -1061,7 +951,7 @@ class DataExplorer:
                                                                              )
                                       })
                 else:
-                    _pairs: List[tuple] = Utils().get_pairs(features=self.features, max_features_each_pair=2)
+                    _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=self.features, max_features_each_pair=2)
                     for i, pair in enumerate(_pairs):
                         _multi.update({'scatter_inlier_{}'.format(i): dict(x=self.df.loc[self.df['outlier'] == 0, pair[0]].values,
                                                                            y=self.df.loc[self.df['outlier'] == 0, pair[1]].values,
