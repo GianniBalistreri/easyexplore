@@ -928,7 +928,7 @@ class EasyExploreUtils:
                           categorical: List[str] = None,
                           ordinal: List[str] = None,
                           date: List[str] = None,
-                          text: List[str] = None,
+                          id_text: List[str] = None,
                           max_cats: int = 500,
                           date_edges: Tuple[str, str] = None
                           ) -> Dict[str, List[str]]:
@@ -936,17 +936,38 @@ class EasyExploreUtils:
 
         Get feature types
 
-        :param df:
-        :param features:
-        :param dtypes:
-        :param continuous:
-        :param categorical:
-        :param ordinal:
-        :param date:
-        :param text: List[str]
-        :param max_cats:
+        :param df: pd.DataFrame
+            Data set
+
+        :param features: List[str]
+            Names of features
+
+        :param dtypes: np.dtype
+            Data type of each feature
+
+        :param continuous: List[str]
+            Names of pre-defined continuous features
+
+        :param categorical: List[str]
+            Names of pre-defined categorical features
+
+        :param ordinal: List[str]
+            Names of pre-defined ordinal features
+
+        :param date: List[str]
+            Names of pre-defined date features
+
+        :param id_text: List[str]
+            Names of pre-defined id_text features
+
+        :param max_cats: int
+            Maximum number of categories for identifying categorical features
+
         :param date_edges:
-        :return:
+            Minimum and maximum time for identifying date features
+
+        :return: dict
+            List of feature names for each feature type
         """
         _num: list = []
         _cat: list = []
@@ -981,8 +1002,8 @@ class EasyExploreUtils:
                 if feature in categorical:
                     _cat.append(feature)
                     continue
-            if text is not None:
-                if feature in text:
+            if id_text is not None:
+                if feature in id_text:
                     _str.append(feature)
                     continue
             if str(dtypes[i]).find('float') >= 0:
