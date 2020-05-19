@@ -44,6 +44,9 @@ class DataExplorer:
                  exclude: List[str] = None,
                  ordinal: List[str] = None,
                  date: List[str] = None,
+                 id_text: List[str] = None,
+                 categorical: List[str] = None,
+                 continuous: List[str] = None,
                  date_edges: Tuple[str, str] = None,
                  feature_types: Dict[str, List[str]] = None,
                  include_nan: bool = True,
@@ -89,7 +92,7 @@ class DataExplorer:
                     _include.append(inc)
             if len(_include) > 0:
                 self.df = self.df[_include]
-        self.features: List[str] = self.df.keys().tolist()
+        self.features: List[str] = list(self.df.keys())
         self.n_cases: int = self.df.shape[0]
         self.n_features: int = self.df.shape[1]
         self.data_types: list = self.df.dtypes.tolist()
@@ -97,6 +100,9 @@ class DataExplorer:
         self.date_edges: Tuple[str, str] = date_edges
         self.date: List[str] = [] if date is None else date
         self.ordinal: List[str] = [] if ordinal is None else ordinal
+        self.id_text: List[str] = [] if id_text is None else id_text
+        self.categorical: List[str] = [] if categorical is None else categorical
+        self.continuous: List[str] = [] if continuous is None else continuous
         if feature_types is None:
             self.feature_types: Dict[str, List[str]] = self._check_data_types()
         else:
@@ -127,13 +133,13 @@ class DataExplorer:
         return EasyExploreUtils().get_feature_types(df=self.df,
                                                     features=self.features,
                                                     dtypes=self.data_types,
-                                                    continuous=None,
-                                                    categorical=None,
+                                                    continuous=self.continuous,
+                                                    categorical=self.categorical,
                                                     ordinal=self.ordinal,
                                                     date=self.date,
-                                                    text=None,
+                                                    id_text=self.id_text,
                                                     max_cats=self.max_cats,
-                                                    date_edges=None
+                                                    date_edges=self.date_edges
                                                     )
 
     def _check_duplicates(self, by_row: bool = True, by_col: bool = True) -> Dict[str, list]:
