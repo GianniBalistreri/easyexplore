@@ -60,7 +60,6 @@ plots: List[str] = ['bar',
 #  Geo Stats Hovertemplate
 #  Chorolethmap handle geojson input output
 #  Check Missings in each categorical distribution chart
-#  Refactor: Call interactive_visualizer.py for using PlotlyAdapter --> config_plotly / show_offline
 
 
 class DataVisualizerException(Exception):
@@ -185,7 +184,7 @@ class DataVisualizer:
                                                                                             categorical=None,
                                                                                             ordinal=None,
                                                                                             date=None,
-                                                                                            text=None,
+                                                                                            id_text=None,
                                                                                             max_cats=500,
                                                                                             date_edges=None
                                                                                             )
@@ -205,7 +204,6 @@ class DataVisualizer:
         self.height: int = height
         self.unit: str = unit
         self.pair: List[tuple] = [()]
-        self.plt = plt
         self.ax = None
         self.fig = None
         self.render: bool = render
