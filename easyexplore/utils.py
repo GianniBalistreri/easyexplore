@@ -26,9 +26,7 @@ PERCENTILES: List[float] = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.
 
 class EasyExplore:
     """
-
     Class for handling logging activities
-
     """
     def __init__(self,
                  log_path: str = None,
@@ -38,11 +36,20 @@ class EasyExplore:
                  show_ram_usage: bool = True
                  ):
         """
-        :param log_path: str: Path of the log file
-        :param show_msg: bool: Enable and disable message display
-        :param show_header: bool: Enable and disable header display
-        :param show_progress_bar: bool: Enable and disable progress bar display
-        :param show_ram_usage: bool: Enable and disable ram usage display
+        :param log_path: str
+            Path of the log file
+
+        :param show_msg: bool
+            Enable and disable message display
+
+        :param show_header: bool
+            Enable and disable header display
+
+        :param show_progress_bar: bool
+            Enable and disable progress bar display
+
+        :param show_ram_usage: bool
+            Enable and disable ram usage display
         """
         self.display: bool = True
         self.data_shape: tuple = tuple([None, None])
@@ -89,11 +96,13 @@ class EasyExplore:
 
     def display_header(self, title: str, data_shape: Tuple[str, str]):
         """
-
         Display header
 
-        :param str title:
-        :param Tuple[str, str] data_shape:
+        :param title: str
+            Title text
+
+        :param data_shape: Tuple[str, str]
+            Number of cases and features
         """
         _header: HTML = HTML('<p id="{}"><span style="font-size:{};color:{};font-family:{};"><i>EasyExplore</i></span></p>'.format(self.header['header'].get('id'),
                                                                                                                                    self.header['header'].get('color'),
@@ -114,19 +123,16 @@ class EasyExplore:
 
     def display_pb(self):
         """
-
         Display progress bar
-
         """
         display(self.pb, include=None, exclude=None, metadata=None, transient=None, display_id=None)
 
     def display_msg(self, msg: str):
         """
-
         Display messages as HTML widget
 
-        :param str msg: Message to display
-        :return:
+        :param msg: str
+            Message to display
         """
         _msg: HTML = HTML(
             '<p id="{}"><span style="font-size:{};color:{};font-family:{};"><b>{}</b></span></p>'.format(
@@ -141,9 +147,7 @@ class EasyExplore:
 
     def printer(self, msg: str):
         """
-
         Internal message printer
-
         """
         if self.show_msg:
             if self.show_ram:
@@ -158,9 +162,7 @@ class EasyExplore:
 
 class Log:
     """
-
     Class for handling logging
-
     """
     def __init__(self,
                  write: bool = False,
@@ -228,7 +230,6 @@ class Log:
     def _write(self):
         """
         Write log file
-
         """
         with open(file=self.log_file_path, mode='a', encoding='utf-8') as _log:
             _log.write('{}\n'.format(self.msg))
@@ -256,18 +257,18 @@ class Log:
 
 class StatsUtils:
     """
-
     Class for calculating univariate and multivariate statistics
-
     """
-
     def __init__(self,
                  data: pd.DataFrame,
                  features: List[str]
                  ):
         """
-        :param data:
-        :param features:
+        :param data: pd.DataFrame
+            Data set
+
+        :param features: List[str]
+            Name of the features
         """
         self.data_set = data
         self.features = features
@@ -275,12 +276,16 @@ class StatsUtils:
 
     def _anderson_darling_test(self, feature: str, sig_level: float = 0.05) -> float:
         """
-
         Anderson-Darling test for normality tests
 
-        :param feature:
-        :param sig_level:
-        :return: float: Probability describing significance level
+        :param feature: str
+            Name of the feature
+
+        :param sig_level: float
+            Level of significance
+
+        :return: float
+            Probability describing significance level
         """
         _stat = anderson(x=self.data_set[feature], dist='norm')
         try:
@@ -305,20 +310,20 @@ class StatsUtils:
 
     def _dagostino_k2_test(self, feature: str) -> float:
         """
-
         D'Agostino K² test for normality
 
-        :param feature: String containing the name of the feature
-        :return: Float indicating the statistical probability value (p-value)
+        :param feature: str
+            Name of the feature
+
+        :return: float
+            Statistical probability value (p-value)
         """
         stat, p = normaltest(a=self.data_set[feature], axis=0, nan_policy='propagate')
         return p
 
     def _kaiser_meyer_olkin_test(self) -> dict:
         """
-
         Kaiser-Meyer-Olkin test for unobserved features
-
         """
         _cor = self.correlation(meth='pearson').values
         _partial_cor = self.correlation(meth='partial').values
@@ -336,35 +341,40 @@ class StatsUtils:
 
     def _shapiro_wilk_test(self, feature: str) -> float:
         """
-
         Shapiro-Wilk test for normality tests
 
-        :param feature: String containing the name of the feature
-        :return: Float indicating the statistical probability value (p-value)
+        :param feature: str
+            Name of the feature
+
+        :return: float
+            Statistical probability value (p-value)
         """
         return shapiro(x=self.data_set[feature])
 
     def curtosis_test(self) -> List[str]:
         """
-
         Test whether a distribution is tailed or not
 
-        :return: List of strings containing the names of the tailed features
+        :return: List[str]
+            Names of the tailed features
         """
         raise NotImplementedError('Method not supported yet')
 
     def correlation(self, meth: str = 'pearson', min_obs: int = 1) -> pd.DataFrame:
         """
-
         Calculate correlation coefficients
 
-        :param meth: String containing the method to be used as correlation coefficient
-                        -> pearson: Marginal Correlation based on Pearson's r
-                        -> kendall: Rank Correlation based on Kendall
-                        -> spearman: Rank Correlation based on Spearman
-                        -> partial: Partial Correlation
-        :param min_obs: Integer indicating the minimum amount of valid observations
-        :return: Pandas DataFrame containing the correlation matrix
+        :param meth: str
+            Method to be used as correlation coefficient
+                -> pearson: Marginal Correlation based on Pearson's r
+                -> kendall: Rank Correlation based on Kendall
+                -> spearman: Rank Correlation based on Spearman
+                -> partial: Partial Correlation
+        :param min_obs: int
+            Minimum number of valid observations
+
+        :return: pd.DataFrame
+            Correlation matrix
         """
         if meth in ['pearson', 'kendall', 'spearman']:
             _cor: pd.DataFrame = self.data_set[self.features].corr(method=meth, min_periods=min_obs)
@@ -442,12 +452,12 @@ class StatsUtils:
 
     def factoriability_test(self, meth: str = 'kmo') -> dict:
         """
-
         Test whether a data set contains unobserved features required for factor analysis
 
-        :param meth: String containing the name of the used method
-                        -> kmo: Kaiser-Meyer-Olkin Criterion
-                        -> bartlette: Bartlette's test of sphericity
+        :param meth: str
+            Name of the used method
+                -> kmo: Kaiser-Meyer-Olkin Criterion
+                -> bartlette: Bartlette's test of sphericity
         """
         _fac: dict = {}
         if meth == 'kmo':
@@ -521,15 +531,18 @@ class StatsUtils:
 
     def normality_test(self, alpha: float = 0.05, meth: str = 'shapiro-wilk') -> dict:
         """
-
         Test whether a distribution is normal distributed or not
 
-        :param alpha: Float indicating the threshold that indicates whether a hypothesis can be rejected or not
-        :param meth: String containing the method to test normality
-                        -> shapiro-wilk:
-                        -> anderson-darling:
-                        -> dagostino:
-        :return: dict: Results of normality test (statistic, p-value, p > alpha)
+        :param alpha: float
+            Threshold that indicates whether a hypothesis can be rejected or not
+
+        :param meth: str
+            Method to test normality
+                -> shapiro-wilk:
+                -> anderson-darling:
+                -> dagostino:
+        :return: dict
+            Results of normality test (statistic, p-value, p > alpha)
         """
         _alpha = alpha
         _normality: dict = {}
@@ -599,14 +612,18 @@ class StatsUtils:
 
     def skewness_test(self, axis: str = 'col', threshold_interval: Tuple[float, float] = (-0.5, 0.5)) -> dict:
         """
-
         Test whether a distribution is skewed or not
 
-        :param axis: String containing the name of the axis of the data frame to use
-                        -> col: Test skewness of feature
-                        -> row: test skewness of cases
-        :param threshold_interval: Tuple of floats indicating the threshold interval for testing
-        :return: List of strings containing the name of the skewed features
+        :param axis: str
+            Name of the axis of the data frame to use
+                -> col: Test skewness of feature
+                -> row: test skewness of cases
+
+        :param threshold_interval: Tuple[float, float]
+            Threshold interval for testing
+
+        :return: dict
+            Statistics regarding skewness of features
         """
         if axis == 'col':
             _axis = 0
@@ -619,18 +636,14 @@ class StatsUtils:
 
 class EasyExploreUtilsException(Exception):
     """
-
     Class for setting up exceptions for class EasyExploreUtils
-
     """
     pass
 
 
 class EasyExploreUtils:
     """
-
     Class for applying general utility methods
-
     """
     def __init__(self):
         """
@@ -642,16 +655,13 @@ class EasyExploreUtils:
         """
         Check if data types of Pandas DataFrame match with the analytical measurement of data
 
-        Parameters
-        ----------
-        df: pd.DataFrame
+        :param df: pd.DataFrame
             Data set
 
-        date_edges: Tuple[str, str]
+        :param date_edges: Tuple[str, str]
 
-        Returns
-        -------
-        dict: Data type conversion recommendation
+        :return dict
+            Data type conversion recommendation
         """
         _typing: dict = dict(meta={}, conversion={})
         _features: List[str] = list(df.keys())
@@ -759,17 +769,19 @@ class EasyExploreUtils:
     @staticmethod
     def convert_jupyter(notebook_name: str, to: str = 'html'):
         """
-
         Convert Jupyter Notebook into several formats
 
-        :param notebook_name: str: Name of the jupyter notebook
-        :param to: str: Output format
-                        -> html: HTML
-                        -> pdf: PDF
-                        -> latex: Latex
-                        -> markdown: Markdown
-                        -> rst: reStructuredText
-                        -> script: Python / Julia / R script (depending on kernel settings of ipynb file)
+        :param notebook_name: str
+            Name of the jupyter notebook
+
+        :param to: str
+            Output format
+                -> html: HTML
+                -> pdf: PDF
+                -> latex: Latex
+                -> markdown: Markdown
+                -> rst: reStructuredText
+                -> script: Python / Julia / R script (depending on kernel settings of ipynb file)
         """
         if to in ['html', 'pdf', 'latex', 'markdown', 'rst', 'script']:
             subprocess.run(['jupyter nbconvert "{}" --to {}'.format(notebook_name, to)], shell=True)
@@ -779,12 +791,16 @@ class EasyExploreUtils:
     @staticmethod
     def extract_tuple_el_in_list(list_of_tuples: List[tuple], tuple_pos: int) -> list:
         """
-
         Extract specific tuple elements from list of tuples
 
-        :param list_of_tuples: List[tuple]: List of tuples
-        :param tuple_pos: int: Position of element in tuples to extract
-        :return: list: List of elements of tuple
+        :param list_of_tuples: List[tuple]
+            List of tuples
+
+        :param tuple_pos: int
+            Position of element in tuples to extract
+
+        :return: list
+            List of elements of tuple
         """
         if tuple_pos < 0:
             raise EasyExploreUtilsException('Position of element in tuple cannot be negative ({})'.format(tuple_pos))
@@ -793,11 +809,13 @@ class EasyExploreUtils:
     @staticmethod
     def freedman_diaconis_bins(data_points: np.array) -> int:
         """
-
         Calculate the width of each bin by using Freedmann-Diaconis rule
 
-        :param data_points: Numpy array containing the data point to plot
-        :return: Integer indicating the amount of bins to compute
+        :param data_points: np.array
+            Data points to plot
+
+        :return: int
+            Number of bins to compute
         """
         data: np.array = np.asarray(data_points, dtype=np.float_)
         iqr = stats.iqr(data, rng=(25, 75), scale='raw', nan_policy='omit')
@@ -807,11 +825,13 @@ class EasyExploreUtils:
     @staticmethod
     def freedman_diaconis_width(data_points: np.array) -> float:
         """
-
         Calculate the width of each bin by using Freedmann-Diaconis rule
 
-        :param data_points: Numpy array containing the data point to plot
-        :return: Float indicating the width of each bin
+        :param data_points: np.array
+            Data points to plot
+
+        :return: float
+            Width of each bin
         """
         data: np.ndarray = np.asarray(data_points, dtype=np.float_)
         iqr = stats.iqr(data, rng=(25, 75), scale='raw', nan_policy='omit')
@@ -820,12 +840,16 @@ class EasyExploreUtils:
     @staticmethod
     def generate_git_ignore(file_path: str, exclude_files: List[str] = None, exclude_default: bool = True):
         """
-
         Generate .gitignore file
 
-        :param file_path:
-        :param exclude_files: List[str]: Names of files or objects to be ignored
-        :param exclude_default: bool: Exclude default files and objects
+        :param file_path: str
+            File path
+
+        :param exclude_files: List[str]
+            Names of files or objects to be ignored
+
+        :param exclude_default: bool
+            Exclude default files and objects
         """
         _gitignore: str = ''
         _default: str = '#########\n# misc: ##########\n.git\n.idea\n.DS_Store\n\n########### python: ###########\nvenv\n**/.cache\n**/__pycache__\n.pytest_cache\n\n###################### jupyter notebook: ######################\n.ipynb_checkpoints\n\n################## data sources: ##################\n*.db\n*.txt\n'
@@ -842,26 +866,23 @@ class EasyExploreUtils:
         """
         Generate network graph
 
-        Parameters
-        ----------
-        df: pd.DataFrame
+        :param df: pd.DataFrame
             Data set
 
-        node_feature: str
+        :param node_feature: str
             Name of the feature used to generate nodes from
 
-        edge_feature: str
+        :param edge_feature: str
             Name of the feature used to generate edges from
 
-        kind: str
+        :param kind: str
             Network type
                 -> directed: Bayes network
                 -> undirected: Markov Network
                 -> geometric: Geometric Network based on x, y scale
 
-        Returns
-        -------
-        nx: Preconfigured Networkx network graph object
+        :return nx
+            Preconfigured Networkx network graph object
         """
         if kind == 'directed':
             _graph: nx.DiGraph = nx.DiGraph()
@@ -898,20 +919,17 @@ class EasyExploreUtils:
         """
         Get duplicate cases and / or features
 
-        Parameters
-        ----------
-        df: pd.DataFrame
+        :param df: pd.DataFrame
             Data set
 
-        cases: bool
+        :param cases: bool
             Check whether cases are duplicated or not
 
-        features: bool
+        :param features: bool
             Check whether features are duplicated or not
 
-        Returns
-        -------
-        Dict[str, list]: List of duplicated cases and / or features
+        :return Dict[str, list]
+            Duplicated cases and / or features
         """
         _duplicates: dict = dict(cases=[], features=[])
         if cases:
@@ -933,7 +951,6 @@ class EasyExploreUtils:
                           date_edges: Tuple[str, str] = None
                           ) -> Dict[str, List[str]]:
         """
-
         Get feature types
 
         :param df: pd.DataFrame
@@ -1122,7 +1139,6 @@ class EasyExploreUtils:
                     save: bool = False
                     ) -> dict:
         """
-
         Generate geojson dictionary from pandas data frame
 
         :param df:
@@ -1151,11 +1167,13 @@ class EasyExploreUtils:
     @staticmethod
     def get_list_of_files(file_path: str) -> List[str]:
         """
-
         Get list of file in given directory or zip file
 
-        :param file_path: str: Complete file path
-        :return: List[str]: Name of detected files
+        :param file_path: str
+            Complete file path
+
+        :return: List[str]
+            Name of detected files
         """
         if os.path.exists(file_path):
             if file_path.split('.')[-1] is 'zip':
@@ -1168,11 +1186,13 @@ class EasyExploreUtils:
     @staticmethod
     def get_list_of_objects(file_path: str) -> List[str]:
         """
-
         Get list of objects in given directory and subdirectories
 
-        :param file_path: str: Complete file path
-        :return: List[str]: List of object names detected in directory
+        :param file_path: str
+            Complete file path
+
+        :return: List[str]
+            List of object names detected in directory
         """
         return [obj for obj in os.listdir(file_path)]
 
@@ -1181,14 +1201,11 @@ class EasyExploreUtils:
         """
         Get invariant features of data set
 
-        Parameters
-        ----------
-        df: pd.DataFrame
+        :param df: pd.DataFrame
             Data set
 
-        Returns
-        -------
-        List[str]: Names of invariant features
+        :return List[str]
+            Names of invariant features
         """
         _invariant_features: List[str] = []
         for ft in df.keys():
@@ -1204,12 +1221,16 @@ class EasyExploreUtils:
     @staticmethod
     def get_pairs(features: List[str], max_features_each_pair: int = 2) -> List[tuple]:
         """
-
         Get pairs of feature list
 
-        :param List[str] features: Features to pair
-        :param int max_features_each_pair: Maximum number of features for each pair
-        :return: List[tuple]: List of features pairs
+        :param features: List[str]
+            Features to pair
+
+        :param max_features_each_pair: int
+            Maximum number of features for each pair
+
+        :return: List[tuple]
+            Features pairs
         """
         _features: List[str] = []
         for feature in features:
@@ -1227,19 +1248,33 @@ class EasyExploreUtils:
                                 include_group: bool = True
                                 ) -> pd.DataFrame:
         """
-
         Generate percentile evaluation of of grouped features
 
-        :param data: pd.DataFrame: Data set to calculate percentiles from
-        :param group_by: str: Grouping features
-        :param aggregate_by: List[str]: Features to aggregate
-        :param aggregation: str: Aggregation method
-        :param percentiles: int: Number of percentiles to generate
-        :param duplicates: str: Handle duplicates
-                                -> raise: Raise exception
-                                -> drop: Drop
-        :param include_group: bool: Include grouping feature inbto aggregation process
-        :return: pd.DataFrame: Aggregated data set
+        :param data: pd.DataFrame:
+            Data set to calculate percentiles from
+
+        :param group_by: str
+            Grouping features
+
+        :param aggregate_by: List[str]
+            Features to aggregate
+
+        :param aggregation: str
+            Aggregation method
+
+        :param percentiles: int
+            Number of percentiles to generate
+
+        :param duplicates: str
+            Handle duplicates
+                -> raise: Raise exception
+                -> drop: Drop
+
+        :param include_group: bool
+            Include grouping feature inbto aggregation process
+
+        :return: pd.DataFrame
+            Aggregated data set
         """
         _aggre: List[str] = []
         _df: pd.DataFrame = pd.DataFrame()
@@ -1271,18 +1306,26 @@ class EasyExploreUtils:
     @staticmethod
     def get_perc_eval(pred: list, obs: list, aggregation: str = 'median', percentiles: int = 10) -> pd.DataFrame:
         """
-
         Generate percentile evaluation of predictions and observation
 
-        :param pred: list: List of predictions
-        :param obs: list: List of observations
-        :param aggregation: str: Aggregation method
-                                -> min: Minimum
-                                -> max: Maximum
-                                -> median: Median
-                                -> mean: Mean
-        :param percentiles: int: Number of percentiles to calculate
-        :return: pd.DataFrame: Percentile evaluation of prediction and observation
+        :param pred: list
+            Predictions
+
+        :param obs: list
+            Observations
+
+        :param aggregation: str
+            Aggregation method
+                -> min: Minimum
+                -> max: Maximum
+                -> median: Median
+                -> mean: Mean
+
+        :param percentiles: int
+            Number of percentiles to calculate
+
+        :return: pd.DataFrame
+            Percentile evaluation of prediction and observation
         """
         _df = pd.DataFrame({'obs': obs, 'preds': pred})
         _df['pred_perc'] = pd.qcut(x=_df['obs'], q=percentiles, labels=np.arange(1, percentiles + 1), retbins=False, precision=4, duplicates='drop')
@@ -1294,24 +1337,32 @@ class EasyExploreUtils:
     @staticmethod
     def search_for_file(key_word: str, starting_dir: str) -> List[str]:
         """
-
         Search for files with similar name patterns as key word input
 
-        :param key_word: str: Searched key word
-        :param starting_dir: str: Directory to start searching in
-        :return: List[str]: Names of the files found under given key word
+        :param key_word: str
+            Searched key word
+
+        :param starting_dir: str
+            Directory to start searching in
+
+        :return: List[str]
+            Names of the files found under given key word
         """
         return glob.glob(pathname=key_word)
 
     @staticmethod
     def subset_dict(d: dict, threshold: float) -> dict:
         """
-
         Subset dictionary by given threshold value
 
-        :param d:
-        :param threshold:
-        :return:
+        :param d: dict
+            Dictionary containing data
+
+        :param threshold: float
+            Threshold for subsetting
+
+        :return dict
+            Subsetted dictionary
         """
         _d = {}
         for k in d.keys():

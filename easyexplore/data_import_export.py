@@ -12,23 +12,22 @@ from typing import List
 
 class FileUtilsException(Exception):
     """
-
     Class for handling exceptions for class FileUtils
-
     """
     pass
 
 
 class FileUtils:
     """
-
     Class for handling files
-
     """
     def __init__(self, file_path: str, create_dir: bool = True):
         """
-        :param file_path: String containing the file path
-        :param create_dir: Boolean indicating whether to create directories if they are not existed
+        :param file_path: str
+            File path
+
+        :param create_dir
+            Boolean indicating whether to create directories if they are not existed
         """
         if len(file_path) == 0:
             raise FileUtilsException('No file path found')
@@ -47,10 +46,10 @@ class FileUtils:
 
     def make_dir(self, other_dir: str = None):
         """
-
         Create directory if it not exists
 
-        :param other_dir: String containing the name of the additional directory to create
+        :param other_dir: str
+            Name of the additional directory to create
         """
         if not os.path.exists(self.file_path):
             try:
@@ -63,9 +62,7 @@ class FileUtils:
 
     def kill(self):
         """
-
         Kill a file if it exists
-
         """
         if os.path.isfile(self.full_path):
             os.remove(self.full_path)
@@ -75,9 +72,7 @@ class FileUtils:
 
 class DataImporter(FileUtils):
     """
-
     Class for import data from external file types
-
     """
     def __init__(self,
                  file_path: str,
@@ -87,11 +82,20 @@ class DataImporter(FileUtils):
                  **kwargs: dict
                  ):
         """
-        :param str file_path: String containing the file path
-        :param as_data_frame: bool: Import data set as pandas data frame or not
-        :param bool create_dir: Boolean indicating whether to create directories if they are not existed
-        :param str sep: File separator
-        :param dict kwargs: Dictionary containing additional key word arguments
+        :param file_path: str
+            String containing the file path
+
+        :param as_data_frame: bool
+            Import data set as pandas data frame or not
+
+        :param create_dir: bool
+            Boolean indicating whether to create directories if they are not existed
+
+        :param sep: str
+            File separator
+
+        :param kwargs: dict
+            Additional key word arguments
         """
         super().__init__(file_path=file_path, create_dir=create_dir)
         self.as_df: bool = as_data_frame
@@ -102,9 +106,7 @@ class DataImporter(FileUtils):
 
     def _config_args(self):
         """
-
         Set configuration setting for the data import as Pandas DataFrame
-
         """
         self.kwargs = {'filepath': self.full_path,
                        'sep': self.sep,
@@ -163,10 +165,10 @@ class DataImporter(FileUtils):
 
     def _excel_as_df(self) -> pd.DataFrame:
         """
-
         Import excel file as Pandas DataFrame
 
-        :return: Pandas DataFrame containing the content of the html file
+        :return: pd.DataFrame
+            Pandas DataFrame containing the content of the html file
         """
         return pd.read_excel(io=self.kwargs.get('filepath'),
                              sheet_name=self.kwargs.get('sheet_name'),
@@ -217,10 +219,10 @@ class DataImporter(FileUtils):
 
     def _file(self):
         """
-
         Import file
 
-        :return: Object containing the file content
+        :return: object
+            File content
         """
         with open(file=self.file_path,
                   mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
@@ -230,19 +232,16 @@ class DataImporter(FileUtils):
 
     def _html(self):
         """
-
         Import parsed text content from html file
-
-        :return:
         """
-        pass
+        raise NotImplementedError('Import data from html file not supported')
 
     def _html_as_df(self) -> List[pd.DataFrame]:
         """
-
         Import html file as Pandas DataFrame
 
-        :return: List[pd.DataFrame]: Contents of the html file as pandas data frames
+        :return: List[pd.DataFrame]
+            Contents of the html file as pandas data frames
         """
         return pd.read_html(io=None,
                             match=None,
@@ -264,10 +263,10 @@ class DataImporter(FileUtils):
 
     def _json(self) -> json.load:
         """
-
         Import json file
 
-        :return: json.load: Object containing the content of the json file
+        :return: json.load
+            Content of the json file
         """
         with open(file=self.file_path,
                   mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
@@ -284,10 +283,10 @@ class DataImporter(FileUtils):
 
     def _json_as_df(self) -> pd.DataFrame:
         """
-
         Import json file as Pandas DataFrame
 
-        :return: Pandas DataFrame containing the content of the json file
+        :return: pd.DataFrame
+            Content of the json file
         """
         return pd.read_json(path_or_buf=self.kwargs.get('filepath'),
                             orient=None,
@@ -306,29 +305,29 @@ class DataImporter(FileUtils):
 
     def _pickle(self) -> pickle.load:
         """
-
         Import pickle file
 
-        :return: pickle.load: Object in pickle file
+        :return: pickle.load
+            Content of pickle file
         """
         with open(self.file_path, 'rb') as file:
             return pickle.load(file=file)
 
     def _pickle_as_df(self) -> pd.DataFrame:
         """
-
         Import pickle file as Pandas DataFrame
 
-        :return: Pandas DataFrame containing the content of the pickle file
+        :return: pd.DataFrame
+            Content of the pickle file
         """
         return pd.read_pickle(path=self.full_path, compression=self.kwargs.get('compression'))
 
     def _text_as_df(self) -> pd.DataFrame:
         """
-
         Import text file (csv, txt) as Pandas DataFrame
 
-        :return: Pandas DataFrame containing the content of the text file
+        :return: pd.DataFrame
+            Content of the text file
         """
         return pd.read_csv(filepath_or_buffer=self.kwargs.get('filepath'),
                            sep=self.kwargs.get('sep'),
@@ -379,10 +378,10 @@ class DataImporter(FileUtils):
 
     def file(self):
         """
-
         Import data from file
 
-        :return: File content
+        :return: object
+            File content
         """
         if self.file_type in ['csv', 'tsv', 'txt']:
             return self._text_as_df() if self.as_df else self._file()
@@ -401,9 +400,11 @@ class DataImporter(FileUtils):
         """
         Import data file from compressed zip collection
 
-        :param files: List[str]: File to look for in zip file
+        :param files: List[str]
+            File to look for in zip file
 
-        :return: dict: Detected file names and file objects
+        :return: dict
+            Detected file names and file objects
         """
         _zip_content: dict = {self.file_name: {}}
         _zip = zipfile.ZipFile(file=self.full_path,
@@ -426,9 +427,7 @@ class DataImporter(FileUtils):
 
 class DataExporter(FileUtils):
     """
-
     Class for export data to local files
-
     """
     def __init__(self,
                  obj,
@@ -438,11 +437,20 @@ class DataExporter(FileUtils):
                  **kwargs
                  ):
         """
-        :param obj: Object to export
-        :param file_path: String containing the file path
-        :param create_dir: Boolean indicating whether to create directories if they are not existed
-        :param overwrite: Boolean indicating whether to overwrite an existing file or not
-        :param kwargs: Dictionary containing additional key word arguments
+        :param obj: object
+            Object to export
+
+        :param file_path: str
+            File path
+
+        :param create_dir: bool
+            Whether to create directories if they are not existed
+
+        :param overwrite: bool
+            Whether to overwrite an existing file or not
+
+        :param kwargs: dict
+            Additional key word arguments
         """
         super().__init__(file_path=file_path, create_dir=create_dir)
         self.obj = obj
@@ -454,9 +462,7 @@ class DataExporter(FileUtils):
 
     def _avoid_overwriting(self):
         """
-
         Generate file name extension to avoid overwriting of existing files
-
         """
         _i: int = 1
         while os.path.isfile(self.full_path):
@@ -468,54 +474,42 @@ class DataExporter(FileUtils):
 
     def _html(self):
         """
-
         Export data as json file
-
         """
         with open(self.full_path, 'w', encoding='utf-8') as file:
             file.write(self.obj)
 
     def _gitignore(self):
         """
-
         Export data as .gitignore file
-
         """
         with open(self.file_path, 'w', encoding='utf-8') as file:
             file.write(self.obj)
 
     def _json(self):
         """
-
         Export data as json file
-
         """
         with open(self.full_path, 'w', encoding='utf-8') as file:
             json.dump(self.obj, file, ensure_ascii=False)
 
     def _pickle(self):
         """
-
         Export data as pickle file
-
         """
         with open(self.full_path, 'wb') as _output:
             pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
 
     def _py(self):
         """
-
         Export data as python file
-
         """
         with open(self.full_path, 'w') as file:
             file.write(self.obj)
 
     def _text(self):
         """
-
         Export data as text (txt, csv) file
-
         """
         _txt = open(self.full_path, 'wb')
         _txt.write(self.obj)
@@ -523,9 +517,7 @@ class DataExporter(FileUtils):
 
     def file(self):
         """
-
         Export data as file object
-
         """
         if self.file_type in ['csv', 'txt']:
             return self._text()
@@ -543,18 +535,14 @@ class DataExporter(FileUtils):
 
 class DBUtilsException(Exception):
     """
-
     Class for handling exceptions for class DBUtils
-
     """
     pass
 
 
 class DBUtils:
     """
-
     Class for importing / exporting data from / to database
-
     """
     def __init__(self,
                  df: pd.DataFrame = None,
@@ -592,10 +580,10 @@ class DBUtils:
 
     def _get_creds(self) -> str:
         """
-
         Get database credentials from environment variables
 
-        :return: String containing the database credentials
+        :return: str
+            Database credentials
         """
         if self.env_var is None:
             return '{}://{}:{}@{}:{}/{}'.format(self.database,
@@ -621,10 +609,10 @@ class DBUtils:
 
     def create_connection(self):
         """
-
         Create connection to SQLite3 database
 
-        :return: Object containing the database connection
+        :return: object
+            Database connection
         """
         try:
             if self.database == 'sqlite':
@@ -640,35 +628,31 @@ class DBUtils:
 
     def get_table(self, query: str = 'SELECT * from ') -> pd.DataFrame:
         """
-
         Fetch table from SQLite3 database
 
-        :param query: String containing the SQL query for fetching data from table
-        :return: Pandas DataFrame containing the table data
+        :param query: str
+            SQL query for fetching data from table
+
+        :return: pd.DataFrmae
+            Table data set
         """
         return pd.read_sql_query("{}'{}'".format(query, self.table_name), self.con)
 
     def update_table(self):
         """
-
         Update table
-
         """
         self.df.to_sql(name=self.table_name, con=self.con, if_exists='replace')
 
     def create_table(self):
         """
-
         Create table
-
         """
         self.df.to_sql(name=self.table_name, con=self.con, if_exists='fail')
 
     def drop_table(self):
         """
-
         Drop existing table
-
         """
         cursor = self.con.cursor()
         cursor.execute("DROP TABLE '{}'".format(self.table_name))

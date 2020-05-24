@@ -50,18 +50,14 @@ DETECTOR_TYPES: Dict[str, List[str]] = dict(linear=['lmdd', 'mcd', 'pca', 'ocsvm
 
 class AnomalyDetectorException(Exception):
     """
-
     Class for handling exceptions for class AnomalyDetector
-
     """
     pass
 
 
 class AnomalyDetector:
     """
-
     Class for detecting and analyzing anomalies / outliers
-
     """
     def __init__(self,
                  df: pd.DataFrame,
@@ -74,18 +70,16 @@ class AnomalyDetector:
                  seed: int = 1234
                  ):
         """
-        Parameters
-        ----------
-        df: pd.DataFrame
+        :param df: pd.DataFrame
             Data set
 
-        feature_types: Dict[str, List[str]]
+        :param feature_types: Dict[str, List[str]]
             Feature types containing list of feature names
 
-        features: List[str]
+        :param features: List[str]
             Names of the features
 
-        meth:
+        :param meth: List[str]
             Names of the supervised machine learning method to use
                 -> None: K-Nearest-Neighbor
                 -> abod: Angle-Based Outlier Detector
@@ -97,13 +91,13 @@ class AnomalyDetector:
                 -> abod: Angle-Based Outlier Detector
                 -> abod: Angle-Based Outlier Detector
                 -> abod: Angle-Based Outlier Detector
-        params: dict
+        :param params: dict
             Parameters of the supervised machine learning algorithm
 
-        outlier_threshold: float
+        :param outlier_threshold: float
             Threshold to define case as outlier (univariate / multivariate)
 
-        detector_type: Dict[str, List[str]]
+        :param detector_type: Dict[str, List[str]]
             Names of the detector type (group of supervised machine learning algorithm)
                 -> linear: Linear models (PCA, MCD, OCSVM, LMDD)
                 -> prox: Proximity based models (LOF, COF, CBLOF, LOCI, HBOS, KNN, SOD)
@@ -111,7 +105,7 @@ class AnomalyDetector:
                 -> ensamble: Ensamble based models (IFOREST, FTBAG, LSCP, XGBOD)
                 -> neural: Neural networks (AutoEncoder, SO_GAAL, MO_GAAL)
 
-        seed: int
+        :param seed: int
             Seed
         """
         self.seed: int = seed if seed > 0 else 1234
@@ -152,9 +146,7 @@ class AnomalyDetector:
         """
         Config Angle-Based Outlier Detection
 
-        Returns
-        -------
-        ABOD:
+        :return ABOD
         """
         return ABOD(contamination=self.outlier_threshold,
                     n_neighbors=5,
@@ -165,9 +157,7 @@ class AnomalyDetector:
         """
         Config Cluster-Based Local Outlier Factor
 
-        Returns
-        -------
-        CBLOF:
+        :return CBLOF:
         """
         return CBLOF(n_clusters=8,
                      contamination=self.outlier_threshold,
@@ -184,9 +174,7 @@ class AnomalyDetector:
         """
         Config Angle-Based Outlier Detection
 
-        Returns
-        -------
-        COF:
+        :return COF:
         """
         return COF(contamination=self.outlier_threshold,
                    n_neighbors=20
@@ -196,9 +184,7 @@ class AnomalyDetector:
         """
         Config Deviation-Based Outlier Detection
 
-        Returns
-        -------
-        LMDD:
+        :return LMDD:
         """
         return LMDD(contamination=self.outlier_threshold,
                     n_iter=50,
@@ -210,9 +196,7 @@ class AnomalyDetector:
         """
         Config Feature Bagging
 
-        Returns
-        -------
-        FeatureBagging:
+        :return FeatureBagging:
         """
         return FeatureBagging(base_estimator=None,
                               n_estimators=10,
@@ -232,9 +216,7 @@ class AnomalyDetector:
         """
         Config Histogram-Based Outlier Detection
 
-        Returns
-        -------
-        HBOS:
+        :return HBOS:
         """
         return HBOS(n_bins=10,
                     alpha=0.1,
@@ -246,9 +228,7 @@ class AnomalyDetector:
         """
         Config Isolation Forest
 
-        Returns
-        -------
-        IForest:
+        :return IForest:
         """
         return IForest(n_estimators=100,
                        max_samples='auto',
@@ -265,9 +245,7 @@ class AnomalyDetector:
         """
         Config K-Nearest-Neighbor
 
-        Returns
-        -------
-        KNN:
+        :return KNN:
         """
         return KNN(contamination=self.outlier_threshold,
                    n_neighbors=5,
@@ -284,9 +262,7 @@ class AnomalyDetector:
         """
         Config Local Correlated Integral
 
-        Returns
-        -------
-        LOCI:
+        :return LOCI:
         """
         return LOCI(contamination=self.outlier_threshold,
                     alpha=0.5,
@@ -297,9 +273,7 @@ class AnomalyDetector:
         """
         Config Local Outlier Fraction
 
-        Returns
-        -------
-        LOF:
+        :return LOF:
         """
         return LOF(n_neighbors=20,
                    algorithm='auto',
@@ -315,9 +289,7 @@ class AnomalyDetector:
         """
         Config Locally Selective Combination of Parallel Outlier Ensambles
 
-        Returns
-        -------
-        LSCP:
+        :return LSCP:
         """
         return LSCP(detector_list=None,
                     local_region_size=30,
@@ -331,9 +303,7 @@ class AnomalyDetector:
         """
         Config Minimum Covariance Determinant
 
-        Returns
-        -------
-        MCD:
+        :return MCD:
         """
         return MCD(contamination=self.outlier_threshold,
                    store_precision=True,
@@ -346,9 +316,7 @@ class AnomalyDetector:
         """
         Config One-Class Support Vector Machine
 
-        Returns
-        -------
-        OCSVM:
+        :return OCSVM:
         """
         return OCSVM(kernel='rbf',
                      degree=3,
@@ -367,9 +335,7 @@ class AnomalyDetector:
         """
         Config Principal Component Analysis
 
-        Returns
-        -------
-        PCA:
+        :return PCA:
         """
         return PCA(n_components=None,
                    n_selected_components=None,
@@ -388,9 +354,7 @@ class AnomalyDetector:
         """
         Config Subspace Outlier Detection
 
-        Returns
-        -------
-        SOD:
+        :return SOD:
         """
         return SOD(contamination=self.outlier_threshold,
                    n_neighbors=20,
@@ -402,9 +366,7 @@ class AnomalyDetector:
         """
         Config Stochastic Outlier Selection
 
-        Returns
-        -------
-        SOS:
+        :return SOS:
         """
         return SOS(contamination=self.outlier_threshold,
                    perplexity=4.5,
@@ -416,9 +378,8 @@ class AnomalyDetector:
         """
         Detect univariate outliers based on the Inter-Quantile-Range (IQR) algorithm
 
-        Returns
-        -------
-        list: Index number of cases marked as outlier
+        :return list
+            Index number of cases marked as outlier
         """
         _univariate: dict = {}
         for feature in self.features:
@@ -442,9 +403,8 @@ class AnomalyDetector:
         :param contour_plot: bool
             Generate contour chart (Attention: very time consuming)
 
-        Returns
-        -------
-        dict:
+        :return dict
+            Detected outliers
         """
         _cases: list = []
         _array: np.array = None
