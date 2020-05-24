@@ -594,7 +594,7 @@ class DataVisualizer:
                                                                                                 categorical=None,
                                                                                                 ordinal=None,
                                                                                                 date=None,
-                                                                                                text=None,
+                                                                                                id_text=None,
                                                                                                 max_cats=500,
                                                                                                 date_edges=None
                                                                                                 )
