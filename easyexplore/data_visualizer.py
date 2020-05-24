@@ -64,18 +64,14 @@ plots: List[str] = ['bar',
 
 class DataVisualizerException(Exception):
     """
-
     Class for handling exception for class DataVisualizer
-
     """
     pass
 
 
 class DataVisualizer:
     """
-
     Class for visualizing data in jupyter notebooks
-
     """
     def __init__(self,
                  title: str = '',
@@ -108,43 +104,89 @@ class DataVisualizer:
                  **kwargs
                  ):
         """
-        :param plot_type: str: Name of the plot type
-                            -> bar: Bar plot
-                            -> bi: Bivariate plot (categorical - continuous)
-                            -> box: Box-Whisker plot
-                            -> geo: Geo map
-                            -> heat: Heat map
-                            -> hist: Histogram
-                            -> line: Line plot
-                            -> pie: Pie plot
-                            -> scatter: Scatter plot
-                            -> table: Table plot
-        :param title: str: Name of the plot title
-        :param pd.DataFrame df: Data set
-        :param features: List[str]: Name of the features
-        :param time_features: List[str]: Name of the time regarding features in line plots
-        :param melt: bool: Melt subplots into one mainplot
-        :param brushing: bool: Generate additional scatter chart for case-based exploration of feature connections
-        :param xaxis_label: List[str]: User based labeling of the xaxis for all subplots
-        :param yaxis_label: List[str]: User based labeling of the yaxis for all subplots
-        :param List[dict] annotations: Annotation configuration for each subplot
-        :param dict subplots: Subplot configuration
-        :param int rows_sub: Number of rows to use in subplot
-        :param int cols_sub: Number of columns to use in subplot
-        :param int width: Width size for each subplot
-        :param int height: Height size for each subplot
-        :param str unit: Measurement unit
-                            -> px, pixel: Pixel
-                            -> in, inch: Inch
-                            -> cm, centimeter: Centimeter
-        :param bool interactive: Use interactive plot with plotly or classic seaborn / matplotlib
-        :param file_path: str: File path of the plot to save
-        :param render: bool: Render plotly chart or not
-        :param dict colors: Set user-based color palette
-        :param int max_row: Maximum number of rows of visualized Pandas DataFrames
-        :param int max_col: Maximum number of columns of visualized Pandas DataFrames
-        :param str log_path: Path of the log file
-        :param dict kwargs: Key word arguments for handling plotly or seaborn / matplotlib
+        :param plot_type: str
+            Name of the plot type
+                -> bar: Bar plot
+                -> bi: Bivariate plot (categorical - continuous)
+                -> box: Box-Whisker plot
+                -> geo: Geo map
+                -> heat: Heat map
+                -> hist: Histogram
+                -> line: Line plot
+                -> pie: Pie plot
+                -> scatter: Scatter plot
+                -> table: Table plot
+
+        :param title: str
+            Name of the plot title
+
+        :param df: pd.DataFrame
+            Data set
+
+        :param features: List[str]
+            Name of the features
+
+        :param time_features: List[str]
+            Name of the time regarding features in line plots
+
+        :param melt: bool
+            Melt subplots into one mainplot
+
+        :param brushing: bool
+            Generate additional scatter chart for case-based exploration of feature connections
+
+        :param xaxis_label: List[str]
+            User based labeling of the xaxis for all subplots
+
+        :param yaxis_label: List[str]
+            User based labeling of the yaxis for all subplots
+
+        :param annotations: List[dict]
+            Annotation configuration for each subplot
+
+        :param subplots: dict
+            Subplot configuration
+        :param rows_sub: int
+            Number of rows to use in subplot
+
+        :param cols_sub: int
+            Number of columns to use in subplot
+
+        :param width: int
+            Width size for each subplot
+
+        :param height: int
+            Height size for each subplot
+
+        :param unit: str
+            Measurement unit
+                -> px, pixel: Pixel
+                -> in, inch: Inch
+                -> cm, centimeter: Centimeter
+
+        :param interactive: bool
+            Use interactive plot with plotly or classic seaborn / matplotlib
+
+        :param file_path: str
+            File path of the plot to save
+
+        :param render: bool
+            Render plotly chart or not
+
+        :param colors: dict
+            Set user-based color palette
+
+        :param max_row: int
+            Maximum number of rows of visualized Pandas DataFrames
+
+        :param max_col: int
+            Maximum number of columns of visualized Pandas DataFrames
+
+        :param log_path: str
+            Path of the log file
+
+        :param kwargs: dict
+            Key word arguments for handling plotly
         """
         self.interactive: bool = interactive
         if df is not None:
@@ -228,9 +270,7 @@ class DataVisualizer:
 
     def _config_plotly_offline(self):
         """
-
         Config plotly offline visualization options
-
         """
         init_notebook_mode(connected=False)
         if self.subplots is None:
@@ -545,12 +585,16 @@ class DataVisualizer:
 
     def _hierarchical_data_set(self, value_feature: str, color_features: List[str] = None) -> pd.DataFrame:
         """
-
         Restructure data set hierarchically
 
-        :param str value_feature: Feature name
-        :param color_features:
-        :return: pd.DataFrame: Hierarchical data set
+        :param value_feature: str
+            Feature name
+
+        :param color_features: List[str]
+            Names of the features used for coloring
+
+        :return: pd.DataFrame
+            Hierarchical data set
         """
         _all_trees: dict = {'id': [], 'parent': [], value_feature: []}
         for i, level in enumerate(self.group_by):
@@ -573,9 +617,7 @@ class DataVisualizer:
 
     def _run_plotly_offline(self):
         """
-
         Run visualization using plotly offline
-
         """
         for t, title in enumerate(self.subplots.keys()):
             _data: List[go] = []
@@ -2911,9 +2953,7 @@ class DataVisualizer:
 
     def _show_plotly_offline(self):
         """
-
         Show plotly visualization in jupyter notebook
-
         """
         _fig: go.Figure = go.Figure(data=self.fig)
         _fig.update_layout(angularaxis=self.plot['kwargs']['layout'].get('angularaxis'),
@@ -3012,11 +3052,13 @@ class DataVisualizer:
 
     def _trim(self, input_str: str) -> str:
         """
-
         Trim strings to ensure a certain length
 
-        :param str input_str: Input string
-        :return: str: Trimmed string if it reaches certain length
+        :param input_str: str
+            Input string
+
+        :return: str
+            Trimmed string if it reaches certain length
         """
         if len(input_str) > self.max_str_length:
             return input_str[0:self.max_str_length]
@@ -3025,12 +3067,12 @@ class DataVisualizer:
 
     def _unit_conversion(self, to_unit: str = 'pixel'):
         """
-
         Convert measurement units
 
-        :param to_unit: String containing the name of the unit to convert
-                                -> in, inch: Inch
-                                -> px, pixel: Pixel
+        :param to_unit: str
+            Name of the unit to convert
+                -> in, inch: Inch
+                -> px, pixel: Pixel
         """
         _units: List[str] = ['cm', 'in', 'px', 'centimeter', 'inch', 'px']
         if self.unit.lower() in _units:
@@ -3055,7 +3097,6 @@ class DataVisualizer:
 
     def brushing_update_color(self, trace, points, state):
         """
-
         Update brushing color interactively
 
         :param trace:
@@ -3071,7 +3112,6 @@ class DataVisualizer:
 
     def brushing_update_color_toogle(self, trace, points, state):
         """
-
         Update brushing color buttons interactively
 
         :param trace:
@@ -3088,9 +3128,7 @@ class DataVisualizer:
 
     def load(self):
         """
-
         Load serialized plotly figure from json file and visualize it
-
         """
         _fig: dict = DataImporter(file_path=self.plot.get('file_path'), as_data_frame=False).file()
         if _fig.get('data') is None:
@@ -3110,9 +3148,7 @@ class DataVisualizer:
 
     def run(self):
         """
-
         Run visualization
-
         """
         if self.subplots is None:
             if self.df is None:

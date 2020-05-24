@@ -47,18 +47,14 @@ plots: List[str] = ['bar',
 
 class PlotlyAdapterExceptions(Exception):
     """
-
-    Class for handling exceptions for class PlotlyAdapter 
-
+    Class for handling exceptions for class PlotlyAdapter
     """
     pass
 
 
 class PlotlyAdapter:
     """
-
     Class for wrapping up Plotly functionality
-
     """
     def __init__(self,
                  plot: dict,
@@ -70,9 +66,14 @@ class PlotlyAdapter:
                  **kwargs
                  ):
         """
-        :param plot: dict: Pre-configured parameters
-        :param offline: bool: Run plotly offline or online
-        :param dict kwargs: Key word arguments for handling plotly or seaborn / matplotlib
+        :param plot: dict
+            Pre-configured parameters
+
+        :param offline: bool
+            Run plotly offline or online
+
+        :param kwargs: dict
+            Key word arguments for handling plotly
         """
         self.plot: dict = plot
         if 'kwargs' not in self.plot.keys():
@@ -88,10 +89,10 @@ class PlotlyAdapter:
 
     def bar(self) -> go.Bar:
         """
-
         Generate interactive bar chart using plotly
 
-        :return: go.Bar: Plotly graphic object containing the bar plot
+        :return: go.Bar
+            Plotly graphic object containing the bar plot
         """
         return go.Bar(alignmentgroup=self.plot['kwargs'].get('alignmentgroup'),
                       base=self.plot['kwargs'].get('base'),
@@ -156,10 +157,10 @@ class PlotlyAdapter:
 
     def barpolar(self) -> go.Barpolar:
         """
-
         Generate interactive barpolar (radar) chart using plotly
 
-        :return: go.Barpolar: Plotly graphic object containing the barpolar chart
+        :return: go.Barpolar
+            Plotly graphic object containing the barpolar chart
         """
         return go.Barpolar(base=self.plot['kwargs'].get('base'),
                            basesrc=self.plot['kwargs'].get('basesrc'),
@@ -210,10 +211,10 @@ class PlotlyAdapter:
 
     def box_whisker(self) -> go.Box:
         """
-
         Generate interactive box-whisker chart using plotly
 
-        :return: go.Box: Plotly graph object containing the box-whisker plot
+        :return: go.Box
+            Plotly graph object containing the box-whisker plot
         """
         return go.Box(alignmentgroup=self.plot['kwargs'].get('alignmentgroup'),
                       boxmean=self.plot['kwargs'].get('boxmean'),
@@ -266,10 +267,10 @@ class PlotlyAdapter:
 
     def candlestick(self) -> go.Candlestick:
         """
-
         Generate interactive candlestick chart using plotly
 
-        :return: go.Candlestick: Plotly graph object containing the candlestick plot
+        :return: go.Candlestick
+            Plotly graph object containing the candlestick plot
         """
         return go.Candlestick(arg=self.plot['kwargs'].get('arg'),
                               close=self.plot['kwargs'].get('close'),
@@ -315,10 +316,10 @@ class PlotlyAdapter:
 
     def choroplethmapbox(self) -> go.Choroplethmapbox:
         """
-
         Generate interactive choroplethmapbox using plotly
 
-        :return: go.Choroplethmapbox: Plotly graph object containing the choroplethmapbox
+        :return: go.Choroplethmapbox
+            Plotly graph object containing the choroplethmapbox
         """
         return go.Choroplethmapbox(autocolorscale=self.plot['kwargs'].get('autocolorscale'),
                                    below=self.plot['kwargs'].get('below'),
@@ -365,19 +366,19 @@ class PlotlyAdapter:
 
     def mesh_3d(self) -> go.Mesh3d:
         """
-
         Generate interactive 3-dimensional set of triangles
 
-        :return go.Mesh3d: Plotly graph object containing the 3d mesh plot
+        :return go.Mesh3d
+            Plotly graph object containing the 3d mesh plot
         """
         return go.Mesh3d()
 
     def contour(self) -> go.Contour:
         """
-
         Generate interactive contour chart using plotly
 
-        :return: go.Contour: Plotly graph object containing the contour plot
+        :return: go.Contour
+            Plotly graph object containing the contour plot
         """
         return go.Contour(autocolorscale=self.plot['kwargs'].get('autocolorscale'),
                           autocontour=self.plot['kwargs'].get('autocontour'),
@@ -436,10 +437,10 @@ class PlotlyAdapter:
 
     def dendrogram(self) -> ff:
         """
-
         Generate interactive dendrogram chart using plotly
 
-        :return: ff: Plotly graph object containing the dendrogram chart
+        :return: ff
+            Plotly graph object containing the dendrogram chart
         """
         return ff.create_dendrogram(X=self.plot['kwargs'].get('X'),
                                     orientation=self.plot['kwargs'].get('orientation'),
@@ -453,10 +454,10 @@ class PlotlyAdapter:
 
     def densitymapbox(self) -> go.Densitymapbox:
         """
-
         Generate interactive density mapbox using plotly
 
-        :return: go.Densitymapbox: Plotly graphic object containing the density map
+        :return: go.Densitymapbox
+            Plotly graphic object containing the density map
         """
         return go.Densitymapbox(autocolorscale=self.plot['kwargs'].get('autocolorscale'),
                                 below=self.plot['kwargs'].get('below'),
@@ -501,10 +502,10 @@ class PlotlyAdapter:
 
     def distplot(self) -> ff:
         """
-
         Generate interactive distplot using plotly
 
-        :return: ff: Plotly graphic object containing the distplot chart
+        :return: ff
+            Plotly graphic object containing the distplot chart
         """
         return ff.create_distplot(hist_data=self.plot['kwargs'].get('hist_data'),
                                   group_labels=self.plot['kwargs'].get('group_labels'),
@@ -520,10 +521,10 @@ class PlotlyAdapter:
 
     def funnel(self) -> go.Funnel:
         """
-
         Generate interactive funnel charts using plotly
 
-        :return: go.Funnel: Plotly graphic object containing the funnel chart
+        :return: go.Funnel
+            Plotly graphic object containing the funnel chart
         """
         return go.Funnel(alignmentgroup=self.plot['kwargs'].get('alignmentgroup'),
                          cliponaxis=self.plot['kwargs'].get('cliponaxis'),
@@ -581,10 +582,10 @@ class PlotlyAdapter:
 
     def funnel_area(self) -> go.Funnel:
         """
-
         Generate interactive funnel area charts using plotly
 
-        :return: go.Funnel: Plotly graphic object containing the funnel area chart
+        :return: go.Funnel
+            Plotly graphic object containing the funnel area chart
         """
         return go.Funnelarea(aspectratio=self.plot['kwargs'].get('aspectratio'),
                              baseratio=self.plot['kwargs'].get('baseratio'),
@@ -632,13 +633,19 @@ class PlotlyAdapter:
 
     def generate_subplots(self, subplot_titles: List[str], rows: int, cols: int) -> go.Figure:
         """
-
         Generate subplots using plotly
 
-        :param List[str] subplot_titles: Title of each subplot
-        :param int rows: Amount of rows of plotly subplots
-        :param int cols: Amount of columns of plotly subplots
-        :return go.Figure: Plotly subplots
+        :param subplot_titles: List[str]
+            Title of each subplot
+
+        :param rows: int
+            Number of rows of plotly subplots
+
+        :param cols: int
+            Number of columns of plotly subplots
+
+        :return go.Figure
+            Plotly subplots
         """
         _specs: List[List[dict]] = []
         _subplot_titles: List[str] = subplot_titles
@@ -673,10 +680,10 @@ class PlotlyAdapter:
 
     def heat_map(self) -> go.Heatmap:
         """
-
         Generate interactive heat map
 
-        :return: go.Heatmap: Plotly graphic object containing the heat map
+        :return go.Heatmap
+            Plotly graphic object containing the heat map
         """
         return go.Heatmap(autocolorscale=self.plot['kwargs'].get('autocolorscale'),
                           coloraxis=self.plot['kwargs'].get('coloraxis'),
@@ -730,10 +737,10 @@ class PlotlyAdapter:
 
     def heat_map_annotated(self) -> ff:
         """
-
         Generate annotated heat map using plotly
 
-        :return: ff: Plotly graphic object containing the annotated heat map
+        :return: ff
+            Plotly graphic object containing the annotated heat map
         """
         return ff.create_annotated_heatmap(z=self.plot['kwargs'].get('z'),
                                            x=self.plot['kwargs'].get('x'),
@@ -747,10 +754,10 @@ class PlotlyAdapter:
 
     def histo(self) -> go.Histogram:
         """
-
         Generate interactive histogram using plotly
 
-        :return: go.Histogram: Plotly graphic object containing the histogram
+        :return: go.Histogram
+            Plotly graphic object containing the histogram
         """
         return go.Histogram(alignmentgroup=self.plot['kwargs'].get('alignmentgroup'),
                             autobinx=self.plot['kwargs'].get('autobinx'),
@@ -802,10 +809,10 @@ class PlotlyAdapter:
 
     def histogram_2d_contour(self) -> go.Histogram2dContour:
         """
-
         Generate interactive histogram 2d contour chart using plotly
 
-        :return: go.Histogram2dContour: Plotly graphic object containing the histogram 2d contour plot
+        :return: go.Histogram2dContour
+            Plotly graphic object containing the histogram 2d contour plot
         """
         return go.Histogram2dContour(autobinx=self.plot['kwargs'].get('autobinx'),
                                      autobiny=self.plot['kwargs'].get('autobiny'),
@@ -867,10 +874,10 @@ class PlotlyAdapter:
 
     def line(self) -> go.Scatter:
         """
-
         Generate interactive line chart using plotly
 
-        :return: go.Scatter: Plotly graphic object containing the line plot
+        :return: go.Scatter
+            Plotly graphic object containing the line plot
         """
         return go.Scatter(cliponaxis=self.plot['kwargs'].get('cliponaxis'),
                           connectgaps=self.plot['kwargs'].get('connectgaps'),
@@ -931,9 +938,7 @@ class PlotlyAdapter:
 
     def load(self):
         """
-
         Load serialized plotly figure from json file and visualize it
-
         """
         _fig: dict = DataImporter(file_path=self.file_path, as_data_frame=False).file()
         if _fig.get('data') is None:
@@ -953,10 +958,10 @@ class PlotlyAdapter:
 
     def parallel_category(self) -> go.Parcats:
         """
-
         Generate interactive parallel category chart using plotly
 
-        :return: go.Parcats: Plotly graphic object containing the parallel category chart
+        :return: go.Parcats
+            Plotly graphic object containing the parallel category chart
         """
         return go.Parcats(arrangement=self.plot['kwargs'].get('arrangement'),
                           bundlecolors=self.plot['kwargs'].get('bundlecolors'),
@@ -982,10 +987,10 @@ class PlotlyAdapter:
 
     def parallel_coordinates(self) -> go.Parcoords:
         """
-
         Generate interactive parallel coordinates chart using plotly
 
-        :return: go.Parcoords: Plotly graphic object containing the parallel coordinates chart
+        :return go.Parcoords
+            Plotly graphic object containing the parallel coordinates chart
         """
         return go.Parcoords(customdata=self.plot['kwargs'].get('customdata'),
                             customdatasrc=self.plot['kwargs'].get('customdatasrc'),
@@ -1011,10 +1016,10 @@ class PlotlyAdapter:
 
     def pie(self) -> go.Pie:
         """
-
         Generate interactive pie chart using plotly
 
-        :return: go.Pie: Plotly graphic object containing the pie plot
+        :return go.Pie
+            Plotly graphic object containing the pie plot
         """
         return go.Pie(automargin=self.plot['kwargs'].get('automargin'),
                       customdata=self.plot['kwargs'].get('customdata'),
@@ -1069,10 +1074,10 @@ class PlotlyAdapter:
 
     def ridgeline(self) -> go.Violin:
         """
-
         Generate interactive ridgeline chart using plotly
 
-        :return: go.Violin: Plotly graphic object containing the ridgeline plot
+        :return go.Violin
+            Plotly graphic object containing the ridgeline plot
         """
         return go.Violin(box_visible=self.plot['kwargs'].get('box_visible'),
                          legendgroup=self.plot['kwargs'].get('legendgroup'),
@@ -1091,7 +1096,6 @@ class PlotlyAdapter:
     def render(self):
         """
         Render plotly chart offline
-
         """
         iplot(figure_or_data=go.FigureWidget(self.fig),
               show_link=False if self.plot['kwargs'].get('show_link') is None else self.plot['kwargs'].get('show_link'),
@@ -1109,7 +1113,6 @@ class PlotlyAdapter:
     def save(self):
         """
         Save plotly chart as local file
-
         """
         if self.plot.get('file_path').split('.')[-1] is 'json':
             self._write_plotly_json()
@@ -1132,10 +1135,10 @@ class PlotlyAdapter:
 
     def scatterpolar(self) -> go.Scatterpolar:
         """
-
         Generate interactive scatterpolar (radar) chart using plotly
 
-        :return: go.Scatterpolar: Plotly graphic object containing the radar plot
+        :return go.Scatterpolar
+            Plotly graphic object containing the radar plot
         """
         return go.Scatterpolar(cliponaxis=self.plot['kwargs'].get('cliponaxis'),
                                connectgaps=self.plot['kwargs'].get('connectgaps'),
@@ -1189,10 +1192,10 @@ class PlotlyAdapter:
 
     def scatter(self) -> go.Scatter:
         """
-
         Generate interactive scatter plot
 
-        :return: go.Scatter: Plotly graphic object containing the scatter chart
+        :return go.Scatter
+            Plotly graphic object containing the scatter chart
         """
         return go.Scatter(cliponaxis=self.plot['kwargs'].get('cliponaxis'),
                           connectgaps=self.plot['kwargs'].get('connectgaps'),
@@ -1253,10 +1256,10 @@ class PlotlyAdapter:
 
     def scatter3d(self) -> go.Scatter3d:
         """
-
         Generate interactive 3d scatter plot using plotly
 
-        :return: go.Scatter3d: Plotly graphic object containing the 3d scatter chart
+        :return go.Scatter3d
+            Plotly graphic object containing the 3d scatter chart
         """
         return go.Scatter3d(connectgaps=self.plot['kwargs'].get('connectgaps'),
                             error_x=self.plot['kwargs'].get('error_x'),
@@ -1308,10 +1311,10 @@ class PlotlyAdapter:
 
     def scatter_gl(self) -> go.Scattergl:
         """
-
         Generate interactive scatter chart using web graphics library (WebGL)
 
-        :return: go.Scattergl: Plotly graphic object containing the geo map
+        :return go.Scattergl
+            Plotly graphic object containing the geo map
         """
         return go.Scattergl(connectgaps=self.plot['kwargs'].get('connectgaps'),
                             customdata=self.plot['kwargs'].get('customdata'),
@@ -1368,10 +1371,10 @@ class PlotlyAdapter:
 
     def scatter_geo(self) -> go.Scattergeo:
         """
-
         Generate interactive scatter geo map
 
-        :return: go.Scattergeo: Plotly graphic object containing the geo map
+        :return go.Scattergeo
+            Plotly graphic object containing the geo map
         """
         return go.Scattergeo(connectgaps=self.plot['kwargs'].get('connectgaps'),
                              fill=self.plot['kwargs'].get('fill'),
@@ -1418,10 +1421,10 @@ class PlotlyAdapter:
 
     def scatter_mapbox(self) -> go.Scattermapbox:
         """
-
         Generate interactive scattermapbox charts using plotly
 
-        :return: go.Scattermapbox: Plotly graphic object containing the scattermapbox chart
+        :return go.Scattermapbox
+            Plotly graphic object containing the scattermapbox chart
         """
         return go.Scattermapbox(below=self.plot['kwargs'].get('below'),
                                 connectgaps=self.plot['kwargs'].get('connectgaps'),
@@ -1469,9 +1472,7 @@ class PlotlyAdapter:
 
     def show_plotly_offline(self):
         """
-
         Show plotly visualization in jupyter notebook
-
         """
         self.fig.update_layout(angularaxis=self.plot['kwargs']['layout'].get('angularaxis'),
                                annotations=self.plot['kwargs']['layout'].get('annotations'),
@@ -1588,13 +1589,19 @@ class PlotlyAdapter:
 
     def subplots(self, subplot_titles: List[str], rows: int, cols: int) -> go.Figure:
         """
-
         Generate subplots using plotly
 
-        :param List[str] subplot_titles: Title of each subplot
-        :param int rows: Amount of rows of plotly subplots
-        :param int cols: Amount of columns of plotly subplots
-        :return go.Figure: Plotly subplots
+        :param subplot_titles: List[str]
+            Title of each subplot
+
+        :param rows: int
+            Number of rows of plotly subplots
+
+        :param cols: int
+            Number of columns of plotly subplots
+
+        :return go.Figure
+            Plotly subplots
         """
         _specs: List[List[dict]] = []
         _subplot_titles: List[str] = subplot_titles
@@ -1629,10 +1636,10 @@ class PlotlyAdapter:
 
     def sunburst(self) -> go.Sunburst:
         """
-
         Generate interactive sunburst chart using plotly
 
-        :return: go.Sunburst: Plotly graphic object containing the sunburst chart
+        :return go.Sunburst
+            Plotly graphic object containing the sunburst chart
         """
         return go.Sunburst(branchvalues=self.plot['kwargs'].get('branchvalues'),
                            count=self.plot['kwargs'].get('count'),
@@ -1678,10 +1685,10 @@ class PlotlyAdapter:
 
     def table(self) -> go.Table:
         """
-
         Generate interactive table chart using plotly
 
-        :return: go.Table: Plotly graphic object containing the table plot
+        :return go.Table
+            Plotly graphic object containing the table plot
         """
         return go.Table(cells=self.plot['kwargs'].get('cells'),
                         columnorder=self.plot['kwargs'].get('columnorder'),
@@ -1703,10 +1710,10 @@ class PlotlyAdapter:
 
     def treemap(self) -> go.Treemap:
         """
-
         Generate interactive tree map using pltoly
 
-        :return: go.Treemap: Plotly graphic object containing the tree map
+        :return go.Treemap
+            Plotly graphic object containing the tree map
         """
         return go.Treemap(branchvalues=self.plot['kwargs'].get('branchvalues'),
                           count=self.plot['kwargs'].get('count'),
@@ -1750,10 +1757,10 @@ class PlotlyAdapter:
 
     def violin(self) -> go.Violin:
         """
-
         Generate interactive violin chart using plotly
 
-        :return: go.Violin: Plotly graphic object containing the violin plot
+        :return go.Violin
+            Plotly graphic object containing the violin plot
         """
         return go.Violin(alignmentgroup=self.plot['kwargs'].get('alignmentgroup'),
                          bandwidth=self.plot['kwargs'].get('bandwidth'),
@@ -1815,7 +1822,6 @@ class PlotlyAdapter:
     def _write_plotly_json(self):
         """
         Export plotly graph data by writing json file
-
         """
         _data: dict = json.loads(json.dumps(self.fig.data, cls=PlotlyJSONEncoder))
         _layout: dict = json.loads(json.dumps(self.fig.layout, cls=PlotlyJSONEncoder))

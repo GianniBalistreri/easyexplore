@@ -5,13 +5,6 @@ import pandas as pd
 from .anomaly_detector import AnomalyDetector
 from .data_visualizer import DataVisualizer
 from .utils import Log, PERCENTILES, StatsUtils, EasyExploreUtils
-from pyod.models.abod import ABOD
-from pyod.models.cblof import CBLOF
-from pyod.models.feature_bagging import FeatureBagging
-from pyod.models.hbos import HBOS
-from pyod.models.iforest import IForest
-from pyod.models.knn import KNN
-from scipy import linalg, stats
 from typing import Dict, List, Tuple
 
 # TODO:
@@ -23,18 +16,14 @@ from typing import Dict, List, Tuple
 
 class DataExplorerException(Exception):
     """
-
     Class for setting up exceptions for class DataExploration, MissingDataAnalysis
-
     """
     pass
 
 
 class DataExplorer:
     """
-
     Class for data exploration
-
     """
     def __init__(self,
                  df: pd.DataFrame,
@@ -55,16 +44,35 @@ class DataExplorer:
                  file_path: str = None
                  ):
         """
-        :param df: Pandas DataFrame containing the data set
-        :param target: String containing the name of the target variable
-        :param include: List of strings containing the name of the variables to explore
-        :param exclude: List of strings containing the name of the variables to ignore
-        :param ordinal: List of strings containing the names of the ordinal features
-        :param date: List of strings containing the names of the date features
-        :param date_edges:
-        :param feature_types: Dict[str, List[str]] Feature type mapping
-        :param bool plot: Whether to plot the exploration results or not
-        :param str plot_type: Name of the plot type
+        :param df: pd.DataFrame
+            Data set
+
+        :param target: str
+            Name of the target variable
+
+        :param include: List[str]
+            Name of the features to explore
+
+        :param exclude: List[str]
+            Name of the variables to ignore
+
+        :param ordinal: List[str]
+            Names of the ordinal features
+
+        :param date: List[str]
+            Names of the date features
+
+        :param date_edges: tuple
+            Datetime values defining the time frame of valid datetime data
+
+        :param feature_types: Dict[str, List[str]]
+            Feature type mapping
+
+        :param plot: bool
+            Whether to plot the exploration results or not
+
+        :param plot_type: str
+            Name of the plot type
         """
         if df.shape[0] < 25:
             if df.shape[0] == 0:
@@ -125,10 +133,10 @@ class DataExplorer:
 
     def _check_data_types(self) -> Dict[str, List[str]]:
         """
-
         Get feature types
 
-        :return: Dict[str, List[str]]: Dictionary containing the names of the features and the regarding data types
+        :return: Dict[str, List[str]]
+            Dictionary containing the names of the features and the regarding data types
         """
         return EasyExploreUtils().get_feature_types(df=self.df,
                                                     features=self.features,
@@ -144,12 +152,16 @@ class DataExplorer:
 
     def _check_duplicates(self, by_row: bool = True, by_col: bool = True) -> Dict[str, list]:
         """
-
         Get duplicated cases and features
 
-        :param bool by_row: Find duplicates among cases
-        :param bool by_col: Find duplicates among features
-        :return: Dict[str, list]: List of index values of the duplicated cases and list of names of the duplicated features
+        :param by_row: bool
+            Find duplicates among cases
+
+        :param by_col: bool
+            Find duplicates among features
+
+        :return: Dict[str, list]:
+            List of index values of the duplicated cases and list of names of the duplicated features
         """
         _duplicates: dict = dict(cases=[], features=[])
         if by_row:
@@ -160,10 +172,10 @@ class DataExplorer:
 
     def _check_invariant_features(self) -> List[int]:
         """
-
         Get invariant features
 
-        :return: List[int]: Indices of the invariant features
+        :return: List[int]
+            Indices of the invariant features
         """
         _invariant_features: list = []
         for ft in self.features:
@@ -178,11 +190,14 @@ class DataExplorer:
 
     def _check_outliers(self, meth: str = 'iqr', outlier_threshold: float = 0.15) -> List[int]:
         """
-
         Get univariate outliers or extreme values
 
-        :param meth: String containing the name of the method to use
-        :param outlier_threshold: Float indicating the threshold of outliers for cutting them off
+        :param meth: str
+            Name of the method to use
+
+        :param outlier_threshold: float
+            Threshold of outliers for cutting them off
+
         :return: List of integers containing the index values of outlier cases
         """
         _cases: list = []
@@ -201,11 +216,13 @@ class DataExplorer:
 
     def _nan_case_summary(self, nan_case_df: pd.Series) -> pd.DataFrame:
         """
-
         Generate missing data case-wise summary
 
-        :param nan_case_df: Pandas Series containing the missing data case-wise relative frequency table
-        :return: Pandas DataFrame containing the missing data case-wise summary table
+        :param nan_case_df: pd.DataFrame
+            Pandas Series containing the missing data case-wise relative frequency table
+
+        :return: pd.DataFrame
+            Pandas DataFrame containing the missing data case-wise summary table
         """
         _rec = dict()
         _rec[0] = self.n_cases - nan_case_df.shape[0] if self.n_cases >= nan_case_df.shape[0] else 0
@@ -244,16 +261,15 @@ class DataExplorer:
 
     def _target_values(self) -> np.array:
         """
-
         Get unique values of the target variable
 
-        :return: np.array: Unique values of the target variable
+        :return: np.array
+            Unique values of the target variable
         """
         return self.df[self.target].unique()
 
     def break_down(self, include_cat: bool = True, plot_type: str = 'violin') -> dict:
         """
-
         Generate univariate statistics of continuous features grouped by categorical features
 
         :param include_cat: bool
@@ -267,7 +283,9 @@ class DataExplorer:
                 -> tree: Treemap Chart for level 2 overview
                 -> hist: Histogram Chart for level 2 overview
                 -> violin: Violin Chart for level 3 overview
-        :return dict: Breakdown statistics
+
+        :return dict
+            Breakdown statistics
         """
         _break_down_stats: dict = {}
         if plot_type not in ['radar', 'parcoords', 'sunburst', 'tree', 'hist', 'violin']:
@@ -306,18 +324,28 @@ class DataExplorer:
             decimals: int = 2
             ) -> dict:
         """
-
         Calculate correlation coefficients
 
-        :param bool marginal: Calculate marginal (classical) correlation
-        :param bool partial: Calculate partial correlation
-        :param str marginal_meth: Name of the method to be used as marginal correlation coefficient
-                                    -> pearson: Marginal Correlation based on Pearson's r
-                                    -> kendall: Rank Correlation based on Kendall
-                                    -> spearman: Rank Correlation based on Spearman
-        :param int min_obs: Minimum amount of valid observations
-        :param int decimals: Amount of decimal digits to show
-        :return: dict: Containing the marginal / partial correlation coefficient
+        :param marginal: bool
+            Calculate marginal (classical) correlation
+
+        :param partial: bool
+            Calculate partial correlation
+
+        :param marginal_meth: str
+            Name of the method to be used as marginal correlation coefficient
+                -> pearson: Marginal Correlation based on Pearson's r
+                -> kendall: Rank Correlation based on Kendall
+                -> spearman: Rank Correlation based on Spearman
+
+        :param min_obs: int
+            Minimum amount of valid observations
+
+        :param decimals: int
+            Amount of decimal digits to show
+
+        :return: dict
+            Containing the marginal / partial correlation coefficient
         """
         _cor: dict = dict(marginal={}, partial={}, diff={})
         _cor_plot: dict = {}
@@ -399,13 +427,19 @@ class DataExplorer:
                           grouping: bool = True
                           ) -> dict:
         """
-
         Check data distribution of different data types
 
-        :param bool categorical: Calculate distribution of categorical features
-        :param bool continuous: Calculate distribution of continuous features
-        :param bool over_time: Calculate distribution of continuous features over time period
-        :return: dict: Distribution parameter of each features
+        :param categorical: bool
+            Calculate distribution of categorical features
+
+        :param continuous: bool
+            Calculate distribution of continuous features
+
+        :param over_time: bool
+            Calculate distribution of continuous features over time period
+
+        :return: dict
+            Distribution parameter of each features
         """
         _subplots: dict = {}
         _distribution: dict = {}
@@ -480,18 +514,34 @@ class DataExplorer:
                           other_mis: list = None,
                           ) -> Dict[str, list]:
         """
-
         Check the quality of the data set in terms of sparsity, anomalies, duplicates, invariance
 
-        :param bool sparsity: Check sparsity of the data
-        :param bool invariant: Check whether the data is invariant
-        :param bool duplicate_cases: Check whether cases are duplicated
-        :param bool duplicate_features: Check whether features are duplicated
-        :param bool outliers_univariate: Check whether the data has duplicated
-        :param bool nan_heat_map: Generate heat map for missing data visualization
-        :param float nan_threshold: Threshold of missing values for cutting them off
-        :param list other_mis: List of (other missing) values to convert to missing value NaN
-        :return: Mapping[str, list]: Results of the data health check
+        :param sparsity: bool
+            Check sparsity of the data
+
+        :param invariant: bool
+            Check whether the data is invariant
+
+        :param duplicate_cases: bool
+            Check whether cases are duplicated
+
+        :param duplicate_features: bool
+            Check whether features are duplicated
+
+        :param outliers_univariate: bool
+            Check whether the data has duplicated
+
+        :param nan_heat_map: bool
+            Generate heat map for missing data visualization
+
+        :param nan_threshold: float
+            Threshold of missing values for cutting them off
+
+        :param other_mis: list
+            List of (other missing) values to convert to missing value NaN
+
+        :return: Mapping[str, list]
+            Results of the data health check
         """
         _index: list = []
         _cases: list = []
@@ -692,10 +742,10 @@ class DataExplorer:
 
     def data_typing(self) -> dict:
         """
-
         Check typing of each feature
 
-        :return: Dictionary containing the typing and the data typing of and recommendation for each feature
+        :return: dict
+            Typing and the data typing of and recommendation for each feature
         """
         _feature: list = []
         _typing: dict = {}
@@ -805,10 +855,10 @@ class DataExplorer:
 
     def get_feature_types(self) -> Dict[str, List[str]]:
         """
-
         Get and return data types of each feature
 
-        :return: Dictionary containing the names of the features and the regarding data types
+        :return: dict
+            Names of the features and the regarding data types
         """
         return self.feature_types
 
@@ -823,18 +873,34 @@ class DataExplorer:
                   perc: List[float] = None
                   ) -> dict:
         """
-
         Calculate statistics based on geographical area
 
-        :param List[str] geo_features: Geographical features
-        :param str lat: Name of the latitude feature
-        :param str lon: Name of the longitude feature
-        :param bool minimum: Calculate minimum
-        :param bool maximum: Calculate maximum
-        :param bool mean: Calculate mean
-        :param bool std: Calculate standard deviation
-        :param List[float] perc: Percentiles
-        :return: dict: Statistics based on geographical location
+        :param geo_features: List[str]
+            Geographical features
+
+        :param lat: str
+            Name of the latitude feature
+
+        :param lon: str
+            Name of the longitude feature
+
+        :param minimum: bool
+            Calculate minimum
+
+        :param maximum: bool
+            Calculate maximum
+
+        :param mean: bool
+            Calculate mean
+
+        :param std: bool
+            Calculate standard deviation
+
+        :param perc: List[float]
+            Percentiles
+
+        :return: dict
+            Statistics based on geographical location
         """
         _geo_stats: dict = {}
         for geo in geo_features:
@@ -882,18 +948,24 @@ class DataExplorer:
                          contour: bool = False
                          ) -> Dict[str, List[int]]:
         """
-
         Detect univariate or multivariate outliers
 
-        :param str kind: String containing the type of the outlier detection
-                        -> uni: Univariate
-                        -> bi: Bivariate
-                        -> multi: Multivariate
-        :param List[str] multi_meth: Algorithms for running multivariate outlier detection
-                                        -> if: Isolation Forest
-                                        -> knn: K-Nearest Neightbor
-        :param bool contour: Generate contour chart
-        :return: Dictionary containing the detected outliers
+        :param kind: str
+            String containing the type of the outlier detection
+                -> uni: Univariate
+                -> bi: Bivariate
+                -> multi: Multivariate
+
+        :param multi_meth: List[str]
+            Algorithms for running multivariate outlier detection
+                -> if: Isolation Forest
+                -> knn: K-Nearest Neightbor
+
+        :param contour: bool
+            Generate contour chart
+
+        :return: dict
+            Detected outliers
         """
         _subplots: dict = {}
         _outlier: Dict[str, List[int]] = {}
@@ -982,9 +1054,7 @@ class DataExplorer:
                                            height=500,
                                            width=500,
                                            render=True if self.file_path is None else False,
-                                           file_path=None if self.file_path is None else os.path.join(self.file_path,
-                                                                                                      '{}_{}'.format(pair[0], pair[1])
-                                                                                                      ),
+                                           file_path=None if self.file_path is None else '{}/{}_{}'.format(self.file_path, pair[0], pair[1]),
                                            **dict(multi={'scatter_inlier_{}'.format(i): _multi.get('scatter_inlier_{}'.format(i)),
                                                          'scatter_outlier_{}'.format(i): _multi.get('scatter_outlier_{}'.format(i))
                                                          },
@@ -1018,9 +1088,7 @@ class DataExplorer:
 
 class MissingDataAnalysis:
     """
-
     Class for missing data analysis
-
     """
     def __init__(self,
                  data: np.array,
