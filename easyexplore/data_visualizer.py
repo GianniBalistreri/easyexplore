@@ -930,9 +930,9 @@ class DataVisualizer:
                         for group in self.plot.get('group_by'):
                             _group_val: List[str] = self.df[group].unique().tolist()
                             for ft in self.plot.get('features'):
-                                for val in _group_val:
+                                for ext, val in enumerate(_group_val):
                                     _fig: go.Figure = go.Figure()
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, ext))
                                     self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                         'mode') is None else self.plot['kwargs'].get('mode'),
                                                                 'name': self._trim(input_str='{} ({}={})'.format(ft, group, val)),
@@ -989,8 +989,8 @@ class DataVisualizer:
                 else:
                     for group in self.plot.get('group_by'):
                         _group_val: List[str] = self.df[group].unique().tolist()
-                        for val in _group_val:
-                            self.file_path_extension = self._trim(input_str='{}_{}'.format(group, val))
+                        for ext, val in enumerate(_group_val):
+                            self.file_path_extension = self._trim(input_str='{}_{}'.format(group, ext))
                             self.plot['kwargs'].update({'colorbar': self.plot['kwargs'].get('colorbar'),
                                                         'colorscale': _color_scale,
                                                         'name': self._trim(input_str='{}={}'.format(group, val))
@@ -1733,9 +1733,9 @@ class DataVisualizer:
                         for group in self.plot.get('group_by'):
                             _group_val: List[str] = self.df[group].unique().tolist()
                             for ft in self.plot.get('features'):
-                                for val in _group_val:
+                                for ext, val in enumerate(_group_val):
                                     _fig: go.Figure = go.Figure()
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, ext))
                                     self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                         'mode') is None else self.plot['kwargs'].get('mode'),
                                                                 'name': self._trim(
@@ -1907,8 +1907,8 @@ class DataVisualizer:
                         for group in self.plot.get('group_by'):
                             _group_val: np.array = _sorted_df[group].unique()
                             for k, ft in enumerate(self.plot.get('features'), start=1):
-                                for val in _group_val:
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
+                                for ext, val in enumerate(_group_val):
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, ext))
                                     self.plot['kwargs'].update({'mode': 'lines' if self.plot['kwargs'].get(
                                         'mode') is None else self.plot['kwargs'].get('mode'),
                                                                 'name': self._trim(
@@ -1980,7 +1980,7 @@ class DataVisualizer:
                     for i, pair in enumerate(_pairs, start=1):
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
                             _group_val: np.array = self.df[group].unique()
-                            for val in _group_val:
+                            for ext, val in enumerate(_group_val):
                                 self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                     'mode') is None else self.plot['kwargs'].get('mode'),
                                                             'marker': dict(size=12,
@@ -2023,7 +2023,7 @@ class DataVisualizer:
                                     self.file_path_extension = self._trim(input_str='{}_{}_{}_{}'.format(pair[0],
                                                                                                          pair[1],
                                                                                                          group,
-                                                                                                         val
+                                                                                                         ext
                                                                                                          )
                                                                           )
                                     self.fig = _data
@@ -2086,7 +2086,7 @@ class DataVisualizer:
                     for i, pair in enumerate(_pairs, start=1):
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
                             _group_val: np.array = self.df[group].unique()
-                            for val in _group_val:
+                            for ext, val in enumerate(_group_val):
                                 self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                     'mode') is None else self.plot['kwargs'].get('mode'),
                                                             'marker': dict(size=12,
@@ -2131,7 +2131,7 @@ class DataVisualizer:
                                                                                                             pair[1],
                                                                                                             pair[2],
                                                                                                             group,
-                                                                                                            val
+                                                                                                            ext
                                                                                                             )
                                                                           )
                                     self.fig = _data
@@ -2265,7 +2265,7 @@ class DataVisualizer:
                                         _freq: pd.DataFrame = self.df.loc[self.df[group] == val, ft].value_counts()
                                     self.title = title
                                     self.title = '{}<br></br>{}'.format(self.title, self._trim(input_str='{} ({}={})'.format(ft, group, val)))
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, j))
                                     self.plot['kwargs'].update({'hole': 0.2 if self.plot['kwargs'].get('hole') is None else self.plot['kwargs'].get('hole'),
                                                                 'labels': _freq.index.values.tolist(),
                                                                 'parents': self.plot['kwargs'].get('parents'),
@@ -2404,7 +2404,7 @@ class DataVisualizer:
                                         if k == len(self.df[group].unique()):
                                             self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
                                                                                                               group,
-                                                                                                              val
+                                                                                                              k
                                                                                                               )
                                                                                   )
                                             self.fig = _data
@@ -2494,7 +2494,7 @@ class DataVisualizer:
                                     if k == len(self.df[group].unique()):
                                         self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
                                                                                                           group,
-                                                                                                          val
+                                                                                                          k
                                                                                                           )
                                                                               )
                                         self.fig = _data
@@ -2604,7 +2604,7 @@ class DataVisualizer:
                                                                         'group_labels') is None or i > 1 else self.plot[
                                                                         'kwargs'].get('group_labels')
                                                                     })
-                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
+                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, k))
                                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
                                         self._show_plotly_offline()
             ###############################
@@ -2733,7 +2733,7 @@ class DataVisualizer:
                                         self.fig = _data
                                         self._show_plotly_offline()
                                 else:
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, val))
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, k))
                                     self.fig = _data
                                     self._show_plotly_offline()
                                     _data = []
@@ -2751,12 +2751,12 @@ class DataVisualizer:
                             _unique_val: np.array = np.sort(self.df[time].unique())
                             _colors: list = n_colors('rgb(5, 200, 200)', 'rgb(200, 10, 10)', len(_unique_val),
                                                      colortype='rgb')
-                            for time_val in _unique_val:
+                            for ext, time_val in enumerate(_unique_val):
                                 if time_val in INVALID_VALUES:
                                     _x: list = self.df.loc[self.df[time].isnull(), ft].values
                                 else:
                                     _x: list = self.df.loc[self.df[time] == time_val, ft].values
-                                self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, time, time_val))
+                                self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, time, ext))
                                 self.plot['kwargs'].update({'x': _x,
                                                             'name': self._trim(
                                                                 input_str='{} ({}={})'.format(ft, time, time_val)),
@@ -2789,12 +2789,12 @@ class DataVisualizer:
                                     _unique_val: np.array = np.sort(_df[time].unique())
                                     _colors: list = n_colors('rgb(5, 200, 200)', 'rgb(200, 10, 10)', len(_unique_val),
                                                              colortype='rgb')
-                                    for time_val in _unique_val:
+                                    for ext, time_val in enumerate(_unique_val):
                                         if time_val in INVALID_VALUES:
                                             _x: list = self.df.loc[_df[time].isnull(), ft].values
                                         else:
                                             _x: list = self.df.loc[_df[time] == time_val, ft].values
-                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, time, time_val))
+                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, time, ext))
                                         self.plot['kwargs'].update({'x': _x,
                                                                     'name': self._trim(
                                                                         input_str='{} ({}={})'.format(ft, time,
