@@ -1029,7 +1029,7 @@ class EasyExploreUtils:
                     if any(_unique[~pd.isnull(_unique)] % 1) != 0:
                         _num.append(feature)
                     else:
-                        if len(str(df[feature].min()).split('.')[0]) >= 4:
+                        if len(str(df[feature].min()).split('.')[0]) > 4:
                             try:
                                 assert pd.to_datetime(df[feature])
                                 if _date_edges is None:
@@ -1047,7 +1047,7 @@ class EasyExploreUtils:
                     if any(_unique % 1) != 0:
                         _num.append(feature)
                     else:
-                        if len(str(df[feature].min()).split('.')[0]) >= 4:
+                        if len(str(df[feature].min()).split('.')[0]) > 4:
                             try:
                                 assert pd.to_datetime(df[feature])
                                 if _date_edges is None:
@@ -1062,7 +1062,7 @@ class EasyExploreUtils:
                         else:
                             _cat.append(feature)
             elif str(dtypes[i]).find('int') >= 0:
-                if len(str(df[feature].min())) >= 4:
+                if len(str(df[feature].min())) > 4:
                     try:
                         assert pd.to_datetime(df[feature])
                         _date.append(feature)
@@ -1083,7 +1083,7 @@ class EasyExploreUtils:
                             _dot = True
                         if text.replace('.', '').isdigit():
                             _digits += 1
-                if _digits == len(_unique):
+                if _digits == len(_unique[~pd.isnull(_unique)]):
                     if _dot:
                         try:
                             if any(_unique[~pd.isnull(_unique)] % 1) != 0:
@@ -1092,7 +1092,7 @@ class EasyExploreUtils:
                                 if df.shape[0] == len(df[feature].unique()):
                                     _str.append(feature)
                                 else:
-                                    if len(str(df[feature].min()).split('.')[0]) > 4:
+                                    if len(str(df.loc[~df[feature].isnull(), feature].astype(int).min()).split('.')[0]) > 4:
                                         _str.append(feature)
                                     else:
                                         _cat.append(feature)
