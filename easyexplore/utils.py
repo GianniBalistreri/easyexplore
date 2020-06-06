@@ -1092,7 +1092,7 @@ class EasyExploreUtils:
                                 if df.shape[0] == len(df[feature].unique()):
                                     _str.append(feature)
                                 else:
-                                    if len(str(df[feature].min()).split('.')[0]) >= 4:
+                                    if len(str(df[feature].min()).split('.')[0]) > 4:
                                         _str.append(feature)
                                     else:
                                         _cat.append(feature)
