@@ -569,7 +569,6 @@ class DBUtils:
 
         :param file_path
             File path of the local SQLite3 database
-
         """
         self.df = df
         self.table_name = table_name
