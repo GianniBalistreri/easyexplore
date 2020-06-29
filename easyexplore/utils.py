@@ -1079,10 +1079,10 @@ class EasyExploreUtils:
                 _dot: bool = False
                 for text_val in _unique:
                     if text_val == text_val:
-                        if (text_val.find('.') >= 0) or (text_val.replace(',', '').isdigit()):
+                        if (str(text_val).find('.') >= 0) or (str(text_val).replace(',', '').isdigit()):
                             _dot = True
-                        if text_val.replace('.', '').isdigit() or text_val.replace(',', '').isdigit():
-                            if (len(text_val.split('.')) == 2) or (len(text_val.split(',')) == 2):
+                        if str(text_val).replace('.', '').isdigit() or str(text_val).replace(',', '').isdigit():
+                            if (len(str(text_val).split('.')) == 2) or (len(str(text_val).split(',')) == 2):
                                 _digits += 1
                 if _digits == len(_unique[~pd.isnull(_unique)]):
                     if _dot:
