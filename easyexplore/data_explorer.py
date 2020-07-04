@@ -578,9 +578,7 @@ class DataExplorer:
             if self.plot:
                 _df_feature_mis = pd.DataFrame(data=_mis_analysis['features'])
                 _df_feature_mis = _df_feature_mis.rename(columns={'abs': 'N', 'rel': '%'},
-                                                         index=EasyExploreUtils().replace_dict_keys(d=_mis_analysis['features']['rel'],
-                                                                                                    new_keys=self.features
-                                                                                                    )
+                                                         index={self.features[n]: _mis_analysis['features']['rel'][k] for n, k in enumerate(_mis_analysis['features']['rel'].keys())}
                                                          )
                 if any(self.df.isnull()):
                     _df_case_mis = pd.DataFrame(data=_mis_analysis['cases'])
