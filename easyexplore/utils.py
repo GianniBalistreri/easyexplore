@@ -1336,6 +1336,25 @@ class EasyExploreUtils:
         return _df_perc
 
     @staticmethod
+    def replace_dict_keys(d: dict, new_keys: List[str]) -> dict:
+        """
+        Replace keys of a dictionary by values of given list
+
+        :param d: dict
+            Dictionary in which keys should be replaced
+
+        :param new_keys: List[str]
+            New key names
+
+        :return dict:
+            Adjusted dictionary
+        """
+        _d = dict()
+        for k in d.keys():
+            _d[k] = new_keys[k]
+        return _d
+
+    @staticmethod
     def search_for_file(key_word: str, starting_dir: str) -> List[str]:
         """
         Search for files with similar name patterns as key word input
