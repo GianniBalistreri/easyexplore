@@ -5,13 +5,13 @@ import pandas as pd
 from .anomaly_detector import AnomalyDetector
 from .data_visualizer import DataVisualizer
 from .utils import Log, PERCENTILES, StatsUtils, EasyExploreUtils
+from multiprocessing.pool import ThreadPool
 from typing import Dict, List, Tuple
 
 # TODO:
 #  Correlation -> Partial + Final Heat Map
 #  Data Distribution: Color + Annotations
 #  Move MissingDataAnalysis class to utils.py
-#  Parallelization
 
 
 class DataExplorerException(Exception):
@@ -41,7 +41,8 @@ class DataExplorer:
                  include_nan: bool = True,
                  plot: bool = True,
                  plot_type: str = None,
-                 file_path: str = None
+                 file_path: str = None,
+                 multi_threading: bool = True
                  ):
         """
         :param df: pd.DataFrame
@@ -73,7 +74,12 @@ class DataExplorer:
 
         :param plot_type: str
             Name of the plot type
+
+        :param multi_threading: bool
+            Whether to use multiple threads or single thread for exploration
         """
+        self.thread_pool = None
+        self.multi_threading: bool = multi_threading
         if df.shape[0] < 25:
             if df.shape[0] == 0:
                 raise DataExplorerException('Data set is empty')
@@ -138,17 +144,17 @@ class DataExplorer:
         :return: Dict[str, List[str]]
             Dictionary containing the names of the features and the regarding data types
         """
-        return EasyExploreUtils().get_feature_types(df=self.df,
-                                                    features=self.features,
-                                                    dtypes=self.data_types,
-                                                    continuous=self.continuous,
-                                                    categorical=self.categorical,
-                                                    ordinal=self.ordinal,
-                                                    date=self.date,
-                                                    id_text=self.id_text,
-                                                    max_cats=self.max_cats,
-                                                    date_edges=self.date_edges
-                                                    )
+        return EasyExploreUtils(multi_threading=self.multi_threading).get_feature_types(df=self.df,
+                                                                                        features=self.features,
+                                                                                        dtypes=self.data_types,
+                                                                                        continuous=self.continuous,
+                                                                                        categorical=self.categorical,
+                                                                                        ordinal=self.ordinal,
+                                                                                        date=self.date,
+                                                                                        id_text=self.id_text,
+                                                                                        max_cats=self.max_cats,
+                                                                                        date_edges=self.date_edges
+                                                                                        )
 
     def _check_duplicates(self, by_row: bool = True, by_col: bool = True) -> Dict[str, list]:
         """
@@ -268,12 +274,9 @@ class DataExplorer:
         """
         return self.df[self.target].unique()
 
-    def break_down(self, include_cat: bool = True, plot_type: str = 'violin') -> dict:
+    def break_down(self, plot_type: str = 'violin') -> pd.DataFrame:
         """
         Generate univariate statistics of continuous features grouped by categorical features
-
-        :param include_cat: bool
-            Whether to include categorical features into the statistical analysis or just as group by features
 
         :param plot_type: str
             Name of the visualization type:
@@ -284,28 +287,23 @@ class DataExplorer:
                 -> hist: Histogram Chart for level 2 overview
                 -> violin: Violin Chart for level 3 overview
 
-        :return dict
+        :return DataFrame
             Breakdown statistics
         """
-        _break_down_stats: dict = {}
         if plot_type not in ['radar', 'parcoords', 'sunburst', 'tree', 'hist', 'violin']:
             raise DataExplorerException('Plot type ({}) for visualizing categorical breakdown not supported'.format(plot_type))
         if len(self.feature_types.get('categorical')) == 0:
             raise DataExplorerException('No categorical features found to breakdown')
-        _features: List[str] = self.feature_types.get('categorical') + self.feature_types.get('ordinal')
-        for cat in _features:
-            _cats: List[str] = _features
-            del _cats[_cats.index(cat)]
-            if cat in self.df.keys():
-                for val in self.df[cat].unique():
-                    _break_down_stats.update({'continuous': {cat: {val: self.df.loc[self.df[cat] == val, self.feature_types.get('continuous')].describe(PERCENTILES).to_dict()}}})
-                    if include_cat:
-                        _break_down_stats.update({'categorical': {cat: {val: self.df.loc[self.df[cat] == val, _features].describe(PERCENTILES).to_dict()}}})
+        _cat_features: List[str] = self.feature_types.get('categorical')
+        if self.feature_types.get('ordinal') is not None:
+            _cat_features = _cat_features + self.feature_types.get('ordinal')
+        _agg: dict = {conti: ['count', 'min', 'quantile', 'median', 'mean', 'max', 'sum'] for conti in self.feature_types.get('continuous')}
+        _break_down_stats: pd.DataFrame = self.df[_cat_features].groupby().aggregate(_agg)
         if self.plot:
             DataVisualizer(title='Breakdown Statistics',
                            df=self.df,
-                           features=self.feature_types.get('continuous') + _features,
-                           group_by=self.feature_types.get('categorical'),
+                           features=self.feature_types.get('continuous') + _cat_features,
+                           group_by=_cat_features,
                            plot_type=plot_type,
                            melt=False,
                            interactive=True,
@@ -508,7 +506,6 @@ class DataExplorer:
                           invariant: bool = True,
                           duplicate_cases: bool = False,
                           duplicate_features: bool = True,
-                          outliers_univariate: bool = False,
                           nan_heat_map: bool = True,
                           nan_threshold: float = 0.95,
                           other_mis: list = None,
@@ -527,9 +524,6 @@ class DataExplorer:
 
         :param duplicate_features: bool
             Check whether features are duplicated
-
-        :param outliers_univariate: bool
-            Check whether the data has duplicated
 
         :param nan_heat_map: bool
             Generate heat map for missing data visualization
@@ -554,12 +548,30 @@ class DataExplorer:
                               'invariant': [],
                               'duplicate': {'cases': [], 'features': []}
                               }
-        if not sparsity and not invariant and not duplicate_cases and not duplicate_features and not outliers_univariate:
+        _pool_mis = None
+        _pool_invariant = None
+        _pool_duplicate = None
+        if not sparsity and not invariant and not duplicate_cases and not duplicate_features:
             raise DataExplorerException('No method for analyzing data health enabled')
         if other_mis is not None:
             self.df = self.df.replace(other_mis, np.nan)
+        if self.multi_threading:
+            _process: int = int(sparsity) + int(invariant) + int(duplicate_features) + int(duplicate_cases)
+            if (int(duplicate_features) + int(duplicate_cases)) == 2:
+                _process -= 1
+            self.thread_pool = ThreadPool(processes=_process)
+            if sparsity:
+                _mis = MissingDataAnalysis(data=self.df.to_numpy(), features=self.features)
+                _pool_mis = self.thread_pool.apply_async(func=_mis.freq_nan)
+            if invariant:
+                _pool_invariant = self.thread_pool.apply_async(func=self._check_invariant_features)
+            if duplicate_cases or duplicate_features:
+                _pool_duplicate = self.thread_pool.apply_async(func=self._check_duplicates, args=(duplicate_cases, duplicate_features))
         if sparsity:
-            _mis_analysis = MissingDataAnalysis(data=self.df.to_numpy(), features=self.features).freq_nan()
+            if self.multi_threading:
+                _mis_analysis = _pool_mis.get()
+            else:
+                _mis_analysis = MissingDataAnalysis(data=self.df.to_numpy(), features=self.features).freq_nan()
             _nan_cases = len(_mis_analysis['cases']['abs'].keys())
             _nan_features = len(_mis_analysis['features']['abs'].keys())
             _data_health['sparsity']['cases'] = list(EasyExploreUtils().subset_dict(d=_mis_analysis['cases']['rel'],
@@ -578,7 +590,9 @@ class DataExplorer:
             if self.plot:
                 _df_feature_mis = pd.DataFrame(data=_mis_analysis['features'])
                 _df_feature_mis = _df_feature_mis.rename(columns={'abs': 'N', 'rel': '%'},
-                                                         index={self.features[n]: _mis_analysis['features']['rel'][k] for n, k in enumerate(_mis_analysis['features']['rel'].keys())}
+                                                         index=EasyExploreUtils().replace_dict_keys(d=_mis_analysis['features']['rel'],
+                                                                                                    new_keys=self.features
+                                                                                                    )
                                                          )
                 if any(self.df.isnull()):
                     _df_case_mis = pd.DataFrame(data=_mis_analysis['cases'])
@@ -624,7 +638,10 @@ class DataExplorer:
                                                                        )
                                           })
         if invariant:
-            _data_health['invariant'] = self._check_invariant_features()
+            if self.thread_pool:
+                _data_health['invariant'] = _pool_invariant.get()
+            else:
+                _data_health['invariant'] = self._check_invariant_features()
             _i = len(_data_health['invariant'])
             _info_table['invariant'] = '{} ({} %)'.format(_i, str(100 * round(_i / self.n_features, 4)))
             _index.append('Amount of invariant features')
@@ -641,7 +658,10 @@ class DataExplorer:
                                                              )
                                   })
         if duplicate_features:
-            _data_health['duplicate'] = self._check_duplicates(by_row=True, by_col=True)
+            if self.multi_threading:
+                _data_health['duplicate'] = _pool_duplicate.get()
+            else:
+                _data_health['duplicate'] = self._check_duplicates(by_row=duplicate_cases, by_col=duplicate_features)
             if duplicate_cases:
                 _dc = len(_data_health['duplicate']['cases'])
                 _info_table['duplicate_cases'] = '{} ({} %)'.format(_dc, str(100 * round(_dc / self.n_cases, 4)))
@@ -671,18 +691,6 @@ class DataExplorer:
                                                              plot_type='pie',
                                                              interactive=True
                                                              )
-                                  })
-        if outliers_univariate:
-            _data_health['anomaly'] = self._check_outliers()
-            _a = len(_data_health['anomaly'])
-            _info_table['anomaly'] = '{} ({} %)'.format(_a, str(100 * round(_a / self.n_cases, 4)))
-            _index.append('Amount of outlier cases')
-            if self.plot:
-                _outlier_cases: List[str] = (['outlier'] * _a) + (['inlier'] * (self.n_cases - _a))
-                _subplots.update({'Cases containing univariate outliers': dict(data=pd.DataFrame(data=dict(uni_outlier=_outlier_cases)),
-                                                                               features=['uni_outlier'],
-                                                                               plot_type='pie'
-                                                                               )
                                   })
         for mis_feature in _data_health['sparsity']['features']:
             _features.append(mis_feature)
@@ -861,64 +869,52 @@ class DataExplorer:
         return self.feature_types
 
     def geo_stats(self,
-                  geo_features: List[str],
+                  geo_features: List[str] = None,
                   lat: str = None,
                   lon: str = None,
-                  minimum: bool = True,
-                  maximum: bool = True,
-                  mean: bool = True,
-                  std: bool = True,
-                  perc: List[float] = None
-                  ) -> dict:
+                  val: str = None,
+                  plot_type: str = 'density'
+                  ) -> pd.DataFrame:
         """
         Calculate statistics based on geographical area
 
         :param geo_features: List[str]
-            Geographical features
+            Geographical features for generate group by statistics
 
         :param lat: str
-            Name of the latitude feature
+            Name of the latitude feature for visualization
 
         :param lon: str
-            Name of the longitude feature
+            Name of the longitude feature for visualization
 
-        :param minimum: bool
-            Calculate minimum
+        :param val: str
+            Name of the continuous value feature for visualization
 
-        :param maximum: bool
-            Calculate maximum
+        :param plot_type: str
+            Name of the plot type to use:
+                -> geo: Geomap
+                -> denisty: Density map
 
-        :param mean: bool
-            Calculate mean
-
-        :param std: bool
-            Calculate standard deviation
-
-        :param perc: List[float]
-            Percentiles
-
-        :return: dict
-            Statistics based on geographical location
+        :return: pd.DataFrame
+            Statistics based on geographical features
         """
-        _geo_stats: dict = {}
-        for geo in geo_features:
-            _geo_stats.update({geo: {}})
-            for val in self.df[geo].unique():
-                _geo_stats[geo].update({val: {}})
-                if val in self.invalid_values:
-                    _df: pd.DataFrame = self.df.loc[self.df[geo].isnull(), :]
+        if geo_features is None:
+            _geo_stats: pd.DataFrame = pd.DataFrame()
+        else:
+            if len(geo_features) > 0:
+                _geo_features: List[str] = []
+                for geo in geo_features:
+                    if geo in self.df.keys():
+                        _geo_features.append(geo)
+                if len(_geo_features) > 0:
+                    _agg: dict = {conti: ['count', 'min', 'quantile', 'median', 'mean', 'max', 'sum'] for conti in self.feature_types.get('continuous')}
+                    _categorical_features: List[str] = self.feature_types.get('categorical') + self.feature_types.get('ordinal')
+                    _agg.update({cat: ['count'] for cat in _categorical_features if cat not in _geo_features})
+                    _geo_stats: pd.DataFrame = self.df[_geo_features].groupby().aggregate(_agg)
                 else:
-                    _df: pd.DataFrame = self.df.loc[self.df[geo] == val, :]
-                for ft in self.feature_types.get('continuous'):
-                    _geo_stats[geo][val].update({ft: dict(n=_df.shape[0])})
-                    if minimum:
-                        _geo_stats[geo][val][ft].update({'min': _df[ft].min()})
-                    if maximum:
-                        _geo_stats[geo][val][ft].update({'max': _df[ft].max()})
-                    if mean:
-                        _geo_stats[geo][val][ft].update({'mean': _df[ft].mean()})
-                    if std:
-                        _geo_stats[geo][val][ft].update({'std': _df[ft].std()})
+                    _geo_stats: pd.DataFrame = pd.DataFrame()
+            else:
+                _geo_stats: pd.DataFrame = pd.DataFrame()
         if self.plot:
             if lat is None:
                 raise DataExplorerException('No latitude feature found')
@@ -930,13 +926,28 @@ class DataExplorer:
             else:
                 if lon not in self.df.keys():
                     raise DataExplorerException('Longitude feature not found in data set')
-            DataVisualizer(title='Geo Statistics',
-                           subplots={},
+            if val is None:
+                raise DataExplorerException('No continuous value feature found')
+            else:
+                if val not in self.df.keys():
+                    raise DataExplorerException('Continuous value feature not found in data set')
+            if plot_type in ['geo', 'density']:
+                _plot_type: str = plot_type
+            else:
+                _plot_type: str = 'density'
+            self.df = self.df.loc[~self.df[val].isnull(), :]
+            self.df = self.df.loc[~self.df[lat].isnull(), :]
+            self.df = self.df.loc[~self.df[lon].isnull(), :]
+            DataVisualizer(title='Geo Map "{}" (n={})'.format(val, self.df.shape[0]),
+                           df=self.df,
+                           features=[val],
+                           plot_type=_plot_type,
                            interactive=True,
-                           height=500,
-                           width=500,
+                           height=750,
+                           width=750,
                            render=True if self.file_path is None else False,
-                           file_path=self.file_path
+                           file_path=self.file_path,
+                           **dict(lat=lat, lon=lon)
                            ).run()
         return _geo_stats
 
