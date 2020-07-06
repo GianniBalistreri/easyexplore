@@ -121,7 +121,7 @@ class DataExplorer:
             self.feature_types: Dict[str, List[str]] = self._check_data_types()
         else:
             for ft in feature_types.keys():
-                if ft not in ['continuous', 'categorical', 'ordinal', 'text', 'date']:
+                if ft not in ['continuous', 'categorical', 'ordinal', 'id_text', 'date']:
                     raise DataExplorerException('Feature type ({}) not supported'.format(ft))
             self.feature_types: Dict[str, List[str]] = feature_types
         self.target: str = target
