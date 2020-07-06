@@ -376,7 +376,13 @@ class DataVisualizer:
                         else:
                             if self.df is None:
                                 self.subplots[plot].update({'data': None})
-                                #raise DataVisualizerException('No data set found')
+                        if 'df' in self.subplots.get(plot).keys():
+                            if not isinstance(self.subplots[plot].get('df'), pd.DataFrame):
+                                self.subplots[plot].update({'df': None})
+                                self.subplots[plot].update({'data': None})
+                        else:
+                            if self.df is None:
+                                self.subplots[plot].update({'data': None})
                         if 'features' in self.subplots.get(plot).keys():
                             if isinstance(self.subplots[plot].get('features'), str):
                                 self.subplots[plot].update({'features': [self.subplots[plot]['features']]})
@@ -385,10 +391,19 @@ class DataVisualizer:
                                     if self.features is None:
                                         self.subplots[plot].update({'features': None})
                                         #raise DataVisualizerException('No features found in subplot config ({})'.format(plot))
+                                    else:
+                                        if len(self.features) == 0:
+                                            self.subplots[plot].update({'features': None})
+                                else:
+                                    if len(self.subplots[plot].get('features')) == 0:
+                                        self.subplots[plot].update({'features': None})
                         else:
                             if self.features is None:
                                 self.subplots[plot].update({'features': None})
                                 #raise DataVisualizerException('No data set found')
+                            else:
+                                if len(self.features) == 0:
+                                    self.subplots[plot].update({'features': None})
                         if 'plot_type' in self.subplots.get(plot).keys():
                             if not isinstance(self.subplots[plot].get('plot_type'), str):
                                 if self.plot_type is None:
