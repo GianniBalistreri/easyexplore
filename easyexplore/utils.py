@@ -1,3 +1,4 @@
+import copy
 import geojson
 import glob
 import itertools
@@ -15,6 +16,7 @@ from datetime import datetime
 from ipywidgets import FloatProgress
 from IPython.display import display, HTML
 from itertools import islice
+from multiprocessing.pool import ThreadPool
 from scipy.stats import anderson, chi2, chi2_contingency, f_oneway, friedmanchisquare, mannwhitneyu, normaltest, kendalltau,\
                         kruskal, kstest, pearsonr, powerlaw, shapiro, spearmanr, stats, ttest_ind, ttest_rel, wilcoxon
 from statsmodels.stats.weightstats import ztest
@@ -645,13 +647,162 @@ class EasyExploreUtils:
     """
     Class for applying general utility methods
     """
-    def __init__(self):
+    def __init__(self, multi_threading: bool = True):
         """
+        :param multi_threading: bool
+            Whether to run multiple threads or single thread
         """
-        pass
+        self.threads: dict = {}
+        self.multi_threading: bool = multi_threading
 
     @staticmethod
-    def check_dtypes(df: pd.DataFrame, date_edges: Tuple[str, str] = None) -> dict:
+    def _get_analytical_type(*args) -> Dict[str, str]:
+        """
+        Get analytical data type of feature
+
+        :param args: list
+            Arguments
+
+        :return Dict[str, str]:
+            Analytical data type and feture name
+        """
+        _analytical_obj: dict = dict(df=args[0],
+                                     feature=args[1],
+                                     dtype=args[2],
+                                     continuous=args[3],
+                                     categorical=args[4],
+                                     ordinal=args[5],
+                                     date=args[6],
+                                     id_text=args[7],
+                                     max_cats=args[8],
+                                     date_edges=args[9]
+                                     )
+        if _analytical_obj.get('date') is not None:
+            if _analytical_obj.get('feature') in _analytical_obj.get('date'):
+                return {'date': _analytical_obj.get('feature')}
+        if _analytical_obj.get('ordinal') is not None:
+            if _analytical_obj.get('feature') in _analytical_obj.get('ordinal'):
+                return {'ordinal': _analytical_obj.get('feature')}
+        if _analytical_obj.get('categorical') is not None:
+            if _analytical_obj.get('feature') in _analytical_obj.get('categorical'):
+                return {'categorical': _analytical_obj.get('feature')}
+        if _analytical_obj.get('continuous') is not None:
+            if _analytical_obj.get('feature') in _analytical_obj.get('continuous'):
+                return {'continuous': _analytical_obj.get('feature')}
+        if _analytical_obj.get('id_text') is not None:
+            if _analytical_obj.get('feature') in _analytical_obj.get('id_text'):
+                return {'id_text': _analytical_obj.get('feature')}
+        if str(_analytical_obj.get('dtype')).find('float') >= 0:
+            _unique: np.array = _analytical_obj.get('df')[_analytical_obj.get('feature')].unique()
+            if any(_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull()):
+                if any(_unique[~pd.isnull(_unique)] % 1) != 0:
+                    return {'continuous': _analytical_obj.get('feature')}
+                else:
+                    if len(str(_analytical_obj.get('df')[_analytical_obj.get('feature')].min()).split('.')[0]) > 4:
+                        try:
+                            assert pd.to_datetime(_analytical_obj.get('df')[_analytical_obj.get('feature')])
+                            if _analytical_obj.get('date_edges') is None:
+                                return {'date': _analytical_obj.get('feature')}
+                            else:
+                                if (_analytical_obj.get('date_edges')[0] < pd.to_datetime(_unique.min())) or (
+                                        _analytical_obj.get('date_edges')[1] > pd.to_datetime(_unique.max())):
+                                    return {'id_text': _analytical_obj.get('feature')}
+                                else:
+                                    return {'date': _analytical_obj.get('feature')}
+                        except (TypeError, ValueError):
+                            return {'id_text': _analytical_obj.get('feature')}
+                    else:
+                        return {'categorical': _analytical_obj.get('feature')}
+            else:
+                if any(_unique % 1) != 0:
+                    return {'continuous': _analytical_obj.get('feature')}
+                else:
+                    if len(str(_analytical_obj.get('df')[_analytical_obj.get('feature')].min()).split('.')[0]) > 4:
+                        try:
+                            assert pd.to_datetime(_analytical_obj.get('df')[_analytical_obj.get('feature')])
+                            if _analytical_obj.get('date_edges') is None:
+                                return {'date': _analytical_obj.get('feature')}
+                            else:
+                                if (_analytical_obj.get('date_edges')[0] < pd.to_datetime(_unique.min())) or (
+                                        _analytical_obj.get('date_edges')[1] > pd.to_datetime(_unique.max())):
+                                    return {'id_text': _analytical_obj.get('feature')}
+                                else:
+                                    return {'date': _analytical_obj.get('feature')}
+                        except (TypeError, ValueError):
+                            return {'id_text': _analytical_obj.get('feature')}
+                    else:
+                        return {'categorical': _analytical_obj.get('feature')}
+        elif str(_analytical_obj.get('dtype')).find('int') >= 0:
+            if len(str(_analytical_obj.get('df')[_analytical_obj.get('feature')].min())) > 4:
+                try:
+                    assert pd.to_datetime(_analytical_obj.get('df')[_analytical_obj.get('feature')])
+                    return {'date': _analytical_obj.get('feature')}
+                except (TypeError, ValueError):
+                    return {'categorical': _analytical_obj.get('feature')}
+            else:
+                if _analytical_obj.get('df').shape[0] == len(_analytical_obj.get('df')[_analytical_obj.get('feature')].unique()):
+                    return {'id_text': _analytical_obj.get('feature')}
+                else:
+                    return {'categorical': _analytical_obj.get('feature')}
+        elif str(_analytical_obj.get('dtype')).find('object') >= 0:
+            _unique: np.array = _analytical_obj.get('df')[_analytical_obj.get('feature')].unique()
+            _digits: int = 0
+            _dot: bool = False
+            for text_val in _unique:
+                if text_val == text_val:
+                    if (str(text_val).find('.') >= 0) or (str(text_val).replace(',', '').isdigit()):
+                        _dot = True
+                    if str(text_val).replace('.', '').isdigit() or str(text_val).replace(',', '').isdigit():
+                        if (len(str(text_val).split('.')) == 2) or (len(str(text_val).split(',')) == 2):
+                            _digits += 1
+            if _digits == len(_unique[~pd.isnull(_unique)]):
+                if _dot:
+                    try:
+                        if any(_unique[~pd.isnull(_unique)] % 1) != 0:
+                            return {'continuous': _analytical_obj.get('feature')}
+                        else:
+                            if _analytical_obj.get('df').shape[0] == len(_unique):
+                                return {'id_text': _analytical_obj.get('feature')}
+                            else:
+                                if len(str(_analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')].astype(int).min()).split('.')[0]) > 4:
+                                    return {'id_text': _analytical_obj.get('feature')}
+                                else:
+                                    return {'categorical': _analytical_obj.get('feature')}
+                    except (TypeError, ValueError):
+                        if _analytical_obj.get('df').shape[0] == len(_unique):
+                            return {'id_text': _analytical_obj.get('feature')}
+                        else:
+                            if len(_unique) > _analytical_obj.get('max_cats'):
+                                return {'id_text': _analytical_obj.get('feature')}
+                            else:
+                                return {'categorical': _analytical_obj.get('feature')}
+                else:
+                    return {'categorical': _analytical_obj.get('feature')}
+            else:
+                try:
+                    _date_time: datetime = pd.to_datetime(_analytical_obj.get('df')[_analytical_obj.get('feature')])
+                    if _analytical_obj.get('date_edges') is None:
+                        return {'date': _analytical_obj.get('feature')}
+                    else:
+                        if (_analytical_obj.get('date_edges')[0] < pd.to_datetime(_unique.min())) or (
+                                _analytical_obj.get('date_edges')[1] > pd.to_datetime(_unique.max())):
+                            return {'id_text': _analytical_obj.get('feature')}
+                        else:
+                            return {'date': _analytical_obj.get('feature')}
+                except (TypeError, ValueError):
+                    if _analytical_obj.get('df').shape[0] == len(_unique):
+                        return {'id_text': _analytical_obj.get('feature')}
+                    else:
+                        if len(_unique) > _analytical_obj.get('max_cats'):
+                            return {'id_text': _analytical_obj.get('feature')}
+                        else:
+                            return {'categorical': _analytical_obj.get('feature')}
+        elif str(_analytical_obj.get('dtype')).find('date') >= 0:
+            return {'date': _analytical_obj.get('feature')}
+        elif str(_analytical_obj.get('dtype')).find('bool') >= 0:
+            return {'categorical': _analytical_obj.get('feature')}
+
+    def check_dtypes(self, df: pd.DataFrame, date_edges: Tuple[str, str] = None) -> dict:
         """
         Check if data types of Pandas DataFrame match with the analytical measurement of data
 
@@ -666,11 +817,11 @@ class EasyExploreUtils:
         _typing: dict = dict(meta={}, conversion={})
         _features: List[str] = list(df.keys())
         _dtypes: List[str] = [str(dt) for dt in df.dtypes.tolist()]
-        _feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=df,
-                                                                                    features=_features,
-                                                                                    dtypes=df.dtypes.tolist(),
-                                                                                    date_edges=date_edges
-                                                                                    )
+        _feature_types: Dict[str, List[str]] = self.get_feature_types(df=df,
+                                                                      features=_features,
+                                                                      dtypes=df.dtypes.tolist(),
+                                                                      date_edges=date_edges
+                                                                      )
         _table: Dict[str, List[str]] = {'feature_type': [], 'data_type': [], 'rec': []}
         for i in range(0, len(_features), 1):
             if any(df[_features[i]].isnull()):
@@ -938,8 +1089,8 @@ class EasyExploreUtils:
             _duplicates['features'] = df.loc[:, df.transpose().duplicated()].keys().tolist()
         return _duplicates
 
-    @staticmethod
-    def get_feature_types(df: pd.DataFrame,
+    def get_feature_types(self,
+                          df: pd.DataFrame,
                           features: List[str],
                           dtypes: List[np.dtype],
                           continuous: List[str] = None,
@@ -986,11 +1137,8 @@ class EasyExploreUtils:
         :return: dict
             List of feature names for each feature type
         """
-        _num: list = []
-        _cat: list = []
-        _str: list = []
-        _date: list = []
-        _ordinal: list = []
+        _thread_pool = None
+        _feature_types: Dict[str, List[str]] = dict(id_text=[], categorical=[], ordinal=[], date=[], continuous=[])
         _max_cats: int = max_cats if max_cats > 0 else 500
         if date_edges is None:
             _date_edges = None
@@ -1002,134 +1150,46 @@ class EasyExploreUtils:
             except Exception as e:
                 _date_edges = None
                 Log(write=False, level='warning').log(msg='Date edges ({}) cannot be converted into datetime\nError: {}'.format(date_edges, e))
+        if self.multi_threading:
+            _thread_pool: ThreadPool = ThreadPool(processes=len(features))
         for i, feature in enumerate(features):
-            if date is not None:
-                if feature in date:
-                    _date.append(feature)
-                    continue
-            if ordinal is not None:
-                if feature in ordinal:
-                    _ordinal.append(feature)
-                    continue
-            if continuous is not None:
-                if feature in continuous:
-                    _num.append(feature)
-                    continue
-            if categorical is not None:
-                if feature in categorical:
-                    _cat.append(feature)
-                    continue
-            if id_text is not None:
-                if feature in id_text:
-                    _str.append(feature)
-                    continue
-            if str(dtypes[i]).find('float') >= 0:
-                _unique: np.array = df[feature].unique()
-                if any(df[feature].isnull()):
-                    if any(_unique[~pd.isnull(_unique)] % 1) != 0:
-                        _num.append(feature)
-                    else:
-                        if len(str(df[feature].min()).split('.')[0]) > 4:
-                            try:
-                                assert pd.to_datetime(df[feature])
-                                if _date_edges is None:
-                                    _date.append(feature)
-                                else:
-                                    if (_date_edges[0] < pd.to_datetime(_unique.min())) or (_date_edges[1] > pd.to_datetime(_unique.max())):
-                                        _str.append(feature)
-                                    else:
-                                        _date.append(feature)
-                            except (TypeError, ValueError):
-                                _str.append(feature)
-                        else:
-                            _cat.append(feature)
-                else:
-                    if any(_unique % 1) != 0:
-                        _num.append(feature)
-                    else:
-                        if len(str(df[feature].min()).split('.')[0]) > 4:
-                            try:
-                                assert pd.to_datetime(df[feature])
-                                if _date_edges is None:
-                                    _date.append(feature)
-                                else:
-                                    if (_date_edges[0] < pd.to_datetime(_unique.min())) or (_date_edges[1] > pd.to_datetime(_unique.max())):
-                                        _str.append(feature)
-                                    else:
-                                        _date.append(feature)
-                            except (TypeError, ValueError):
-                                _str.append(feature)
-                        else:
-                            _cat.append(feature)
-            elif str(dtypes[i]).find('int') >= 0:
-                if len(str(df[feature].min())) > 4:
-                    try:
-                        assert pd.to_datetime(df[feature])
-                        _date.append(feature)
-                    except (TypeError, ValueError):
-                        _cat.append(feature)
-                else:
-                    if df.shape[0] == len(df[feature].unique()):
-                        _str.append(feature)
-                    else:
-                        _cat.append(feature)
-            elif str(dtypes[i]).find('object') >= 0:
-                _unique: np.array = df[feature].unique()
-                _digits: int = 0
-                _dot: bool = False
-                for text_val in _unique:
-                    if text_val == text_val:
-                        if (str(text_val).find('.') >= 0) or (str(text_val).replace(',', '').isdigit()):
-                            _dot = True
-                        if str(text_val).replace('.', '').isdigit() or str(text_val).replace(',', '').isdigit():
-                            if (len(str(text_val).split('.')) == 2) or (len(str(text_val).split(',')) == 2):
-                                _digits += 1
-                if _digits == len(_unique[~pd.isnull(_unique)]):
-                    if _dot:
-                        try:
-                            if any(_unique[~pd.isnull(_unique)] % 1) != 0:
-                                _num.append(feature)
-                            else:
-                                if df.shape[0] == len(_unique):
-                                    _str.append(feature)
-                                else:
-                                    if len(str(df.loc[~df[feature].isnull(), feature].astype(int).min()).split('.')[0]) > 4:
-                                        _str.append(feature)
-                                    else:
-                                        _cat.append(feature)
-                        except (TypeError, ValueError):
-                            if df.shape[0] == len(_unique):
-                                _str.append(feature)
-                            else:
-                                if len(_unique) > _max_cats:
-                                    _str.append(feature)
-                                else:
-                                    _cat.append(feature)
-                    else:
-                        _cat.append(feature)
-                else:
-                    try:
-                        _date_time: datetime = pd.to_datetime(df[feature])
-                        if _date_edges is None:
-                            _date.append(feature)
-                        else:
-                            if (_date_edges[0] < pd.to_datetime(_unique.min())) or (_date_edges[1] > pd.to_datetime(_unique.max())):
-                                _str.append(feature)
-                            else:
-                                _date.append(feature)
-                    except (TypeError, ValueError):
-                        if df.shape[0] == len(_unique):
-                            _str.append(feature)
-                        else:
-                            if len(_unique) > _max_cats:
-                                _str.append(feature)
-                            else:
-                                _cat.append(feature)
-            elif str(dtypes[i]).find('date') >= 0:
-                _date.append(feature)
-            elif str(dtypes[i]).find('bool') >= 0:
-                _cat.append(feature)
-        return dict(continuous=_num, categorical=_cat, ordinal=_ordinal, date=_date, text=_str)
+            if self.multi_threading:
+                self.threads.update({i: _thread_pool.apply_async(func=self._get_analytical_type, args=(df,
+                                                                                                       feature,
+                                                                                                       dtypes[i],
+                                                                                                       continuous,
+                                                                                                       categorical,
+                                                                                                       ordinal,
+                                                                                                       date,
+                                                                                                       id_text,
+                                                                                                       _max_cats,
+                                                                                                       _date_edges
+                                                                                                       )
+                                                                 )
+                                     })
+                if i + 1 == len(features):
+                    for thread in self.threads.keys():
+                        _analytical_type: Dict[str, str] = self.threads[thread].get()
+                        _type: str = list(_analytical_type.keys())[0]
+                        _feature: str = _analytical_type[list(_analytical_type.keys())[0]]
+                        _feature_types[copy.deepcopy(_type)].append(copy.deepcopy(_feature))
+            else:
+                _analytical_type: Dict[str, str] = self._get_analytical_type(*[df,
+                                                                               feature,
+                                                                               dtypes[i],
+                                                                               continuous,
+                                                                               categorical,
+                                                                               ordinal,
+                                                                               date,
+                                                                               id_text,
+                                                                               _max_cats,
+                                                                               _date_edges
+                                                                               ]
+                                                                             )
+                _type: str = list(_analytical_type.keys())[0]
+                _feature: str = _analytical_type[list(_analytical_type.keys())[0]]
+                _feature_types[copy.deepcopy(_type)].append(copy.deepcopy(_feature))
+        return _feature_types
 
     @staticmethod
     def get_geojson(df: pd.DataFrame,
