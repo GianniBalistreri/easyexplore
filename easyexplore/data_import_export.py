@@ -1,4 +1,3 @@
-import csv
 import json
 import os
 import pandas as pd
@@ -100,68 +99,61 @@ class DataImporter(FileUtils):
         super().__init__(file_path=file_path, create_dir=create_dir)
         self.as_df: bool = as_data_frame
         self.sep: str = sep
-        self.user_kwargs = kwargs
-        self.kwargs = None
+        self.kwargs: dict = kwargs
         self._config_args()
 
     def _config_args(self):
         """
         Set configuration setting for the data import as Pandas DataFrame
         """
-        self.kwargs = {'filepath': self.full_path,
-                       'sep': self.sep,
-                       'decimal': '.',
-                       'header': 0,
-                       'encoding': 'utf-8',
-                       'skip_blank_lines': True,
-                       'na_values': None,
-                       'keep_default_na': True,
-                       'parse_dates': True,
-                       'quotechar': '|',
-                       'quoting': csv.QUOTE_NONE,
-                       'doublequote': False,
-                       'sheet_name': 0,
-                       'names': None,
-                       'index_col': None,
-                       'usecols': None,
-                       'squeeze': False,
-                       'prefix': None,
-                       'mangle_dup_cols': True,
-                       'dtype': None,
-                       'engine': None,
-                       'converters': None,
-                       'true_values': None,
-                       'false_values': None,
-                       'skipinitialspace': False,
-                       'skiprows': None,
-                       'skipfooter': 0,
-                       'nrows': None,
-                       'na_filter': True,
-                       'verbose': False,
-                       'infer_datetime_format': True,
-                       'keep_date_col': False,
-                       'date_parser': None,
-                       'dayfirst': False,
-                       'iterator': False,
-                       'chunksize': None,
-                       'compression': 'infer',
-                       'thousands': None,
-                       'float_precision': None,
-                       'lineterminator': None,
-                       'escapechar': None,
-                       'comment': None,
-                       'dialect': None,
-                       'error_bad_lines': False,
-                       'warn_bad_lines': True,
-                       'low_memory': True,
-                       'memory_map': False
-                       }
-        if self.user_kwargs is not None:
-            for kwarg, value in self.user_kwargs.items():
-                if kwarg in self.kwargs.keys():
-                    self.kwargs[kwarg] = value
-                else:
-                    print('Key word argument ({}) not supported !'.format(kwarg))
+        self.kwargs.update({'filepath': self.full_path,
+                            'sep': self.sep,
+                            'decimal': '.' if self.kwargs.get('decimal') is None else self.kwargs.get('decimal'),
+                            'header': 0 if self.kwargs.get('header') is None else self.kwargs.get('header'),
+                            'encoding': 'utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding'),
+                            'skip_blank_lines': True if self.kwargs.get('skip_blank_lines') is None else self.kwargs.get('skip_blank_lines'),
+                            'na_values': self.kwargs.get('na_values'),
+                            'keep_default_na': True if self.kwargs.get('keep_default_na') is None else self.kwargs.get('keep_default_na'),
+                            'parse_dates': True if self.kwargs.get('parse_dates') is None else self.kwargs.get('parse_dates'),
+                            'quotechar': '"' if self.kwargs.get('quotechar') is None else self.kwargs.get('quotechar'),
+                            'quoting': 0 if self.kwargs.get('quoting') is None else self.kwargs.get('quotechar'), #csv.QUOTE_NONE,
+                            'doublequote': True if self.kwargs.get('doublequote') is None else self.kwargs.get('doublequote'),
+                            'sheet_name': 0 if self.kwargs.get('sheet_name') is None else self.kwargs.get('sheet_name'),
+                            'names': self.kwargs.get('names'),
+                            'index_col': self.kwargs.get('index_col'),
+                            'usecols': self.kwargs.get('usecols'),
+                            'squeeze': False if self.kwargs.get('squeeze') is None else self.kwargs.get('squeeze'),
+                            'prefix': self.kwargs.get('prefix'),
+                            'mangle_dup_cols': True if self.kwargs.get('mangle_dup_cols') is None else self.kwargs.get('mangle_dup_cols'),
+                            'dtype': self.kwargs.get('dtype'),
+                            'engine': self.kwargs.get('engine'),
+                            'converters': self.kwargs.get('converters'),
+                            'true_values': self.kwargs.get('true_values'),
+                            'false_values': self.kwargs.get('false_values'),
+                            'skipinitialspace': False if self.kwargs.get('skipinitialspace') is None else self.kwargs.get('skipinitialspace'),
+                            'skiprows': self.kwargs.get('skiprows'),
+                            'skipfooter': 0 if self.kwargs.get('skipfooter') is None else self.kwargs.get('skipfooter'),
+                            'nrows': self.kwargs.get('nrows'),
+                            'na_filter': True if self.kwargs.get('na_filter') is None else self.kwargs.get('na_filter'),
+                            'verbose': False if self.kwargs.get('verbose') is None else self.kwargs.get('verbose'),
+                            'infer_datetime_format': True if self.kwargs.get('infer_datetime_format') is None else self.kwargs.get('infer_datetime_format'),
+                            'keep_date_col': False if self.kwargs.get('keep_date_col') is None else self.kwargs.get('keep_date_col'),
+                            'date_parser': None if self.kwargs.get('date_parser') is None else self.kwargs.get('date_parser'),
+                            'dayfirst': False if self.kwargs.get('dayfirst') is None else self.kwargs.get('dayfirst'),
+                            'iterator': False if self.kwargs.get('iterator') is None else self.kwargs.get('iterator'),
+                            'chunksize': self.kwargs.get('chunksize'),
+                            'compression': 'infer' if self.kwargs.get('compression') is None else self.kwargs.get('compression'),
+                            'thousands': self.kwargs.get('thousands'),
+                            'float_precision': self.kwargs.get('float_precision'),
+                            'lineterminator': self.kwargs.get('lineterminator'),
+                            'escapechar': self.kwargs.get('escapechar'),
+                            'comment': self.kwargs.get('comment'),
+                            'dialect': self.kwargs.get('dialect'),
+                            'error_bad_lines': False if self.kwargs.get('error_bad_lines') is None else self.kwargs.get('error_bad_lines'),
+                            'warn_bad_lines': True if self.kwargs.get('warn_bad_lines') is None else self.kwargs.get('warn_bad_lines'),
+                            'low_memory': True if self.kwargs.get('low_memory') is None else self.kwargs.get('low_memory'),
+                            'memory_map': False if self.kwargs.get('memory_map') is None else self.kwargs.get('memory_map')
+                            })
 
     def _excel_as_df(self) -> pd.DataFrame:
         """
