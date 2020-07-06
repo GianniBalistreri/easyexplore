@@ -1611,21 +1611,25 @@ class DataVisualizer:
                     raise DataVisualizerException('No longitude information found')
                 if self.plot['kwargs'].get('lat') is None:
                     raise DataVisualizerException('No latitude information found')
-                _lat_median: int = int(np.median(self.plot['kwargs'].get('lat')))
-                _lon_median: int = int(np.median(self.plot['kwargs'].get('lon')))
-                self.plot['kwargs'].update({'lon': self.plot['kwargs'].get('lon'),
-                                            'lat': self.plot['kwargs'].get('lat')
-                                            })
-                self.plot['kwargs']['layout'].update({'mapbox': dict(
-                    style='stamen-terrain' if self.plot['kwargs'].get('style') is None else self.plot['kwargs'].get(
-                        'style'),
-                    center=dict(lat=_lat_median, lon=_lon_median) if self.plot['kwargs'].get('center') is None else
-                    self.plot['kwargs'].get('center'),
-                    zoom=5 if self.plot['kwargs'].get('zoom') is None else self.plot['kwargs'].get('zoom')
-                )
-                })
-                for ft in self.plot.get('features'):
-                    self.plot['kwargs'].update({'z': self.df[ft].values})
+                for feature in self.plot.get('features'):
+                    _visualize_features: List[str] = [feature, self.plot['kwargs'].get('lon'), self.plot['kwargs'].get('lat')]
+                    self.df = self.df.loc[~self.df[feature].isnull(), _visualize_features]
+                    self.df = self.df.loc[~self.df[self.plot['kwargs'].get('lon')].isnull(), :]
+                    self.df = self.df.loc[~self.df[self.plot['kwargs'].get('lat')].isnull(), :]
+                    _lat_median: int = int(np.median(self.df[self.plot['kwargs'].get('lat')]))
+                    _lon_median: int = int(np.median(self.df[self.plot['kwargs'].get('lon')]))
+                    self.plot['kwargs'].update({'lon': self.df[self.plot['kwargs'].get('lon')],
+                                                'lat': self.df[self.plot['kwargs'].get('lat')]
+                                                })
+                    self.plot['kwargs']['layout'].update({'mapbox': dict(
+                        style='stamen-terrain' if self.plot['kwargs'].get('style') is None else self.plot['kwargs'].get(
+                            'style'),
+                        center=dict(lat=_lat_median, lon=_lon_median) if self.plot['kwargs'].get('center') is None else
+                        self.plot['kwargs'].get('center'),
+                        zoom=5 if self.plot['kwargs'].get('zoom') is None else self.plot['kwargs'].get('zoom')
+                    )
+                    })
+                    self.plot['kwargs'].update({'z': self.df[feature].values})
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).densitymapbox()
                     self._show_plotly_offline()
             #######################
