@@ -376,13 +376,33 @@ class DataVisualizer:
                         else:
                             if self.df is None:
                                 self.subplots[plot].update({'data': None})
+                            else:
+                                self.subplots[plot].update({'data': self.df})
                         if 'df' in self.subplots.get(plot).keys():
                             if not isinstance(self.subplots[plot].get('df'), pd.DataFrame):
                                 self.subplots[plot].update({'df': None})
-                                self.subplots[plot].update({'data': None})
+                                if 'data' in self.subplots.get(plot).keys():
+                                    if not isinstance(self.subplots[plot].get('data'), pd.DataFrame):
+                                        self.subplots[plot].update({'data': None})
+                                else:
+                                    self.subplots[plot].update({'data': None})
+                            else:
+                                if 'data' not in self.subplots.get(plot).keys():
+                                    self.subplots[plot].update({'data': self.subplots[plot].get('df')})
+                                    self.subplots[plot].update({'df': None})
+                                else:
+                                    if not isinstance(self.subplots[plot].get('data'), pd.DataFrame):
+                                        self.subplots[plot].update({'data': self.subplots[plot].get('df')})
+                                        self.subplots[plot].update({'df': None})
                         else:
                             if self.df is None:
-                                self.subplots[plot].update({'data': None})
+                                if 'data' in self.subplots.get(plot).keys():
+                                    if not isinstance(self.subplots[plot].get('data'), pd.DataFrame):
+                                        self.subplots[plot].update({'data': None})
+                            else:
+                                if 'data' in self.subplots.get(plot).keys():
+                                    if not isinstance(self.subplots[plot].get('data'), pd.DataFrame):
+                                        self.subplots[plot].update({'data': self.df})
                         if 'features' in self.subplots.get(plot).keys():
                             if isinstance(self.subplots[plot].get('features'), str):
                                 self.subplots[plot].update({'features': [self.subplots[plot]['features']]})
@@ -543,8 +563,8 @@ class DataVisualizer:
                             self.subplots[plot].update({'color_edges': self.color_edges})
                         if 'color_feature' in self.subplots.get(plot).keys():
                             if isinstance(self.subplots[plot].get('color_feature'), str):
-                                if not self.subplots[plot].get('color_feature') in self.subplots[plot].get('data'):
-                                    self.subplots[plot].update({'color_feature': self.color_feature})
+                                if not self.subplots[plot].get('color_feature') in self.subplots[plot].get('data').keys():
+                                    self.subplots[plot].update({'color_feature': None})
                             else:
                                 self.subplots[plot].update({'color_feature': self.color_feature})
                         else:
