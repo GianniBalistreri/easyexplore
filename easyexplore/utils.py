@@ -1,3 +1,4 @@
+import collections
 import copy
 import geojson
 import glob
@@ -8,6 +9,7 @@ import numpy as np
 import networkx as nx
 import pandas as pd
 import psutil
+import re
 import subprocess
 import zipfile
 
@@ -24,6 +26,10 @@ from typing import Dict, List, Tuple
 
 INVALID_VALUES: list = ['nan', 'NaN', 'NaT', np.nan, 'none', 'None', 'inf', '-inf', np.inf, -np.inf] # None
 PERCENTILES: List[float] = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+SPECIAL_CHARACTERS: List[str] = [' ', '^', '°', '!', '"', "'", '§', '$', '%', '&', '/', '(', ')', '=', '?', '`', '´',
+                                 '<', '>', '|', '@', '€', '*', '+', '#', '-', '_', '.', ',', ':', ';'
+                                 ]
+SPECIAL_SEPARATORS: List[str] = ['!!', '%%', '==', '<<', '>>', '&&', '||', '##', '--', '__', '::', ';;']
 
 
 class EasyExplore:
@@ -733,17 +739,45 @@ class EasyExploreUtils:
                     else:
                         return {'categorical': _analytical_obj.get('feature')}
         elif str(_analytical_obj.get('dtype')).find('int') >= 0:
-            if len(str(_analytical_obj.get('df')[_analytical_obj.get('feature')].min())) > 4:
-                try:
-                    assert pd.to_datetime(_analytical_obj.get('df')[_analytical_obj.get('feature')])
+            try:
+                assert pd.to_datetime(_analytical_obj.get('df')[_analytical_obj.get('feature')])
+                _potential_date: pd.DataFrame = _analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')]
+                _unique_cats: int = len(pd.to_datetime(_potential_date).dt.year.unique()) \
+                                    + len(pd.to_datetime(_potential_date).dt.month.unique()) \
+                                    + len(pd.to_datetime(_potential_date).dt.week.unique()) \
+                                    + len(pd.to_datetime(_potential_date).dt.day.unique())
+                if _unique_cats > 4:
                     return {'date': _analytical_obj.get('feature')}
-                except (TypeError, ValueError):
-                    return {'categorical': _analytical_obj.get('feature')}
-            else:
+                else:
+                    if _analytical_obj.get('df').shape[0] == len(_analytical_obj.get('df')[_analytical_obj.get('feature')].unique()):
+                        return {'id_text': _analytical_obj.get('feature')}
+                    else:
+                        _len_of_feature: pd.DataFrame = _analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')]
+                        _len_of_feature = _len_of_feature.astype(str)
+                        _len_of_feature['len'] = _len_of_feature.str.len()
+                        _unique_values: np.array = _len_of_feature['len'].unique()
+                        if np.min(_unique_values) > 3:
+                            if np.mean(_unique_values) == np.median(_unique_values):
+                                return {'id_text': _analytical_obj.get('feature')}
+                            else:
+                                return {'categorical': _analytical_obj.get('feature')}
+                        else:
+                            return {'categorical': _analytical_obj.get('feature')}
+            except (TypeError, ValueError):
                 if _analytical_obj.get('df').shape[0] == len(_analytical_obj.get('df')[_analytical_obj.get('feature')].unique()):
                     return {'id_text': _analytical_obj.get('feature')}
                 else:
-                    return {'categorical': _analytical_obj.get('feature')}
+                    _len_of_feature: pd.DataFrame = _analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')]
+                    _len_of_feature = _len_of_feature.astype(str)
+                    _len_of_feature['len'] = _len_of_feature.str.len()
+                    _unique_values: np.array = _len_of_feature['len'].unique()
+                    if np.min(_unique_values) > 3:
+                        if np.mean(_unique_values) == np.median(_unique_values):
+                            return {'id_text': _analytical_obj.get('feature')}
+                        else:
+                            return {'categorical': _analytical_obj.get('feature')}
+                    else:
+                        return {'categorical': _analytical_obj.get('feature')}
         elif str(_analytical_obj.get('dtype')).find('object') >= 0:
             _unique: np.array = _analytical_obj.get('df')[_analytical_obj.get('feature')].unique()
             _digits: int = 0
@@ -764,7 +798,10 @@ class EasyExploreUtils:
                             if _analytical_obj.get('df').shape[0] == len(_unique):
                                 return {'id_text': _analytical_obj.get('feature')}
                             else:
-                                if len(str(_analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')].astype(int).min()).split('.')[0]) > 4:
+                                _len_of_feature: pd.DataFrame = _analytical_obj.get('df')[_analytical_obj.get('feature')]
+                                _len_of_feature['len'] = _len_of_feature.str.len()
+                                _unique_values: np.array = _len_of_feature['len'].unique()
+                                if np.mean(_unique_values) == np.median(_unique_values):
                                     return {'id_text': _analytical_obj.get('feature')}
                                 else:
                                     return {'categorical': _analytical_obj.get('feature')}
@@ -772,28 +809,68 @@ class EasyExploreUtils:
                         if _analytical_obj.get('df').shape[0] == len(_unique):
                             return {'id_text': _analytical_obj.get('feature')}
                         else:
-                            if len(_unique) > _analytical_obj.get('max_cats'):
+                            _len_of_feature: pd.DataFrame = _analytical_obj.get('df')[_analytical_obj.get('feature')]
+                            _len_of_feature['len'] = _len_of_feature.str.len()
+                            _unique_values: np.array = _len_of_feature['len'].unique()
+                            if np.mean(_unique_values) == np.median(_unique_values):
                                 return {'id_text': _analytical_obj.get('feature')}
                             else:
                                 return {'categorical': _analytical_obj.get('feature')}
                 else:
-                    return {'categorical': _analytical_obj.get('feature')}
+                    if _analytical_obj.get('df').shape[0] == len(_analytical_obj.get('df')[_analytical_obj.get('feature')].unique()):
+                        return {'id_text': _analytical_obj.get('feature')}
+                    _len_of_feature: pd.DataFrame = _analytical_obj.get('df')[_analytical_obj.get('feature')]
+                    _len_of_feature['len'] = _len_of_feature.str.len()
+                    _unique_values: np.array = _len_of_feature['len'].unique()
+                    if np.mean(_unique_values) == np.median(_unique_values):
+                        return {'id_text': _analytical_obj.get('feature')}
+                    else:
+                        return {'categorical': _analytical_obj.get('feature')}
             else:
                 try:
-                    _date_time: datetime = pd.to_datetime(_analytical_obj.get('df')[_analytical_obj.get('feature')])
-                    if _analytical_obj.get('date_edges') is None:
+                    _potential_date: pd.DataFrame = _analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')]
+                    _unique_cats: int = len(pd.to_datetime(_potential_date).dt.year.unique()) \
+                                        + len(pd.to_datetime(_potential_date).dt.month.unique()) \
+                                        + len(pd.to_datetime(_potential_date).dt.week.unique()) \
+                                        + len(pd.to_datetime(_potential_date).dt.day.unique())
+                    if _unique_cats > 4:
                         return {'date': _analytical_obj.get('feature')}
                     else:
-                        if (_analytical_obj.get('date_edges')[0] < pd.to_datetime(_unique.min())) or (
-                                _analytical_obj.get('date_edges')[1] > pd.to_datetime(_unique.max())):
+                        if _analytical_obj.get('df').shape[0] == len(_analytical_obj.get('df')[_analytical_obj.get('feature')].unique()):
                             return {'id_text': _analytical_obj.get('feature')}
                         else:
-                            return {'date': _analytical_obj.get('feature')}
+                            _len_of_feature: pd.DataFrame = _analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')]
+                            _len_of_feature['len'] = _len_of_feature.str.len()
+                            _unique_values: np.array = _len_of_feature['len'].unique()
+                            for val in _unique_values:
+                                if len(re.findall(pattern=r'[a-zA-Z]', string=str(val))) > 0:
+                                    return {'id_text': _analytical_obj.get('feature')}
+                            if np.min(_unique_values) > 3:
+                                if np.mean(_unique_values) == np.median(_unique_values):
+                                    return {'id_text': _analytical_obj.get('feature')}
+                                else:
+                                    return {'categorical': _analytical_obj.get('feature')}
+                            else:
+                                return {'categorical': _analytical_obj.get('feature')}
                 except (TypeError, ValueError):
                     if _analytical_obj.get('df').shape[0] == len(_unique):
                         return {'id_text': _analytical_obj.get('feature')}
                     else:
-                        if len(_unique) > _analytical_obj.get('max_cats'):
+                        for val in _analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')].unique():
+                            if len(re.findall(pattern=r'[a-zA-Z]', string=str(val))) > 0:
+                                return {'id_text': _analytical_obj.get('feature')}
+                        _len_of_feature: pd.DataFrame = _analytical_obj.get('df').loc[~_analytical_obj.get('df')[_analytical_obj.get('feature')].isnull(), _analytical_obj.get('feature')]
+                        if len(pd.unique(_len_of_feature)) == 2:
+                            return {'categorical': _analytical_obj.get('feature')}
+                        for ch in SPECIAL_CHARACTERS:
+                            if any(_len_of_feature.str.find(ch) > 0):
+                                if len(pd.unique(_len_of_feature)) >= (_analytical_obj.get('df').shape[0] * 0.5):
+                                    return {'id_text': _analytical_obj.get('feature')}
+                                else:
+                                    return {'categorical': _analytical_obj.get('feature')}
+                        _len_of_feature['len'] = _len_of_feature.str.len()
+                        _unique_values: np.array = _len_of_feature['len'].unique()
+                        if np.mean(_unique_values) == np.median(_unique_values):
                             return {'id_text': _analytical_obj.get('feature')}
                         else:
                             return {'categorical': _analytical_obj.get('feature')}
@@ -1224,6 +1301,19 @@ class EasyExploreUtils:
                       encoding='utf8') as fp:
                 geojson.dump(geojson.FeatureCollection(features), fp, sort_keys=True, ensure_ascii=False)
         return {}
+
+    @staticmethod
+    def get_freq(data: list) -> collections.Counter:
+        """
+        Get frequency of elements in a list
+
+        :param data: list:
+            Data set
+
+        :return: dict:
+            Frequency of elements
+        """
+        return collections.Counter(data)
 
     @staticmethod
     def get_list_of_files(file_path: str) -> List[str]:
