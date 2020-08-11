@@ -1,8 +1,15 @@
 import setuptools
 import subprocess
 
+from sys import platform
+
+if platform.find('win') >= 0:
+    _suffix: str = ''
+else:
+    _suffix: str = '3'
+
 # Install jupyter notebook extensions for using EasyExplore_examples.ipynb more conveniently:
-subprocess.run(['python3 -m pip install jupyter_contrib_nbextensions && jupyter contrib nbextension install'], shell=True)
+subprocess.run(['python{} -m pip install jupyter_contrib_nbextensions && jupyter contrib nbextension install'.format(_suffix)], shell=True)
 
 with open('README.md', 'r') as _read_me:
     long_description = _read_me.read()
