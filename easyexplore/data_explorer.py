@@ -4,6 +4,7 @@ import pandas as pd
 
 from .anomaly_detector import AnomalyDetector
 from .data_visualizer import DataVisualizer
+from .text_miner import TextMiner
 from .utils import Log, PERCENTILES, StatsUtils, EasyExploreUtils
 from multiprocessing.pool import ThreadPool
 from typing import Dict, List, Tuple
@@ -1093,6 +1094,72 @@ class DataExplorer:
                                file_path=self.file_path
                                ).run()
         return _outlier
+
+    def text_analyzer(self,
+                      lang: str = None,
+                      find_occurances: List[str] = None,
+                      count_length: bool = True,
+                      count_numbers: bool = True,
+                      count_characters: bool = True,
+                      count_unique_characters: bool = True,
+                      count_special_characters: bool = True,
+                      get_linguistic_features: bool = True,
+                      similarity: bool = False
+                      ) -> pd.DataFrame:
+        """
+        Text analysis
+
+        :param lang: str
+            Pre-defined language
+
+        :param find_occurances: List[str]
+            Occurances to find (any type)
+
+        :param count_length: bool
+            Whether to count text length (all text elements combined) or not
+
+        :param count_numbers: bool
+            Whether to count all numbers in text or not
+
+        :param count_characters: bool
+            Whether to count all characters in text or not
+
+        :param count_unique_characters: bool
+            Whether to count all unique characters in text or not
+
+        :param count_special_characters: bool
+            Whether to count all special characters in text or not
+
+        :param get_linguistic_features: bool
+            Whether to generate and explore linguistic features extracted by processing features containing natural language
+
+        :param similarity: bool
+            Whether to calculate similarity of text or not
+
+        :return: Pandas DataFrame:
+            Generated features
+        """
+        _features: List[str] = self.feature_types.get('categorical') + self.feature_types.get('id_text')
+        _text_miner: TextMiner = TextMiner(df=self.df, features=_features, lang=lang, auto_interpret_natural_language=False)
+        if find_occurances is not None:
+            for occurance in find_occurances:
+                _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), search_text=occurance)
+        if count_length:
+            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_length=True)
+        if count_numbers:
+            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_numbers=True)
+        if count_characters:
+            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_characters=True)
+        if count_unique_characters:
+            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_length=True)
+        if count_special_characters:
+            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_special_characters=True)
+        if get_linguistic_features:
+            _text_miner.generate_linguistic_features()
+        if similarity:
+            _text_miner.similarity(features=_text_miner.segments.get('phrases'))
+        _text_miner.splitter()
+        return _text_miner.get_generated_features()
 
 
 class MissingDataAnalysis:
