@@ -4,6 +4,7 @@ import unittest
 from easyexplore.data_explorer import DataExplorer
 
 DATA_SET: pd.DataFrame = pd.read_csv(filepath_or_buffer='test_data.csv', sep=',')
+TEXT_DATA: pd.DataFrame = pd.read_csv(filepath_or_buffer='amazon_musical_instruments_reviews.csv')
 
 
 class DataExplorerTest(unittest.TestCase):
@@ -12,7 +13,7 @@ class DataExplorerTest(unittest.TestCase):
     """
     def test_break_down(self):
         self.assertEqual(first=0.49000000000000005,
-                         second=DataExplorer(df=DATA_SET, plot=False).break_down(include_cat=True)['continuous']['J']['de']['C'].get('mean')
+                         second=DataExplorer(df=DATA_SET, plot=False).break_down()['continuous']['J']['de']['C'].get('mean')
                          )
 
     def test_cor(self):
@@ -50,6 +51,9 @@ class DataExplorerTest(unittest.TestCase):
 
     def test_outlier_detector(self):
         pass
+
+    def test_text_analyzer(self):
+        self.assertTrue(expr=DataExplorer(df=TEXT_DATA).text_analyzer(lang='en').shape[1] > 0)
 
 
 if __name__ == '__main__':
