@@ -1,15 +1,15 @@
 import copy
+import dask.dataframe as dd
 import emoji
 import numpy as np
 import pandas as pd
-import re
 import spacy
 import subprocess
 
 from .unsupervised_machine_learning import UnsupervisedML
 from .utils import EasyExploreUtils, Log, SPECIAL_CHARACTERS, SPECIAL_SEPARATORS
+from dask.array import from_array
 from googletrans import Translator
-from multiprocessing.pool import ThreadPool
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from typing import Dict, List
@@ -149,11 +149,64 @@ WEB_ELEMENTS: Dict[str, List[str]] = dict(protocols=['http://', 'https://', 'ftp
 
 # TODO:
 #  Linguistic features:
-#  - derive tense from comparison between word and lemmatized version of it
+#  - derive tense from comparison between words and lemmatized version of it
 #  - aspect: grammatical category which reflects the action given by the verb happened in respect to time
 #  - mood: indicating whether a verb expresses a fact (indicative) or conditionality (subjunctive)
 #           -> semantic notation: modality (opinion) / illocation (sentence type)
 #           -> modality
+#  - emojis: fix bug in dask representation
+
+
+def len_of_str(text_input: str) -> int:
+    """
+    Calculate length of text input
+
+    :param text_input: str
+         Text input
+
+    :return: int:
+        Length of text input
+    """
+    return len(text_input)
+
+
+def extract_email_account(text_input: str) -> str:
+    """
+    Extract email account from text input
+
+    :param text_input: str
+        Text input
+
+    :return: str:
+        Extracted email account
+    """
+    return text_input.split('@')[0] if text_input.find('@') > 0 else np.nan
+
+
+def extract_web_domain(text_input: str) -> str:
+    """
+    Extract web domain of url from text input
+
+    :param text_input: str
+        Text input
+
+    :return: str:
+        Extracted web domain of url
+    """
+    return text_input.split('.')[1] if text_input.find('www.') >= 0 else text_input.split('.')[0]
+
+
+def extract_web_domain_ext(text_input: str) -> str:
+    """
+    Extract web domain extension of url from text input
+
+    :param text_input: str
+        Text input
+
+    :return: str:
+        Extracted web domain extension of url
+    """
+    return text_input.split('.')[-1].split('/')[0] if text_input.find('www.') >= 0 else text_input.split('.')[-1].split('/')[0]
 
 
 class TextMinerException(Exception):
@@ -168,7 +221,7 @@ class TextMiner:
     Class for processing text data
     """
     def __init__(self,
-                 df: pd.DataFrame,
+                 df,
                  features: List[str] = None,
                  lang: str = None,
                  lang_model: str = None,
@@ -176,10 +229,10 @@ class TextMiner:
                  lang_model_framework: str = 'spacy',
                  segmentation_threshold: float = 0.5,
                  auto_interpret_natural_language: bool = False,
-                 multi_threading: bool = True
+                 **kwargs
                  ):
         """
-        :param df: Pandas DataFrame
+        :param df: Pandas DataFrame or dask dataframe
             Data set containing text or id features
 
         :param features: List[str]
@@ -205,24 +258,37 @@ class TextMiner:
         :param auto_interpret_natural_language: bool
             Whether to interpret natural language automatically while initialization
 
-        :param multi_threading: bool
-            Whether to run text processing using multiple threads or just a single thread
+        :param kwargs: dict
+            Key-word arguments
         """
+        self.dask_client = EasyExploreUtils().dask_setup(client_name='text_miner',
+                                                         client_address=kwargs.get('client_address'),
+                                                         mode='threads' if kwargs.get('client_mode') is None else kwargs.get('client_mode')
+                                                         )
+        self.partitions: int = 4 if kwargs.get('npartitions') is None else kwargs.get('npartitions')
+        if isinstance(df, pd.DataFrame):
+            self.df: dd.core.DataFrame = dd.from_pandas(data=df, npartitions=4 if kwargs.get('npartitions') is None else kwargs.get('npartitions'))
+        elif isinstance(df, dd.core.DataFrame):
+            self.df: dd.core.DataFrame = df
+        else:
+            raise TextMinerException('Format of data set ({}) not supported. Use Pandas DataFrame or dask dataframe instead'.format(type(df)))
+        self.expand_feature: str = ''
+        self.internal_df: pd.DataFrame = pd.DataFrame()
         Log(write=False, logger_file_path=None).log(msg='Initialize text miner ...')
-        if df.shape[0] == 0:
+        if len(df) == 0:
             raise TextMinerException('No cases found in data set')
-        if df.shape[1] == 0:
+        if len(df.columns) == 0:
             raise TextMinerException('No features found in data set')
         if features is None:
-            self.features: List[str] = [text_feature for text_feature in df.keys() if str(df[text_feature].dtype).find('object') >= 0]
+            self.features: List[str] = [text_feature for text_feature in df.columns if str(df[text_feature].dtype).find('object') >= 0]
         else:
             if len(features) > 0:
                 self.features: List[str] = [text_feature for text_feature in features if str(df[text_feature].dtype).find('object') >= 0]
             if len(self.features) == 0:
-                self.features: List[str] = [text_feature for text_feature in df.keys() if str(df[text_feature].dtype).find('object') >= 0]
+                self.features: List[str] = [text_feature for text_feature in df.columns if str(df[text_feature].dtype).find('object') >= 0]
         if len(self.features) == 0:
             raise TextMinerException('No text feature found in data set')
-        self.df: pd.DataFrame = df[self.features]
+        self.df = df[self.features]
         self.text_feature: str = ''
         self.lang: str = lang if lang != 'xx' else None
         if self.lang is not None and self.lang not in LANG_MODELS.keys():
@@ -245,6 +311,10 @@ class TextMiner:
         self.lang_model_framework: str = lang_model_framework
         self.lang_models: dict = dict(spacy={}, bert={}, roberta={}, xlnet={}, albert={})
         self.translator: Translator = Translator()
+        self.text_features_len: dict = {}
+        for feature in self.features:
+            self.text_features_len.update({feature: list(self.df[feature].fillna('').compute().apply(func=len_of_str).values)})
+        self.linguistic_features: List[str] = []
         self.ner: dict = {}
         self.pos: dict = {}
         self.dep: dict = {}
@@ -258,7 +328,7 @@ class TextMiner:
         self.similarity_scores: dict = {}
         self.enumeration: dict = {}
         self.internal_separator: str = '||'
-        self.multi_threading: bool = multi_threading
+        self.generated_features: dict = {}
         self.auto_interpretation: bool = auto_interpret_natural_language
         self.segments: Dict[str, List[str]] = TEXT_FEATURE_SEGMENTS
         self.segment_threshold: float = segmentation_threshold if (segmentation_threshold > 0) and (segmentation_threshold <= 1) else 0.5
@@ -286,7 +356,8 @@ class TextMiner:
             _tfidf_vectorizer: TfidfVectorizer = TfidfVectorizer(stop_words=LANG_MODELS.get(self.lang)['name'],
                                                                  ngram_range=(1, 3)
                                                                  )
-            _clean_text_data: pd.DataFrame = self.df[feature].apply(lambda x: self._clean_text(phrase=str(x)))
+            #_clean_text_data: pd.DataFrame = self.df[feature].apply(lambda x: self._clean_text(phrase=str(x)), meta=(feature, 'object'))
+            _clean_text_data: pd.DataFrame = self.df[feature].apply(func=self._clean_text, meta=dict(name='object'))
             _tfidf_matrix: pd.DataFrame = pd.DataFrame(data=_tfidf_vectorizer.fit_transform(_clean_text_data).data,
                                                        columns=[feature]
                                                        )
@@ -303,23 +374,28 @@ class TextMiner:
             Name of the features to calculate similarity of text feature
         """
         for feature in features:
-            self.similarity_scores.update({feature: {}})
-            for x, case in enumerate(self.df[feature].values.tolist()):
-                self.similarity_scores[feature].update({x: []})
-                if isinstance(case, str):
-                    if feature in self.detected_language.keys():
-                        _lang: str = self.detected_language[feature]['most_freq']
-                    else:
-                        _lang: str = self.lang
-                    _model = self.lang_models[self.lang_model_framework][_lang]['model']
-                    _nlp = _model(self._clean_text(phrase=str(case)))
-                    for other_case in self.df[feature].values.tolist():
-                        if case != other_case:
-                            self.similarity_scores[feature][x].append(self.lang_models[self.lang_model_framework][_lang]['model'](self._clean_text(phrase=other_case)))
-                elif isinstance(case, float):
-                    for other_case in self.df[feature].values.tolist():
-                        if case != other_case:
-                            self.similarity_scores[feature][x].append(0)
+            if feature in self.df.columns:
+                if self.generated_features.get(feature) is not None:
+                    if self.generated_features[feature].get('similarity') is not None:
+                        if len(self.generated_features[feature]['similarity']) == 0:
+                            continue
+                self.similarity_scores.update({feature: {}})
+                for x, case in enumerate(self.df[feature].values.tolist()):
+                    self.similarity_scores[feature].update({x: []})
+                    if isinstance(case, str):
+                        if feature in self.detected_language.keys():
+                            _lang: str = self.detected_language[feature]['most_freq']
+                        else:
+                            _lang: str = self.lang
+                        _model = self.lang_models[self.lang_model_framework][_lang]['model']
+                        _nlp = _model(self._clean_text(phrase=str(case)))
+                        for other_case in self.df[feature].values.tolist():
+                            if case != other_case:
+                                self.similarity_scores[feature][x].append(self.lang_models[self.lang_model_framework][_lang]['model'](self._clean_text(phrase=other_case)))
+                    elif isinstance(case, float):
+                        for other_case in self.df[feature].values.tolist():
+                            if case != other_case:
+                                self.similarity_scores[feature][x].append(0)
 
     def _clean_text(self,
                     phrase: str,
@@ -400,20 +476,10 @@ class TextMiner:
         else:
             _features: List[str] = self.segments.get('email')
         for feature in _features:
-            self.df['email'] = self.df[feature].apply(lambda x: x.split('@')[1] if x.find('@') >= 0 else np.nan)
-
-    @staticmethod
-    def _extract_emojis(text: str) -> list:
-        """
-        Extract emojis from text
-
-        :param text: str
-            Text data
-
-        :return: list
-            Extracted emojis
-        """
-        return [e for e in str(text) if e in emoji.UNICODE_EMOJI]
+            self.web.update({feature: dict(email=[])})
+            _df: dd.core.DataFrame = copy.deepcopy(self.df[feature])
+            for case in _df.to_dask_array(lengths=True).compute():
+                self.web[feature]['email'].append(str(case).split('@')[1])
 
     def _extract_url(self, feature: str = None):
         """
@@ -427,8 +493,11 @@ class TextMiner:
         else:
             _features: List[str] = self.segments.get('url')
         for feature in _features:
-            self.df['domain'] = self.df[feature].apply(lambda x: x.split('.')[1] if x.find('www.') >= 0 else x.split('.')[0])
-            self.df['domain_ext'] = self.df[feature].apply(lambda x: x.split('.')[-1].split('/')[0] if x.find('www.') >= 0 else x.split('.')[-1].split('/')[0])
+            self.web.update({feature: dict(url=dict(domain=[], domain_ext=[]))})
+            _df: dd.core.DataFrame = copy.deepcopy(self.df[feature])
+            for case in _df.to_dask_array(lengths=True).compute():
+                self.web[feature]['url']['domain'].append(str(case).split('.')[1] if str(case).find('www.') >= 0 else str(case).split('.')[0])
+                self.web[feature]['url']['domain_ext'].append(str(case).split('.')[-1].split('/')[0] if str(case).find('www.') >= 0 else str(case).split('.')[-1].split('/')[0])
 
     def _get_lang(self):
         """
@@ -436,8 +505,11 @@ class TextMiner:
         """
         _text_samples: List[str] = []
         _lang_each_case: List[str] = []
+        _df: dd.core.DataFrame = copy.deepcopy(self.df[copy.deepcopy(self.text_feature)].compute())
         for _ in range(0, 10, 1):
-            _text_samples.append(np.random.choice(a=self.df.loc[~self.df[self.text_feature].isnull(), self.text_feature].values.tolist()))
+            _df = _df.fillna('NaN')
+            _df = _df.loc[_df != 'NaN']
+            _text_samples.append(np.random.choice(a=list(_df.values)))
             _lang_each_case.append(self.translator.detect(text=str(_text_samples[-1])).lang)
         _lang_each_case = list(set(_lang_each_case))
         for lang in copy.deepcopy(_lang_each_case):
@@ -510,7 +582,6 @@ class TextMiner:
         """
         Interpret text
         """
-        _thread_pool: ThreadPool = ThreadPool(processes=len(self.segments.get('phrases')))
         for feature in self.segments.get('phrases'):
             self.special_chars.update({feature: dict(count=[], count_unique=[])})
             self.clean_phrases.update({feature: dict(clean=[],
@@ -523,7 +594,7 @@ class TextMiner:
                                                      count_email=[]
                                                      )
                                        })
-            self.emoji.update({feature: dict(has=[], count=[], count_unique=[], label=[])})
+            self.emoji.update({feature: dict(has=[], emoji=[], count=[], count_unique=[], label=[])})
             self.pos.update({feature: dict(count_unique_tags=[],
                                            count_unique_labels=[],
                                            count_ad=[],
@@ -554,29 +625,15 @@ class TextMiner:
                                                      )
                                            )
                              })
-            if self.multi_threading:
-                _thread_pool.apply(func=self._process_text, kwds=dict(feature=feature,
-                                                                      decap=True,
-                                                                      numbers=True,
-                                                                      stop_words=True,
-                                                                      punct=True,
-                                                                      pron=True,
-                                                                      entity=True,
-                                                                      lemmatizing=True,
-                                                                      handle_emojis='replace'
-                                                                      )
-                                   )
-            else:
-                self._process_text(feature=feature,
-                                   decap=True,
-                                   numbers=True,
-                                   stop_words=True,
-                                   punct=True,
-                                   pron=True,
-                                   entity=True,
-                                   lemmatizing=True,
-                                   handle_emojis='replace'
-                                   )
+            self._process_text(feature=feature,
+                               decap=True,
+                               numbers=True,
+                               stop_words=True,
+                               punct=True,
+                               pron=True,
+                               entity=True,
+                               lemmatizing=True
+                               )
             Log(write=False, level='info').log(msg='Feature "{}" interpreted'.format(feature))
 
     def _is_enumeration(self) -> bool:
@@ -586,12 +643,12 @@ class TextMiner:
         :return dict:
             Whether feature contains enumeration or not
         """
+        _df: pd.DataFrame = self.df[copy.deepcopy(self.text_feature)].fillna('').compute()
         for char in SPECIAL_SEPARATORS:
-            if all(self.df.loc[~self.df[self.text_feature].isnull(), self.text_feature].str.find(char)) >= 0:
-                _df: pd.DataFrame = copy.deepcopy(self.df[self.text_feature])
-                _df['sep_len'] = _df.apply(lambda x: len(x.split(char)) if x == x else 0)
+            if all(_df.str.find(char)) >= 0:
+                _df['sep_len'] = _df.apply(lambda x: len(str(x).split(char)))
                 _split_cases: int = len(_df['sep_len'][(_df['sep_len'] > 1)].values)
-                if _split_cases >= (self.df.shape[0] * 0.05):
+                if _split_cases >= (len(self.df) * 0.05):
                     self.enumeration.update({self.text_feature: char})
                     return True
         return False
@@ -604,7 +661,7 @@ class TextMiner:
             Whether feature contains email addresses or not
         """
         _signals: int = 0
-        _df: pd.DataFrame = copy.deepcopy(self.df.loc[~self.df[self.text_feature].isnull(), self.text_feature])
+        _df: pd.DataFrame = self.df[copy.deepcopy(self.text_feature)].fillna('').compute()
         if any(_df.str.find(' ')) >= 0:
             return False
         if any(_df.str.find('@')) >= 0:
@@ -619,10 +676,55 @@ class TextMiner:
             return True
         return False
 
+    def _is_entity(self) -> bool:
+        """
+        Check whether feature can be interpreted as entity feature (e.g. geo, etc.)
+
+        :return bool:
+            Whether feature contains entity or not
+        """
+        _signals: float = 1.5
+        _df: pd.DataFrame = pd.DataFrame()
+        _feature: str = copy.deepcopy(self.text_feature)
+        _df[_feature] = copy.deepcopy(self.df[_feature])
+        _df['len'] = from_array(x=np.array(self.text_features_len.get(_feature)))
+        _df = _df.fillna('')
+        if len(_df) == 0:
+            return False
+        _df.sort_values(by='len', axis=0, ascending=False, inplace=True)
+        if len(_df) == len(_df.loc[_df[_feature].str.find(' ') < 0, _feature]):
+            return False
+        try:
+            self._get_lang_model()
+        except OSError:
+            self._get_lang_model()
+        except TextMinerException:
+            return False
+        _model = self.lang_models[self.lang_model_framework][self.lang]['model']
+        for i, phrase in enumerate(_df[_feature].values):
+            if i == 10:
+                break
+            _found_stop_word: bool = False
+            _nlp = _model(phrase)
+            for token in _nlp:
+                if token.text in self._get_stop_words(lang=self.lang):
+                    if not _found_stop_word:
+                        _found_stop_word = True
+                    if _found_stop_word:
+                        _signals -= 0.5
+                if token.pos_ in ['VERB', 'ADV', 'ADJ', 'ADP']:
+                    _signals -= 0.5
+        if _signals >= 0:
+            return True
+        return False
+
     def _is_geo(self) -> bool:
         """
         Check whether feature can be interpreted as geo feature
         """
+        if self._is_entity():
+            # TODO: check whether text can be converted into lat / lon values using proper geocoder or not
+            return False
         return False
 
     def _is_phrase(self) -> bool:
@@ -633,12 +735,23 @@ class TextMiner:
             Whether feature contains phrases or not
         """
         _signals: int = 0
-        _df: pd.DataFrame = copy.deepcopy(self.df.loc[~self.df[self.text_feature].isnull(), self.text_feature])
-        if _df.shape[0] == _df.loc[_df.str.find(' ') < 0].shape[0]:
+        _feature: str = copy.deepcopy(self.text_feature)
+        if self.df.npartitions > 1:
+            self.df = self.df.repartition(npartitions=1)
+        _df: dd.core.DataFrame = dd.from_pandas(data=pd.DataFrame({_feature: [_ for _ in range(0, len(self.df), 1)]}), npartitions=self.df.npartitions)
+        if _df.npartitions > 1:
+            _df = _df.repartition(npartitions=1)
+        _df[_feature] = copy.deepcopy(self.df[_feature].values)
+        _df['len'] = from_array(x=np.array(self.text_features_len.get(_feature)))
+        _df = _df.fillna('').compute()
+        if len(_df) == 0:
+            return False
+        _df.sort_values(by='len', axis=0, ascending=False, inplace=True)
+        if len(_df) == len(_df.loc[_df[_feature].str.find(' ') < 0, _feature]):
             return False
         for char in SPECIAL_CHARACTERS:
             if char != ' ':
-                if _df.loc[_df.str.find(char) >= 0].shape[0] > 0:
+                if len(_df.loc[_df[_feature].str.find(char) >= 0, _feature]) > 0:
                     _signals += 1
                     break
         try:
@@ -648,10 +761,12 @@ class TextMiner:
         except TextMinerException:
             return False
         _model = self.lang_models[self.lang_model_framework][self.lang]['model']
-        _part_of_speech_signals: int = 0
-        _found_stop_word: bool = False
-        for text in _df:
-            _nlp = _model(text)
+        for i, phrase in enumerate(_df[_feature].values):
+            _found_stop_word: bool = False
+            _part_of_speech_signals: int = 0
+            if i == 10:
+                break
+            _nlp = _model(phrase)
             for token in _nlp:
                 if token.text in self._get_stop_words(lang=self.lang):
                     if not _found_stop_word:
@@ -659,11 +774,14 @@ class TextMiner:
                         _signals += 1
                         _part_of_speech_signals += 1
                 if token.pos_ in ['VERB', 'ADV', 'ADJ', 'ADP']:
-                    _signals += 2
+                    if token.pos_ == 'VERB':
+                        _signals += 6
+                    else:
+                        _signals += 2
                     _part_of_speech_signals += 1
             if _part_of_speech_signals > 0:
                 break
-        if _signals > 2:
+        if _signals >= 25:
             return True
         return False
 
@@ -681,42 +799,54 @@ class TextMiner:
             Whether feature contains url or not
         """
         _signals: int = 0
-        _df: pd.DataFrame = copy.deepcopy(self.df.loc[~self.df[self.text_feature].isnull(), self.text_feature])
-        if _df.loc[_df.str.find(' ') >= 0].shape[0] > 0:
-            if _df.shape[0] == _df.loc[_df.str.find(' ') >= 0].shape[0]:
+        _df: pd.DataFrame = self.df[copy.deepcopy(self.text_feature)].fillna('').compute()
+        if len(_df.loc[_df.str.find(' ') >= 0]) > 0:
+            if len(_df) == len(_df.loc[_df.str.find(' ') >= 0]):
                 return False
         for protocol in WEB_ELEMENTS.get('protocols'):
-            if _df.loc[_df.str.find(protocol) >= 0].shape[0] > 0:
-                if _df.shape[0] == _df.loc[_df.str.find(protocol) >= 0].shape[0]:
+            if len(_df.loc[_df.str.find(protocol) >= 0]) > 0:
+                if len(_df) == len(_df.loc[_df.str.find(protocol) >= 0]):
                     return True
                 else:
-                    if (_df.loc[_df.str.find(protocol) >= 0].shape[0] / _df.shape[0]) >= self.segment_threshold:
+                    if (len(_df.loc[_df.str.find(protocol) >= 0]) / len(_df)) >= self.segment_threshold:
                         _signals += 1
-        if _df.loc[_df.str.find('www.') >= 0].shape[0] > 0:
-            if _df.shape[0] == _df.loc[_df.str.find('www.') >= 0].shape[0]:
+        if len(_df.loc[_df.str.find('www.') >= 0]) > 0:
+            if len(_df) == len(_df.loc[_df.str.find('www.') >= 0]):
                 return True
             else:
-                if (_df.shape[0] == _df.loc[_df.str.find('www.') >= 0].shape[0] / _df.shape[0]) >= self.segment_threshold:
+                if (len(_df) == len(_df.loc[_df.str.find('www.') >= 0]) / len(_df)) >= self.segment_threshold:
                     _signals += 1
         if _signals == 0:
             for ext in WEB_ELEMENTS.get('domain_ext'):
-                if _df.loc[_df.str.find('.{}'.format(ext)) >= 0].shape[0] > 0:
-                    if _df.shape[0] == _df.loc[_df.str.find('.{}'.format(ext)) >= 0].shape[0]:
+                if len(_df.loc[_df.str.find('.{}'.format(ext)) >= 0]) > 0:
+                    if len(_df) == len(_df.loc[_df.str.find('.{}'.format(ext)) >= 0]):
                         return True
                     else:
-                        if (_df.shape[0] == _df.loc[_df.str.find('.{}'.format(ext)) >= 0].shape[0] / _df.shape[0]) >= self.segment_threshold:
+                        if (len(_df) == len(_df.loc[_df.str.find('.{}'.format(ext)) >= 0]) / len(_df)) >= self.segment_threshold:
                             _signals += 1
                 else:
                     for other_ext in LANG_MODELS.keys():
-                        if _df.loc[_df.str.find('.{}'.format(other_ext)) >= 0].shape[0] > 0:
-                            if _df.shape[0] == _df.loc[_df.str.find('.{}'.format(other_ext)) >= 0].shape[0]:
+                        if len(_df.loc[_df.str.find('.{}'.format(other_ext)) >= 0]) > 0:
+                            if len(_df) == len(_df.loc[_df.str.find('.{}'.format(other_ext)) >= 0]):
                                 return True
                             else:
-                                if (_df.shape[0] == _df.loc[_df.str.find('.{}'.format(other_ext)) >= 0].shape[0] / _df.shape[0]) >= self.segment_threshold:
+                                if (len(_df) == len(_df.loc[_df.str.find('.{}'.format(other_ext)) >= 0]) / len(_df)) >= self.segment_threshold:
                                     _signals += 1
         if _signals > 0:
             return True
         return False
+
+    def _lang_detection(self, text_input: str) -> str:
+        """
+        Detect natural language in text input
+
+        :param text_input: str
+            Text input
+
+        :return: str:
+            Detected natural language
+        """
+        return self.translator.detect(text=text_input).lang
 
     def _process_text(self,
                       feature: str,
@@ -728,8 +858,7 @@ class TextMiner:
                       pron: bool = True,
                       web: bool = True,
                       entity: bool = True,
-                      lemmatizing: bool = True,
-                      handle_emojis: str = 'replace'
+                      lemmatizing: bool = True
                       ):
         """
         Process text
@@ -763,18 +892,10 @@ class TextMiner:
 
         :param lemmatizing: bool
             Whether to lemmatize (trim words to their word-stem) text or not
-
-        :param handle_emojis: str
-            Handle emojis properly:
-                -> replace: Replace emoji unicode character with pre-defined label
-                -> clean, remove, erase, delete: Remove emoji from text
-                -> ignore: Ignore emojis
         """
-        for x, case in enumerate(self.df[feature].values):
+        _df: dd.core.DataFrame = copy.deepcopy(self.df[feature])
+        for x, case in enumerate(_df.to_dask_array(lengths=True).compute()):
             _case: str = str(case).lower() if decap else case
-            _emoji_handler: str = handle_emojis
-            if handle_emojis not in ['clean', 'remove', 'erase', 'delete', 'replace', 'ignore']:
-                _emoji_handler: str = 'ignore'
             if isinstance(case, str):
                 _special_chars: List[str] = []
                 _pos: dict = dict(token=[], pos=[], tag=[], ad=[], verb=[], noun=[])
@@ -802,16 +923,11 @@ class TextMiner:
                 self.dep[feature]['noun_pairs']['count_root_text_dep'].append(len(_noun_chunks['root_head']))
                 self.dep[feature]['noun_pairs']['count_unique_root_text_dep'].append(len(list(set(_noun_chunks['root_head']))))
                 _phrase: List[str] = []
+                _emoji: Dict[str, List[str]] = dict(emoji=[], label=[])
                 for token in _nlp:
-                    if _emoji_handler != 'ignore' and token in emoji.UNICODE_EMOJI:
-                        if len(self.emoji[feature].get('has')) == 0:
-                            self.emoji[feature]['has'].append(1)
-                            self.emoji[feature]['count'].append(len(re.findall(pattern=r'[^\w\s,]', string=_case)))
-                            self.emoji[feature]['count_unique'].append(len(pd.unique(re.findall(pattern=r'[^\w\s,]', string=_case))))
-                            self.emoji[feature]['label'].append(emoji.demojize(string=token, use_aliases=False))
-                        if _emoji_handler == 'replace':
-                            _phrase.append(emoji.demojize(string=token, use_aliases=False))
-                        continue
+                    if token in emoji.UNICODE_EMOJI:
+                        _emoji['emoji'].append(token)
+                        _emoji['label'].append(emoji.demojize(string=token, use_aliases=False))
                     _pos['pos'].append(token.pos_)
                     _pos['tag'].append(token.tag_)
                     _pos['token'].append(token.text)
@@ -821,7 +937,7 @@ class TextMiner:
                     _children: List[str] = [str(child) for child in token.children]
                     _tree['has_children'].append(1 if len(_children) > 0 else 0)
                     _tree['childrens'] += len(_children)
-                    _tree['children'].append(self.internal_separator.join(_children) if len(_children) > 0 else np.nan)
+                    _tree['children'].append(self.internal_separator.join(_children) if len(_children) > 0 else '')
                     if token.pos_ in ['ADJ', 'ADV']:
                         _pos['ad'].append(token.text)
                     if token.pos_ == 'VERB':
@@ -857,6 +973,11 @@ class TextMiner:
                     self.clean_phrases[feature]['clean'].append('')
                 else:
                     self.clean_phrases[feature]['clean'].append(copy.deepcopy(' '.join(_phrase)))
+                self.emoji[feature]['has'].append(1 if len(copy.deepcopy(_emoji.get('emoji'))) > 0 else 0)
+                self.emoji[feature]['emoji'].append('{}'.format(self.internal_separator).join(copy.deepcopy(_emoji.get('emoji'))))
+                self.emoji[feature]['label'].append('{}'.format(self.internal_separator).join(copy.deepcopy(_emoji.get('label'))))
+                self.emoji[feature]['count'].append(len(copy.deepcopy(_emoji.get('emoji'))))
+                self.emoji[feature]['count_unique'].append(len(list(set(copy.deepcopy(_emoji.get('emoji'))))))
                 self.special_chars[feature]['count'].append(copy.deepcopy(len(_special_chars)))
                 self.special_chars[feature]['count_unique'].append(copy.deepcopy(len(list(set(_special_chars)))))
                 self.clean_phrases[feature]['count_len'].append(copy.deepcopy(_text.get('len')))
@@ -886,8 +1007,8 @@ class TextMiner:
                     self.ner[feature]['recognized'].append(1 if len(_entity) > 0 else 0)
                     self.ner[feature]['count'].append(len(_entity))
                     self.ner[feature]['count_unique'].append(len(list(set(_entity))))
-                    self.ner[feature]['entity'].append(self.internal_separator.join(_entity) if len(_entity) > 0 else np.nan)
-                    self.ner[feature]['entity_type'].append(self.internal_separator.join(_entity_type) if len(_entity_type) > 0 else np.nan)
+                    self.ner[feature]['entity'].append(self.internal_separator.join(_entity) if len(_entity) > 0 else '')
+                    self.ner[feature]['entity_type'].append(self.internal_separator.join(_entity_type) if len(_entity_type) > 0 else '')
                     if len(_entity) > 0:
                         self.enumeration.update({'{}_ner_entity'.format(feature): self.internal_separator,
                                                  '{}_ner_entity_type'.format(feature): self.internal_separator
@@ -896,8 +1017,8 @@ class TextMiner:
                     self.ner[feature]['recognized'].append(0)
                     self.ner[feature]['count'].append(0)
                     self.ner[feature]['count_unique'].append(0)
-                    self.ner[feature]['entity'].append(np.nan)
-                    self.ner[feature]['entity_type'].append(np.nan)
+                    self.ner[feature]['entity'].append('')
+                    self.ner[feature]['entity_type'].append('')
                 self.enumeration.update({'{}_dep_tree_children'.format(feature): self.internal_separator})
             else:
                 self.special_chars[feature]['count'].append(0)
@@ -910,7 +1031,7 @@ class TextMiner:
                 self.emoji[feature]['has'].append(0)
                 self.emoji[feature]['count'].append(0)
                 self.emoji[feature]['count_unique'].append(0)
-                self.emoji[feature]['label'].append(np.nan)
+                self.emoji[feature]['label'].append('')
                 self.pos[feature]['count_unique_tags'].append(0)
                 self.pos[feature]['count_unique_labels'].append(0)
                 self.pos[feature]['count_ad'].append(0)
@@ -919,8 +1040,8 @@ class TextMiner:
                 self.ner[feature]['recognized'].append(0)
                 self.ner[feature]['count'].append(0)
                 self.ner[feature]['count_unique'].append(0)
-                self.ner[feature]['entity'].append(np.nan)
-                self.ner[feature]['entity_type'].append(np.nan)
+                self.ner[feature]['entity'].append('')
+                self.ner[feature]['entity_type'].append('')
                 self.dep[feature]['tree']['count_has_child'].append(0)
                 self.dep[feature]['tree']['count_dep_of_child'].append(0)
                 self.dep[feature]['tree']['count_unique_dep_of_child'].append(0)
@@ -929,7 +1050,7 @@ class TextMiner:
                 self.dep[feature]['tree']['count_head_pos_of_child'].append(0)
                 self.dep[feature]['tree']['count_unique_head_pos_of_child'].append(0)
                 self.dep[feature]['tree']['count_children'].append(0)
-                self.dep[feature]['tree']['children'].append(np.nan)
+                self.dep[feature]['tree']['children'].append('')
                 self.dep[feature]['noun_pairs']['count_dep'].append(0)
                 self.dep[feature]['noun_pairs']['count_unique_dep'].append(0)
                 self.dep[feature]['noun_pairs']['count_root_dep'].append(0)
@@ -986,7 +1107,7 @@ class TextMiner:
                     Log(write=False, logger_file_path=None).log(msg='Recognized feature "{}" as natural language'.format(feature))
                     continue
             if identifier:
-                if self.df.shape[0] == len(self.df[feature].unique()):
+                if len(self.df) == len(self.df[feature].unique()):
                     self.segments['id'].append(feature)
                     Log(write=False, logger_file_path=None).log(msg='Recognized feature "{}" as id'.format(feature))
                     continue
@@ -996,7 +1117,7 @@ class TextMiner:
                     Log(write=False, logger_file_path=None).log(msg='Recognized feature "{}" as geo'.format(feature))
                     continue
             self.segments['unknown'].append(feature)
-            Log(write=False, logger_file_path=None).log(msg='Feature "{}" cannot be recognized'.format(feature))
+            Log(write=False, logger_file_path=None).log(msg='Feature "{}" cannot be recognized (as text)'.format(feature))
 
     def count_occurances(self,
                          features: List[str] = None,
@@ -1027,20 +1148,34 @@ class TextMiner:
         :param count_special_characters: bool
             Whether to count all special characters in text or not
         """
-        _features: List[str] = self.segments.get('phrases') if features is None else features
+        _features: List[str] = [] if features is None else features
         for feature in _features:
-            if feature in self.df.keys():
+            if feature in self.df.columns:
+                if self.generated_features.get(feature) is None:
+                    self.generated_features.update({feature: dict(occurances=[])})
+                else:
+                    if 'occurances' not in self.generated_features[feature].keys():
+                        self.generated_features[feature].update({'occurances': []})
                 if search_text is not None:
                     if len(search_text) > 0:
-                        self.df['count_{}'.format(search_text)] = self.df[feature].str.count(search_text)
+                        self.generated_features[feature]['occurances'].append('{}_count_{}'.format(feature, search_text))
+                        self.df[self.generated_features[feature]['occurances'][-1]] = self.df[feature].str.count(search_text)
+                if feature in self.generated_features.keys():
+                    pass
                 if count_length:
-                    self.df['count_len'] = self.df[feature].str.len()
+                    self.generated_features[feature]['occurances'].append('{}_count_len'.format(feature))
+                    self.df[self.generated_features[feature]['occurances'][-1]] = self.df[feature].str.len()
                 if count_numbers:
-                    self.df['count_numbers'] = self.df[feature].str.count(r'[0-9]')
+                    self.generated_features[feature]['occurances'].append('{}_count_numbers'.format(feature))
+                    self.df[self.generated_features[feature]['occurances'][-1]] = self.df[feature].str.count(r'[0-9]')
                 if count_characters:
-                    self.df['count_characters'] = self.df[feature].str.count(r'[a-zA-Z]')
+                    self.generated_features[feature]['occurances'].append('{}_count_chars'.format(feature))
+                    self.df[self.generated_features[feature]['occurances'][-1]] = self.df[feature].str.count(r'[a-zA-Z]')
                 if count_special_characters:
-                    self.df['count_characters'] = self.df[feature].str.count(r'[^\0-9\a-zA-Z\s,]')
+                    self.generated_features[feature]['occurances'].append('{}_count_special_chars'.format(feature))
+                    self.df[self.generated_features[feature]['occurances'][-1]] = self.df[feature].str.count(r'[^\0-9\a-zA-Z\s,]')
+                for occurance in self.generated_features[feature]['occurances']:
+                    Log(write=False, level='info').log(msg='Generated numerical feature "{}"'.format(occurance))
 
     def clustering(self):
         """
@@ -1048,63 +1183,56 @@ class TextMiner:
         """
         raise NotImplemented('Text clustering not supported')
 
-    def emoji_handler(self,
-                      features: List[str] = None,
-                      has_emojis: bool = True,
-                      count_emojis: bool = True,
-                      count_unique_emojis: bool = True,
-                      convert_emoji_to_text: bool = True
-                      ):
+    def detect_lang(self, features: List[str] = None, sampling: bool = True):
         """
-        Process emojis into categorical (and semi-continuous) features
+        Detect language of text phrase
 
         :param features: List[str]
-            Name of the features to analyze
+            Name of the features to use
 
-        :param has_emojis: bool
-            Whether to check if text contains emoji or not
-
-        :param count_emojis: bool
-            Whether to count all emojis or not
-
-        :param count_unique_emojis: bool
-             Whether to count unique emojis or not
-
-        :param convert_emoji_to_text: bool
-            Whether to convert each emoji into text or not
+        :param sampling: bool
+            Whether to draw sample for detecting language of text features (to avoid request error) or not
         """
         _features: List[str] = self.segments.get('phrases') if features is None else features
         for feature in _features:
-            if feature in self.df.keys():
-                _df: pd.DataFrame = self.df[feature].apply(lambda x: 1 if x in emoji.UNICODE_EMOJI else 0)
-                if has_emojis:
-                    self.df['has_emojis'] = self.df[feature].apply(lambda x: 1 if x in emoji.UNICODE_EMOJI else 0)
-                if count_emojis:
-                    self.df['count_emojis'] = self.df[feature].apply(lambda x: len(self._extract_emojis(text=x)))
-                if count_unique_emojis:
-                    self.df['count_unique_emojis'] = self.df[feature].apply(lambda x: len(pd.unique(self._extract_emojis(text=x))))
-                if convert_emoji_to_text:
-                    self.df[feature] = self.df[feature].apply(lambda x: emoji.demojize(string=str(x), use_aliases=False))
+            if feature in self.df.columns:
+                if self.generated_features.get(feature) is None:
+                    self.generated_features.update({feature: dict(lang=[])})
+                else:
+                    if 'lang' in self.generated_features[feature].keys():
+                        if len(self.generated_features[feature]['lang']) > 0:
+                            continue
+                    else:
+                        self.generated_features[feature].update({'lang': []})
+                self.generated_features[feature]['lang'].append('{}_lang'.format(feature))
+                if sampling:
+                    self.text_feature = copy.deepcopy(feature)
+                    self._get_lang()
+                    self.df[self.generated_features[feature]['lang'][-1]] = self.detected_language.get(feature)
+                else:
+                    self.df[self.generated_features[feature]['lang'][-1]] = self.df[feature].apply(func=self._lang_detection, meta=dict(name='object'))
+            else:
+                Log(write=False, level='info').log(msg='Feature "{}" not found in data set'.format(feature))
 
-    def get_generated_features(self) -> pd.DataFrame:
+    def get_numeric_features(self, compute: bool = False) -> dd.DataFrame:
         """
-        Get generated features
+        Get all generated numeric features
 
-        :return: Pandas DataFrame
+        :return: dask DataFrame
             Data set containing generated features only
         """
         _generated_features: List[str] = []
         for segment in self.segments.keys():
             if segment != 'unknown':
                 for feature in self.segments.get(segment):
-                    _features: List[str] = self.get_str_match(cases=list(self.df.keys()), substring='{}_'.format(feature))
+                    _features: List[str] = self.get_str_match(cases=list(self.df.columns), substring='{}_'.format(feature))
                     if len(_features) > 0:
                         _generated_features.extend(_features)
         if len(_generated_features) == 0:
             Log(write=False, level='info').log(msg='No generated features found')
-            return pd.DataFrame()
+            return pd.DataFrame() if compute else dd.from_pandas(data=pd.DataFrame(), npartitions=self.df.npartitions)
         else:
-            return self.df[_generated_features]
+            return self.df[_generated_features].compute() if compute else self.df[_generated_features]
 
     @staticmethod
     def get_str_match(cases: List[str], substring: str) -> List[str]:
@@ -1122,84 +1250,142 @@ class TextMiner:
         """
         return [case for case in cases if str(case).find(substring) >= 0]
 
-    def detect_lang(self, features: List[str] = None, sampling: bool = True):
+    def generate_categorical_features(self, features: List[str] = None):
         """
-        Detect language of text phrase
+        Generate categorical features interpreted from enumerated or other special text features
 
         :param features: List[str]
-            Name of the features to use
-
-        :param sampling: bool
-            Whether to draw sample for detecting language of text features (to avoid request error) or not
+            Name of the features
         """
-        _features: List[str] = self.segments.get('phrases') if features is None else features
-        for feature in _features:
-            if feature in self.df.keys():
-                if sampling:
-                    self.text_feature = copy.deepcopy(feature)
-                    self._get_lang()
-                    self.df['{}_lang'.format(feature)] = self.detected_language.get(feature)
-                else:
-                    self.df['{}_lang'.format(feature)] = self.df[feature].apply(lambda x: self.translator.detect(text=x).lang)
-            else:
-                Log(write=False, level='info').log(msg='Feature "{}" not found in data set'.format(feature))
+        for feature in features:
+            if feature in self.segments.get('email'):
+                self._extract_email(feature=feature)
+            if feature in self.segments.get('url'):
+                self._extract_url(feature=feature)
+        #self.splitter(features=features, sep=None)
 
     def generate_linguistic_features(self, features: List[str] = None):
         """
-        Generate numerical features based on linguistic analysis of text features
+        Generate numeric features based on linguistic analysis of text features
 
         :param features: List[str]
             Name of the features to generate linguistic features from
         """
-        _features: List[str] = self.segments.get('phrases') if features is None else features
+        _features: List[str] = self.segments.get('phrases') if features is None else [feature for feature in features if feature in self.segments.get('phrases')]
         for feature in _features:
-            if feature in self.segments.get('phrases'):
-                if feature not in self.clean_phrases.keys():
-                    self._process_text(feature=feature,
-                                       decap=True,
-                                       numbers=False,
-                                       stop_words=True,
-                                       special_chars=True,
-                                       punct=True,
-                                       pron=True,
-                                       web=True,
-                                       entity=True,
-                                       lemmatizing=True,
-                                       handle_emojis='ignore'
-                                       )
-                self.df['{}_count_special_chars'.format(feature)] = self.special_chars[feature]['count']
-                self.df['{}_count_unique_special_chars'.format(feature)] = self.special_chars[feature]['count_unique']
-                self.df['{}_clean_length'.format(feature)] = self.clean_phrases[feature]['count_len']
-                self.df['{}_clean_count_words'.format(feature)] = self.clean_phrases[feature]['count_words']
-                self.df['{}_clean_count_sents'.format(feature)] = self.clean_phrases[feature]['count_sents']
-                self.df['{}_clean_count_conjuncts'.format(feature)] = self.clean_phrases[feature]['count_conjuncts']
-                self.df['{}_pos_count_unique_tags'.format(feature)] = self.pos[feature]['count_unique_tags']
-                self.df['{}_pos_count_unique_labels'.format(feature)] = self.pos[feature]['count_unique_labels']
-                self.df['{}_pos_count_ad'.format(feature)] = self.pos[feature]['count_ad']
-                self.df['{}_pos_count_verb'.format(feature)] = self.pos[feature]['count_verb']
-                self.df['{}_pos_count_noun'.format(feature)] = self.pos[feature]['count_noun']
-                self.df['{}_ner_recognized'.format(feature)] = self.ner[feature]['recognized']
-                self.df['{}_ner_count'.format(feature)] = self.ner[feature]['count']
-                self.df['{}_ner_count_unique'.format(feature)] = self.ner[feature]['count_unique']
-                self.df['{}_ner_entity'.format(feature)] = self.ner[feature]['entity']
-                self.df['{}_ner_entity_type'.format(feature)] = self.ner[feature]['entity_type']
-                self.df['{}_dep_tree_count_has_child'.format(feature)] = self.dep[feature]['tree']['count_has_child']
-                self.df['{}_dep_tree_count_has_child'.format(feature)] = self.dep[feature]['tree']['count_dep_of_child']
-                self.df['{}_dep_tree_count_unique_dep_of_child'.format(feature)] = self.dep[feature]['tree']['count_unique_dep_of_child']
-                self.df['{}_dep_tree_count_head_text_of_child'.format(feature)] = self.dep[feature]['tree']['count_head_text_of_child']
-                self.df['{}_dep_tree_count_unique_head_text_of_child'.format(feature)] = self.dep[feature]['tree']['count_unique_head_text_of_child']
-                self.df['{}_dep_tree_count_head_pos_of_child'.format(feature)] = self.dep[feature]['tree']['count_head_pos_of_child']
-                self.df['{}_dep_tree_count_unique_head_pos_of_child'.format(feature)] = self.dep[feature]['tree']['count_unique_head_pos_of_child']
-                self.df['{}_dep_tree_count_children'.format(feature)] = self.dep[feature]['tree']['count_children']
-                #self.df['{}_dep_noun_pairs_count_children'.format(feature)] = self.dep[feature]['noun_pairs']['count_dep']
-                self.df['{}_dep_noun_pairs_count_unique_dep'.format(feature)] = self.dep[feature]['noun_pairs']['count_unique_dep']
-                self.df['{}_dep_noun_pairs_count_root_dep'.format(feature)] = self.dep[feature]['noun_pairs']['count_root_dep']
-                self.df['{}_dep_noun_pairs_count_unique_root_dep'.format(feature)] = self.dep[feature]['noun_pairs']['count_unique_root_dep']
-                self.df['{}_dep_noun_pairs_count_root_head_dep'.format(feature)] = self.dep[feature]['noun_pairs']['count_root_head_dep']
-                self.df['{}_dep_noun_pairs_count_unique_root_head_dep'.format(feature)] = self.dep[feature]['noun_pairs']['count_unique_root_head_dep']
-                self.df['{}_dep_noun_pairs_count_root_text_dep'.format(feature)] = self.dep[feature]['noun_pairs']['count_root_text_dep']
-                self.df['{}_dep_noun_pairs_count_unique_root_text_dep'.format(feature)] = self.dep[feature]['noun_pairs']['count_unique_root_text_dep']
-        self.emoji_handler(features=_features, has_emojis=True, count_emojis=True, count_unique_emojis=True, convert_emoji_to_text=True)
+            if feature in self.df.columns:
+                if self.generated_features.get(feature) is None:
+                    self.generated_features.update({feature: dict(linguistic=[])})
+                else:
+                    if 'linguistic' in self.generated_features[feature].keys():
+                        if len(self.generated_features[feature]['linguistic']) > 0:
+                            continue
+                    else:
+                        self.generated_features[feature].update({'linguistic': []})
+                if feature not in self.clean_phrases.keys() and not self.auto_interpretation:
+                    Log(write=False, logger_file_path=None).log(msg='Recognized natural language. Start interpretation ...')
+                    self._interpret_text()
+                _linguistic_features: List[str] = ['count_special_chars',
+                                                   'count_unique_special_chars',
+                                                   'clean_length',
+                                                   'clean_count_words',
+                                                   'clean_count_sents',
+                                                   'clean_count_conjuncts',
+                                                   'pos_count_unique_tags',
+                                                   'pos_count_unique_labels',
+                                                   'pos_count_ad',
+                                                   'pos_count_verb',
+                                                   'pos_count_noun',
+                                                   'ner_recognized',
+                                                   'ner_count',
+                                                   'ner_count_unique',
+                                                   'ner_entity',
+                                                   'ner_entity_type',
+                                                   'dep_tree_count_has_child',
+                                                   'dep_tree_count_dep_of_child',
+                                                   'dep_tree_count_unique_dep_of_child',
+                                                   'dep_tree_count_head_text_of_child',
+                                                   'dep_tree_count_unique_head_text_of_child',
+                                                   'dep_tree_count_head_pos_of_child',
+                                                   'dep_tree_count_unique_head_pos_of_child',
+                                                   'dep_tree_count_children',
+                                                   'dep_noun_pairs_count_children',
+                                                   'dep_noun_pairs_count_unique_dep',
+                                                   'dep_noun_pairs_count_root_dep',
+                                                   'dep_noun_pairs_count_unique_root_dep',
+                                                   'dep_noun_pairs_count_root_head_dep',
+                                                   'dep_noun_pairs_count_unique_root_head_dep',
+                                                   'dep_noun_pairs_count_root_text_dep',
+                                                   'dep_noun_pairs_count_unique_root_text_dep',
+                                                   #'has_emojis',
+                                                   #'emojis_count',
+                                                   #'emojis_count_unique',
+                                                   #'emojis_label'
+                                                   ]
+                #_df: dd.core.DataFrame = dd.from_pandas(data=pd.DataFrame(), npartitions=self.partitions)
+                #_df['{}_ner_entity'.format(feature)] = from_array(x=np.array(self.ner[feature]['entity']))
+                #_df['{}_ner_entity_type'.format(feature)] = from_array(x=np.array(self.ner[feature]['entity_type']))
+                #_df['{}_dep_tree_children'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['children']))
+                #_df['{}_emoji_label'.format(feature)] = self.emoji[feature]['label']
+                #for cat in _df.columns:
+                #    if self.generated_features.get(feature) is None:
+                #        self.generated_features.update({feature: dict(split=[])})
+                #    else:
+                #        if 'split' not in self.generated_features[feature].keys():
+                #            self.generated_features[feature].update({'split': []})
+                #    self.generated_features[feature]['split'].append(cat)
+                    #if cat.find('entity') >= 0:
+                    #    if cat.find('_type') >= 0:
+                    #        _splits: List[int] = [len(str(x).split(self.internal_separator)) for x in self.ner[feature]['entity']]
+                    #    else:
+                    #        _splits: List[int] = [len(str(x).split(self.internal_separator)) for x in self.ner[feature]['entity_type']]
+                    #else:
+                    #    _splits: List[int] = [len(str(x).split(self.internal_separator)) for x in self.dep[feature]['tree']['children']]
+                    #_split_features: dd.core.DataFrame = _df[cat].str.split(n=max(_splits) - 2, pat=self.internal_separator, expand=True)
+                    #self.internal_df = copy.deepcopy(_df)
+                    #self.expand_feature = copy.deepcopy(cat)
+                    #_split_features = _split_features.mask(cond=_split_features is None, other=np.nan).compute()
+                    #_split_features.repartition(divisions=None, npartitions=self.partitions, force=True)
+                    #self.df = dd.concat(dfs=[self.df, _split_features.compute()], axis=1).compute()
+                self.df['{}_ner_entity'.format(feature)] = from_array(x=np.array(self.ner[feature]['entity']))
+                self.df['{}_ner_entity_type'.format(feature)] = from_array(x=np.array(self.ner[feature]['entity_type']))
+                #self.df['{}_dep_tree_children'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['children']))
+                #self.df['{}_count_special_chars'.format(feature)] = from_array(x=np.array(self.special_chars[feature]['count']))
+                #self.df['{}_count_unique_special_chars'.format(feature)] = from_array(x=np.array(self.special_chars[feature]['count_unique']))
+                self.df['{}_clean_length'.format(feature)] = from_array(x=np.array(self.clean_phrases[feature]['count_len']))
+                self.df['{}_clean_count_words'.format(feature)] = from_array(x=np.array(self.clean_phrases[feature]['count_words']))
+                self.df['{}_clean_count_sents'.format(feature)] = from_array(x=np.array(self.clean_phrases[feature]['count_sents']))
+                self.df['{}_clean_count_conjuncts'.format(feature)] = from_array(x=np.array(self.clean_phrases[feature]['count_conjuncts']))
+                self.df['{}_pos_count_unique_tags'.format(feature)] = from_array(x=np.array(self.pos[feature]['count_unique_tags']))
+                self.df['{}_pos_count_unique_labels'.format(feature)] = from_array(x=np.array(self.pos[feature]['count_unique_labels']))
+                self.df['{}_pos_count_ad'.format(feature)] = from_array(x=np.array(self.pos[feature]['count_ad']))
+                self.df['{}_pos_count_verb'.format(feature)] = from_array(x=np.array(self.pos[feature]['count_verb']))
+                self.df['{}_pos_count_noun'.format(feature)] = from_array(x=np.array(self.pos[feature]['count_noun']))
+                self.df['{}_ner_recognized'.format(feature)] = from_array(x=np.array(self.ner[feature]['recognized']))
+                self.df['{}_ner_count'.format(feature)] = from_array(x=np.array(self.ner[feature]['count']))
+                self.df['{}_ner_count_unique'.format(feature)] = from_array(x=np.array(self.ner[feature]['count_unique']))
+                #self.df['{}_dep_tree_count_has_child'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['count_has_child']))
+                self.df['{}_dep_tree_count_dep_of_child'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['count_dep_of_child']))
+                self.df['{}_dep_tree_count_unique_dep_of_child'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['count_unique_dep_of_child']))
+                self.df['{}_dep_tree_count_head_text_of_child'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['count_head_text_of_child']))
+                self.df['{}_dep_tree_count_unique_head_text_of_child'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['count_unique_head_text_of_child']))
+                self.df['{}_dep_tree_count_head_pos_of_child'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['count_head_pos_of_child']))
+                self.df['{}_dep_tree_count_unique_head_pos_of_child'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['count_unique_head_pos_of_child']))
+                #self.df['{}_dep_tree_count_children'.format(feature)] = from_array(x=np.array(self.dep[feature]['tree']['count_children']))
+                self.df['{}_dep_noun_pairs_count_children'.format(feature)] = from_array(x=np.array(self.dep[feature]['noun_pairs']['count_dep']))
+                self.df['{}_dep_noun_pairs_count_unique_dep'.format(feature)] = from_array(x=np.array(self.dep[feature]['noun_pairs']['count_unique_dep']))
+                self.df['{}_dep_noun_pairs_count_root_dep'.format(feature)] = from_array(x=np.array(self.dep[feature]['noun_pairs']['count_root_dep']))
+                self.df['{}_dep_noun_pairs_count_unique_root_dep'.format(feature)] = from_array(x=np.array(self.dep[feature]['noun_pairs']['count_unique_root_dep']))
+                self.df['{}_dep_noun_pairs_count_root_head_dep'.format(feature)] = from_array(x=np.array(self.dep[feature]['noun_pairs']['count_root_head_dep']))
+                self.df['{}_dep_noun_pairs_count_unique_root_head_dep'.format(feature)] = from_array(x=np.array(self.dep[feature]['noun_pairs']['count_unique_root_head_dep']))
+                self.df['{}_dep_noun_pairs_count_root_text_dep'.format(feature)] = from_array(x=np.array(self.dep[feature]['noun_pairs']['count_root_text_dep']))
+                self.df['{}_dep_noun_pairs_count_unique_root_text_dep'.format(feature)] = from_array(x=np.array(self.dep[feature]['noun_pairs']['count_unique_root_text_dep']))
+                #self.df['{}_has_emojis'.format(feature)] = from_array(x=np.array(self.emoji[feature]['has']))
+                #self.df['{}_emojis_count'.format(feature)] = from_array(x=np.array(self.emoji[feature]['count']))
+                #self.df['{}_emojis_count_unique'.format(feature)] = from_array(x=np.array(self.emoji[feature]['count_unique']))
+                #self.df['{}_emojis_label'.format(feature)] = from_array(x=np.array(self.emoji[feature]['label']))
+                for linguistic in _linguistic_features:
+                    self.generated_features[feature]['linguistic'].append('{}_{}'.format(feature, linguistic))
 
     def merge(self, features: List[str], sep: str = ' '):
         """
@@ -1211,14 +1397,22 @@ class TextMiner:
         :param sep: str
             Special character to separate values
         """
-        _features: List[str] = self.segments.get('enumeration') if features is None else features
-        for first in _features:
-            for second in _features:
-                if first != second and '{}_merge_{}'.format(second, first) not in self.df.keys():
-                    if first in self.df.keys():
-                        if len(self.get_str_match(cases=list(self.df.keys()), substring='{}_merge_{}'.format(first, second))) == 0:
-                            self.df['{}_merge_{}'.format(first, second)] = self.df[first].str.cat(others=self.df[second], sep=sep)
-                            Log(write=False, level='info').log(msg='Merged "{}" and "{}" together (using {} as separator)'.format(first, second, sep))
+        _features: List[str] = [feature for feature in features if feature in self.df.columns]
+        _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_features, max_features_each_pair=2)
+        for pair in _pairs:
+            if pair[0] != pair[1] and '{}_merge_{}'.format(pair[0], pair[1]) not in self.df.columns:
+                if pair[0] in self.df.columns and pair[1] in self.df.columns:
+                    if self.generated_features.get(pair[0]) is None:
+                        self.generated_features.update({pair[0]: dict(merge=[])})
+                    else:
+                        if 'merge' in self.generated_features[pair[0]].keys():
+                            if len(self.generated_features[pair[0]]['merge']) > 0:
+                                continue
+                        else:
+                            self.generated_features[pair[0]].update({'merge': []})
+                    self.generated_features[pair[0]]['merge'].append('{}_merge_{}'.format(pair[0], pair[1]))
+                    self.df[self.generated_features[pair[0]]['merge'][-1]] = self.df[pair[0]].str.cat(others=self.df[pair[1]], sep=sep)
+                    Log(write=False, level='info').log(msg='Merged "{}" and "{}" together (using {} as separator)'.format(pair[0], pair[1], sep))
 
     def replace(self, features: List[str], find_values: List[str], replace_value: str):
         """
@@ -1235,8 +1429,9 @@ class TextMiner:
         """
         if len(find_values) > 0:
             for feature in features:
-                for val in find_values:
-                    self.df[feature] = self.df[feature].str.replace(val, replace_value)
+                if feature in self.df.columns:
+                    for val in find_values:
+                        self.df[feature] = self.df[feature].str.replace(val, replace_value)
 
     def similarity(self, features: List[str] = None):
         """
@@ -1245,13 +1440,19 @@ class TextMiner:
         :param features: List[str]
             Name of the features to calculate similarity of text feature
         """
-        _features: List[str] = self.segments.get('phrases') if features is None else features
+        _features: List[str] = self.segments.get('phrases') if features is None else [feature for feature in features if feature in self.segments.get('phrases')]
         self._apply_similarity(features=_features)
         for feature in self.similarity_scores.keys():
             _score_each_case: List[float] = []
             for case in self.similarity_scores[feature].keys():
                 _score_each_case.append(sum(self.similarity_scores[feature][case]) / len(self.similarity_scores[feature][case]))
-            self.df['{}_avg_similarity_score'.format(feature)] = _score_each_case
+            if self.generated_features.get(feature) is None:
+                self.generated_features.update({feature: dict(similarity=[])})
+            else:
+                if 'similarity' not in self.generated_features[feature].keys():
+                    self.generated_features[feature].update({'similarity': []})
+            self.generated_features[feature]['similarity'].append('{}_avg_similarity_score'.format(feature))
+            self.df[self.generated_features[feature]['similarity'][-1]] = from_array(x=np.array(_score_each_case), chunks=50000, meta=dict(name='float64'))
 
     def splitter(self, features: List[str] = None, sep: str = None):
         """
@@ -1263,24 +1464,34 @@ class TextMiner:
         :param sep: str
             Separating character
         """
-        _features: List[str] = self.segments.get('enumeration') if features is None else features
+        _features: List[str] = self.segments.get('enumeration') if features is None else [feature for feature in features if feature in self.segments.get('enumeration')]
         for feature in _features:
-            if feature in self.df.keys():
-                if len(self.get_str_match(cases=list(self.df.keys()), substring='{}_split_'.format(feature))) == 0:
-                    if sep is None:
-                        _sep: str = self.enumeration.get(feature)
+            if feature in self.df.columns:
+                if self.generated_features.get(feature) is None:
+                    self.generated_features.update({feature: dict(split=[])})
+                else:
+                    if 'split' in self.generated_features[feature].keys():
+                        if len(self.generated_features[feature]['split']) > 0:
+                            continue
                     else:
-                        _sep: str = sep
-                    if _sep is None:
-                        Log(write=False, level='info').log(msg='No separator found')
+                        self.generated_features[feature].update({'split': []})
+                if sep is None:
+                    _sep: str = self.enumeration.get(feature)
+                else:
+                    _sep: str = sep
+                if _sep is None:
+                    Log(write=False, level='info').log(msg='No separator found')
+                else:
+                    _split_features: pd.DataFrame = self.df[feature].str.split(pat=_sep, expand=True)
+                    if _split_features.shape[1] <= 1:
+                        Log(write=False, level='info').log(msg='Separator ({}) found in text feature "{}"'.format(_sep, feature))
                     else:
-                        _split_features: pd.DataFrame = self.df[feature].str.split(pat=sep, expand=True)
-                        if _split_features.shape[1] <= 1:
-                            Log(write=False, level='info').log(msg='Separator ({}) found in text feature "{}"'.format(_sep, feature))
-                        else:
-                            _split_features.rename(columns={i: '{}_split_{}'.format(feature, i) for i in range(0, _split_features.shape[1])})
-                            self.df = pd.concat([self.df, _split_features], axis=1)
-                            Log(write=False, level='info').log(msg='Feature "{}" split (by {}) into {} new features'.format(feature, sep, _split_features.shape[1]))
+                        _split_features.replace(to_replace=None, value=np.nan, inplace=True)
+                        _split_features.rename(columns={i: '{}_split_{}'.format(feature, i) for i in range(0, _split_features.shape[1])}, inplace=True)
+                        for sf in _split_features.keys():
+                            self.generated_features[feature]['split'].append(sf)
+                        self.df = pd.concat([self.df, _split_features], axis=1)
+                        Log(write=False, level='info').log(msg='Feature "{}" split (by {}) into {} new features'.format(feature, _sep, _split_features.shape[1]))
 
     def tfidf(self, features: List[str] = None):
         """
@@ -1289,15 +1500,25 @@ class TextMiner:
         :param features: List[str]
             Name of the features
         """
-        _features: List[str] = self.segments.get('phrases') if features is None else features
+        _features: List[str] = self.segments.get('phrases') if features is None else [feature for feature in features if feature in self.segments.get('phrases')]
         for feature in _features:
-            self.cluster.update({feature: {}})
-            self.df[feature] = self.df[feature].fillna('NaN')
-            _tfidf_vectorizer: TfidfVectorizer = TfidfVectorizer(stop_words=LANG_MODELS.get(self.lang)['name'],
-                                                                 ngram_range=(1, 3)
-                                                                 )
-            _clean_text_data: pd.DataFrame = self.df[feature].apply(lambda x: self._clean_text(phrase=str(x)))
-            self.df['{}_tfidf'.format(feature)] = _tfidf_vectorizer.fit_transform(_clean_text_data.values).data[0:self.df.shape[0]]
+            if feature in self.df.columns:
+                if self.generated_features.get(feature) is None:
+                    self.generated_features.update({feature: dict(tfidf=[])})
+                else:
+                    if 'tfidf' in self.generated_features[feature].keys():
+                        if len(self.generated_features[feature]['tfidf']) > 0:
+                            continue
+                    else:
+                        self.generated_features[feature].update({'tfidf': []})
+                self.cluster.update({feature: {}})
+                self.df[feature] = self.df[feature].fillna('NaN')
+                _tfidf_vectorizer: TfidfVectorizer = TfidfVectorizer(stop_words=LANG_MODELS.get(self.lang)['name'],
+                                                                     ngram_range=(1, 3)
+                                                                     )
+                _clean_text_data: dd.DataFrame = self.df[feature].apply(func=self._clean_text, meta=(feature, 'object'))
+                self.generated_features[feature]['tfidf'].append('{}_tfidf'.format(feature))
+                self.df[self.generated_features[feature]['tfidf'][-1]] = _tfidf_vectorizer.fit_transform(_clean_text_data.values.compute()).data[0:len(self.df)]
 
     def translate(self, text: str, lang: str) -> str:
         """

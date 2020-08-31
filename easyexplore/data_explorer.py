@@ -1,23 +1,26 @@
+import copy
+import dask.dataframe as dd
 import numpy as np
 import os
 import pandas as pd
 
 from .anomaly_detector import AnomalyDetector
+from .data_import_export import DataImporter
 from .data_visualizer import DataVisualizer
 from .text_miner import TextMiner
 from .utils import Log, PERCENTILES, StatsUtils, EasyExploreUtils
-from multiprocessing.pool import ThreadPool
+from dask.array import from_array
+from dask.distributed import Client
 from typing import Dict, List, Tuple
 
 # TODO:
 #  Correlation -> Partial + Final Heat Map
-#  Data Distribution: Color + Annotations
-#  Move MissingDataAnalysis class to utils.py
+#  Data Distribution: Color (overtime) + Annotations (continuous distribution parameter)
 
 
 class DataExplorerException(Exception):
     """
-    Class for setting up exceptions for class DataExploration, MissingDataAnalysis
+    Class for handling exceptions for class DataExploration
     """
     pass
 
@@ -27,7 +30,9 @@ class DataExplorer:
     Class for data exploration
     """
     def __init__(self,
-                 df: pd.DataFrame,
+                 df=None,
+                 file_path: str = '',
+                 table_name: str = None,
                  target: str = None,
                  seed: int = 1234,
                  include: List[str] = None,
@@ -42,12 +47,18 @@ class DataExplorer:
                  include_nan: bool = True,
                  plot: bool = True,
                  plot_type: str = None,
-                 file_path: str = None,
-                 multi_threading: bool = True
+                 output_file_path: str = None,
+                 **kwargs: dict
                  ):
         """
-        :param df: pd.DataFrame
+        :param df: Pandas DataFrame or dask dataframe
             Data set
+
+        :param file_path: str
+            Complete file path of data file
+
+        :param table_name: str
+            Name of the table to fetch from local database file (sqlite3)
 
         :param target: str
             Name of the target variable
@@ -76,42 +87,69 @@ class DataExplorer:
         :param plot_type: str
             Name of the plot type
 
-        :param multi_threading: bool
-            Whether to use multiple threads or single thread for exploration
+        :param output_file_path: str
+            Complete file path for the output
+
+        :param kwargs: dict
+            Key-word arguments
         """
-        self.thread_pool = None
-        self.multi_threading: bool = multi_threading
-        if df.shape[0] < 25:
-            if df.shape[0] == 0:
-                raise DataExplorerException('Data set is empty')
+        if len(file_path) == 0 and df is None:
+            raise DataExplorerException('Neither data set nor file path found')
+        self.dask_client: Client = EasyExploreUtils().dask_setup(client_name='explorer',
+                                                                 client_address=kwargs.get('client_address'),
+                                                                 mode='threads' if kwargs.get('client_mode') is None else kwargs.get('client_mode')
+                                                                 )
+        self.partitions: int = 4 if kwargs.get('npartitions') is None else kwargs.get('npartitions')
+        if len(file_path) > 0:
+            if os.path.isfile(file_path):
+                self.df: dd.DataFrame = DataImporter(file_path=file_path,
+                                                     as_data_frame=True,
+                                                     use_dask=True,
+                                                     sep=',',
+                                                     **kwargs
+                                                     ).file(table_name=table_name)
             else:
-                Log(write=False, level='warn').log('Too few cases ({}) in data set'.format(df.shape[0]))
-        if df.shape[1] < 2:
-            Log(write=False, level='warn').log('Too few features ({}) in data set'.format(df.shape[1]))
+                raise DataExplorerException('File path ({}) is incomplete'.format(file_path))
+        else:
+            self.df = df
+        if isinstance(df, pd.DataFrame):
+            self.df = dd.from_pandas(data=df, npartitions=self.partitions)
+            if len(self.df) < 10:
+                if len(self.df) == 0:
+                    raise DataExplorerException('Data set is empty')
+                else:
+                    Log(write=False, level='warn').log('Too few cases ({}) in data set'.format(len(self.df)))
+            if len(self.df.columns) == 0:
+                Log(write=False, level='warn').log('Too few features ({}) in data set'.format(len(self.df.columns)))
+        elif isinstance(df, dd.core.DataFrame):
+            self.df = df
+        else:
+            if self.df is None:
+                raise DataExplorerException('Format of data set ({}) not supported. Use Pandas DataFrame or dask dataframe instead'.format(type(df)))
+        if 'Unnamed: 0' in list(self.df.columns):
+            del self.df['Unnamed: 0']
+        Log(write=False).log(msg='Data set: {}\nCases: {}\nFeatures: {}'.format(file_path, len(self.df), len(self.df.columns)))
         self.seed: int = seed if seed > 0 else 1234
-        self.cpu_cores: int = os.cpu_count() - 1 if os.cpu_count() > 1 else 1
-        self.max_cats: int = 500
-        self.df: pd.DataFrame = df
         if include is None:
             if exclude is not None:
                 _exclude: List[str] = []
                 for ex in exclude:
-                    if ex in self.df.keys():
+                    if ex in self.df.columns:
                         _exclude.append(ex)
                 if len(_exclude) > 0:
                     self.df = self.df[_exclude]
         else:
             _include: List[str] = []
             for inc in include:
-                if inc in self.df.keys():
+                if inc in self.df.columns:
                     _include.append(inc)
             if len(_include) > 0:
                 self.df = self.df[_include]
-        self.features: List[str] = list(self.df.keys())
-        self.n_cases: int = self.df.shape[0]
-        self.n_features: int = self.df.shape[1]
+        self.features: List[str] = list(self.df.columns)
+        self.n_cases: int = len(self.df)
+        self.n_features: int = len(self.df.columns)
         self.data_types: list = self.df.dtypes.tolist()
-        self.data_index: list = self.df.index.values.tolist()
+        self.data_index: list = list(self.df.index.values.compute())
         self.date_edges: Tuple[str, str] = date_edges
         self.date: List[str] = [] if date is None else date
         self.ordinal: List[str] = [] if ordinal is None else ordinal
@@ -134,7 +172,7 @@ class DataExplorer:
         self.include_nan: bool = include_nan
         self.plot: bool = plot
         self.plot_type: str = plot_type
-        self.file_path: str = file_path
+        self.file_path: str = output_file_path
         self.invalid_values: List[str] = ['nan', 'NaN', 'NaT', 'none', 'None', 'inf', '-inf']
         self.df = self.df.replace(self.invalid_values, np.nan)
 
@@ -145,17 +183,16 @@ class DataExplorer:
         :return: Dict[str, List[str]]
             Dictionary containing the names of the features and the regarding data types
         """
-        return EasyExploreUtils(multi_threading=self.multi_threading).get_feature_types(df=self.df,
-                                                                                        features=self.features,
-                                                                                        dtypes=self.data_types,
-                                                                                        continuous=self.continuous,
-                                                                                        categorical=self.categorical,
-                                                                                        ordinal=self.ordinal,
-                                                                                        date=self.date,
-                                                                                        id_text=self.id_text,
-                                                                                        max_cats=self.max_cats,
-                                                                                        date_edges=self.date_edges
-                                                                                        )
+        return EasyExploreUtils().get_feature_types(df=self.df,
+                                                    features=self.features,
+                                                    dtypes=self.data_types,
+                                                    continuous=self.continuous,
+                                                    categorical=self.categorical,
+                                                    ordinal=self.ordinal,
+                                                    date=self.date,
+                                                    id_text=self.id_text,
+                                                    date_edges=self.date_edges
+                                                    )
 
     def _check_duplicates(self, by_row: bool = True, by_col: bool = True) -> Dict[str, list]:
         """
@@ -172,9 +209,10 @@ class DataExplorer:
         """
         _duplicates: dict = dict(cases=[], features=[])
         if by_row:
-            _duplicates['cases'] = self.df.loc[self.df.duplicated(), :].index.values.tolist()
+            _duplicates['cases'] = list(self.df.loc[self.df.duplicated(), :].index.values.compute())
         if by_col:
-            _duplicates['features'] = self.df.loc[:, self.df.transpose().duplicated()].keys().tolist()
+            _transposed_dask_array = self.df.to_dask_array().transpose().compute()
+            _duplicates['features'] = [self.df.columns[f] for f, feature in enumerate(dd.from_array(x=_transposed_dask_array).compute().duplicated()) if feature]
         return _duplicates
 
     def _check_invariant_features(self) -> List[int]:
@@ -211,10 +249,11 @@ class DataExplorer:
         _o: float = outlier_threshold if (outlier_threshold > 0) and (outlier_threshold < 1) else 0.15
         if meth == 'iqr':
             for feature in self.feature_types['continuous']:
-                _iqr = np.quantile(a=self.df[feature].values, q=0.75) - np.quantile(a=self.df[feature].values, q=0.25)
-                _lower = self.df[feature].values < (np.quantile(a=self.df[feature].values, q=0.25) - (1.5 * _iqr))
+                _values: np.ndarray = self.df[feature].values.compute()
+                _iqr = np.quantile(a=_values, q=0.75) - np.quantile(a=_values, q=0.25)
+                _lower = _values < (np.quantile(a=_values, q=0.25) - (1.5 * _iqr))
                 _lower_cases = np.where(_lower)[0].tolist()
-                _upper = self.df[feature].values > (np.quantile(a=self.df[feature].values, q=0.75) + (1.5 * _iqr))
+                _upper = _values > (np.quantile(a=_values, q=0.75) + (1.5 * _iqr))
                 _upper_cases = np.where(_upper)[0].tolist()
                 _cases = _cases + _lower_cases + _upper_cases
         else:
@@ -247,11 +286,17 @@ class DataExplorer:
             else:
                 _rec[val] = 6
         _df_mis_case_bin = nan_case_df.replace(to_replace=_rec)
+        _df_mis_case_bin = _df_mis_case_bin.astype(dtype=int)
         _df_freq_bin = _df_mis_case_bin.value_counts(normalize=False, sort=True, ascending=False, bins=None)
-        _df_freq_bin = _df_freq_bin.rename(columns={'rel': 0})
-        _df_freq_rel_bin = _df_freq_bin.apply(func=lambda x: 100 * round(x / self.df.shape[0], 4))
-        _df_freq_rel_bin = _df_freq_rel_bin.rename(columns={'rel': 1})
-        _df: pd.DataFrame = pd.DataFrame(data=[_df_freq_bin, _df_freq_rel_bin])
+        if hasattr(_df_freq_bin, 'columns'):
+            _df_freq_bin = _df_freq_bin.rename(columns={'rel': 0})
+        _df_freq_rel_bin = _df_freq_bin.apply(lambda x: 100 * round(x / len(self.df), 4))
+        if hasattr(_df_freq_bin, 'columns'):
+            _df_freq_bin = _df_freq_rel_bin.rename(columns={'rel': 1})
+        _df: pd.DataFrame = pd.DataFrame()
+        _df[0] = _df_freq_bin
+        _df[1] = _df_freq_rel_bin
+        _df = _df.transpose()
         _df = _df.rename(index={0: 'N', 1: '%'},
                          columns={0: 'Cases containing 0 % Missings',
                                   1: 'Cases containing less than 10 % Missings',
@@ -273,9 +318,9 @@ class DataExplorer:
         :return: np.array
             Unique values of the target variable
         """
-        return self.df[self.target].unique()
+        return self.df[self.target].unique().compute()
 
-    def break_down(self, plot_type: str = 'violin') -> pd.DataFrame:
+    def break_down(self, plot_type: str = 'violin', **kwargs):
         """
         Generate univariate statistics of continuous features grouped by categorical features
 
@@ -288,31 +333,49 @@ class DataExplorer:
                 -> hist: Histogram Chart for level 2 overview
                 -> violin: Violin Chart for level 3 overview
 
-        :return DataFrame
+        :param kwargs: dict
+            Key-word arguments
+
+        :return Pandas DataFrame or dask dataframe
             Breakdown statistics
         """
+        _features: List[str] = []
+        if kwargs.get('include') is not None:
+            for include in list(set(kwargs.get('include'))):
+                if include in self.features:
+                    _features.append(include)
+        if kwargs.get('exclude') is not None:
+            _features: List[str] = self.features
+            for exclude in list(set(kwargs.get('exclude'))):
+                if exclude in _features:
+                    del _features[_features.index(exclude)]
+        if len(_features) == 0:
+            _features = self.features
+        _break_down_stats: pd.DataFrame = pd.DataFrame()
         if plot_type not in ['radar', 'parcoords', 'sunburst', 'tree', 'hist', 'violin']:
             raise DataExplorerException('Plot type ({}) for visualizing categorical breakdown not supported'.format(plot_type))
-        if len(self.feature_types.get('categorical')) == 0:
-            raise DataExplorerException('No categorical features found to breakdown')
-        _cat_features: List[str] = self.feature_types.get('categorical')
-        if self.feature_types.get('ordinal') is not None:
-            _cat_features = _cat_features + self.feature_types.get('ordinal')
-        _agg: dict = {conti: ['count', 'min', 'quantile', 'median', 'mean', 'max', 'sum'] for conti in self.feature_types.get('continuous')}
-        _break_down_stats: pd.DataFrame = self.df[_cat_features].groupby().aggregate(_agg)
-        if self.plot:
-            DataVisualizer(title='Breakdown Statistics',
-                           df=self.df,
-                           features=self.feature_types.get('continuous') + _cat_features,
-                           group_by=_cat_features,
-                           plot_type=plot_type,
-                           melt=False,
-                           interactive=True,
-                           height=500,
-                           width=500,
-                           render=True if self.file_path is None else False,
-                           file_path=self.file_path
-                           ).run()
+        _cat_features: List[str] = [feature for feature in self.feature_types.get('categorical') + self.feature_types.get('ordinal') if feature in _features]
+        if len(_cat_features) == 0:
+            Log(write=False, level='info').log(msg='No categorical features found to breakdown')
+        else:
+            if len([conti for conti in self.feature_types.get('continuous') if conti in _features]) > 0:
+                _agg: dict = {conti: ['count', 'min', 'mean', 'max', 'sum'] for conti in self.feature_types.get('continuous')}
+                _break_down_stats = self.df.groupby(by=_cat_features).aggregate(_agg).compute()
+                if self.plot:
+                    DataVisualizer(title='Breakdown Statistics',
+                                   df=self.df,
+                                   features=[ft for ft in self.feature_types.get('continuous') + _cat_features if ft in _features],
+                                   group_by=_cat_features,
+                                   plot_type=plot_type,
+                                   melt=False,
+                                   interactive=True,
+                                   height=500,
+                                   width=500,
+                                   render=True if self.file_path is None else False,
+                                   file_path=self.file_path
+                                   ).run()
+            else:
+                Log(write=False, level='info').log(msg='No continuous features found to aggregate group by statistics')
         return _break_down_stats
 
     def cor(self,
@@ -372,7 +435,7 @@ class DataExplorer:
                 #        _partial_cor[j, i] = _corr
                 #_cor_matrix: pd.DataFrame = pd.DataFrame(data=_partial_cor, columns=self.feature_types.get('continuous'), index=self.feature_types.get('continuous'))
                 _partial_cor_matrix = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).correlation(meth='partial')
-                print(_partial_cor_matrix)
+                #print(_partial_cor_matrix)
                 _cor['partial'].update(_partial_cor_matrix.to_dict())
                 _cor_plot.update({'Partial Correlation': dict(data=_partial_cor_matrix,
                                                               features=self.feature_types.get('continuous'),
@@ -410,6 +473,7 @@ class DataExplorer:
                               })
         if self.plot:
             DataVisualizer(subplots=_cor_plot,
+                           feature_types=self.feature_types,
                            plot_type='heat',
                            interactive=True,
                            height=500,
@@ -423,7 +487,7 @@ class DataExplorer:
                           categorical: bool = True,
                           continuous: bool = True,
                           over_time: bool = False,
-                          grouping: bool = True
+                          **kwargs
                           ) -> dict:
         """
         Check data distribution of different data types
@@ -437,69 +501,92 @@ class DataExplorer:
         :param over_time: bool
             Calculate distribution of continuous features over time period
 
+        :param kwargs: dict
+            Key-word arguments
+
         :return: dict
             Distribution parameter of each features
         """
+        _features: List[str] = []
+        if kwargs.get('include') is not None:
+            for include in list(set(kwargs.get('include'))):
+                if include in self.features:
+                    _features.append(include)
+        if kwargs.get('exclude') is not None:
+            _features: List[str] = self.features
+            for exclude in list(set(kwargs.get('exclude'))):
+                if exclude in _features:
+                    del _features[_features.index(exclude)]
+        if len(_features) == 0:
+            _features = self.features
         _subplots: dict = {}
         _distribution: dict = {}
         _supported_cat_plot_types: List[str] = ['bar', 'pie']
         _supported_conti_plot_types: List[str] = ['box', 'histo', 'violin']
         if categorical:
-            _categorical_features: List[str] = self.feature_types.get('ordinal') + self.feature_types.get('categorical')
-            for ft in _categorical_features:
-                _distribution[ft] = self.df[ft].value_counts(normalize=False, sort=True, ascending=False, bins=None, dropna=self.include_nan).to_dict()
-            _subplots.update({'Categorical Features': dict(data=self.df,
-                                                           features=_categorical_features,
-                                                           plot_type='bar',
-                                                           melt=False
-                                                           )
-                              })
+            _categorical_features: List[str] = [feature for feature in self.feature_types.get('ordinal') + self.feature_types.get('categorical') if feature in _features]
+            if len(_categorical_features) > 0:
+                for ft in _categorical_features:
+                    _distribution[ft] = self.df[ft].value_counts(sort=True, ascending=False, dropna=self.include_nan).compute()
+                _subplots.update({'Categorical Features': dict(data=self.df,
+                                                               features=_categorical_features,
+                                                               plot_type='bar',
+                                                               melt=False
+                                                               )
+                                  })
         if continuous:
-            _desc: dict = self.df[self.feature_types.get('continuous')].describe(percentiles=PERCENTILES).to_dict()
-            _norm: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).normality_test(alpha=0.05, meth='shapiro-wilk')
-            _skew: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).skewness_test(axis='col')
-            _annotations: List[dict] = []
-            for ft in _desc.keys():
-                _annotations.append(dict(text='Mean={}<br></br>Median={}<br></br>Std={}<br></br>Normality:{}<br></br>Skewness:{}'.format(self.df[ft].mean(), self.df[ft].median(), self.df[ft].std(), _norm.get(ft), _skew.get(ft)),
-                                         align='left',
-                                         showarrow=False,
-                                         x=0.5,
-                                         y=0.9,
-                                         xref='paper',
-                                         yref='paper',
-                                         bordercolor='black',
-                                         borderwidth=0
-                                         )
-                                    )
-                _distribution[ft] = _desc.get(ft)
-            _subplots.update({'Continuous Features': dict(data=self.df,
-                                                          features=self.feature_types.get('continuous'),
-                                                          plot_type='hist',
-                                                          melt=False,
-                                                          #kwargs=dict(layout=dict(annotations=_annotations))
-                                                          )
-                              })
+            _continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
+            if len(_continuous_features) > 0:
+                _desc: dict = self.df[_continuous_features].describe(percentiles=PERCENTILES).to_dict().compute()
+                _norm: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).normality_test(alpha=0.05, meth='shapiro-wilk')
+                _skew: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).skewness_test(axis='col')
+                _annotations: List[dict] = []
+                for ft in _desc.keys():
+                    _annotations.append(dict(text='Mean={}<br></br>Median={}<br></br>Std={}<br></br>Normality:{}<br></br>Skewness:{}'.format(self.df[ft].mean(), self.df[ft].median(), self.df[ft].std(), _norm.get(ft), _skew.get(ft)),
+                                             align='left',
+                                             showarrow=False,
+                                             x=0.5,
+                                             y=0.9,
+                                             xref='paper',
+                                             yref='paper',
+                                             bordercolor='black',
+                                             borderwidth=0
+                                             )
+                                        )
+                    _distribution[ft] = _desc.get(ft)
+                _subplots.update({'Continuous Features': dict(data=self.df,
+                                                              features=self.feature_types.get('continuous'),
+                                                              plot_type='hist',
+                                                              melt=False,
+                                                              #kwargs=dict(layout=dict(annotations=_annotations))
+                                                              )
+                                  })
         if over_time:
             if len(self.feature_types.get('date')) == 0:
                 Log(write=False, level='error').log('No time feature found in data set')
             else:
-                for ft in self.feature_types.get('date'):
-                    _distribution[ft] = self.df[ft].value_counts(normalize=False, sort=True, ascending=False, bins=None, dropna=self.include_nan).to_dict()
-                _subplots.update({'Distribution over Time': dict(data=self.df,
-                                                                 features=self.feature_types.get('continuous'),
-                                                                 time_features=self.feature_types.get('date'),
-                                                                 plot_type='ridgeline'
-                                                                 )
-                                  })
+                _date_features: List[str] = [date for date in self.feature_types.get('date') if date in _features]
+                for ft in _date_features:
+                    _distribution[ft] = self.df[ft].value_counts(sort=True, ascending=False, dropna=self.include_nan).compute()
+                __continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
+                if len(_date_features) > 0 and len(__continuous_features) > 0:
+                    _subplots.update({'Distribution over Time': dict(data=self.df,
+                                                                     features=__continuous_features,
+                                                                     time_features=_date_features,
+                                                                     plot_type='ridgeline'
+                                                                     )
+                                      })
         if self.plot:
-            DataVisualizer(title='Data Distribution',
-                           subplots=_subplots,
-                           interactive=True,
-                           height=500,
-                           width=500,
-                           render=True if self.file_path is None else False,
-                           file_path=self.file_path
-                           ).run()
+            if len(_subplots) > 0:
+                DataVisualizer(title='Data Distribution',
+                               feature_types=self.feature_types,
+                               subplots=_subplots,
+                               interactive=True,
+                               height=500,
+                               width=500,
+                               render=True if self.file_path is None else False,
+                               file_path=self.file_path
+                               ).run()
         return _distribution
 
     def data_health_check(self,
@@ -510,6 +597,7 @@ class DataExplorer:
                           nan_heat_map: bool = True,
                           nan_threshold: float = 0.95,
                           other_mis: list = None,
+                          **kwargs
                           ) -> Dict[str, list]:
         """
         Check the quality of the data set in terms of sparsity, anomalies, duplicates, invariance
@@ -535,12 +623,27 @@ class DataExplorer:
         :param other_mis: list
             List of (other missing) values to convert to missing value NaN
 
+        :param kwargs: dict
+            Key-word arguments
+
         :return: Mapping[str, list]
             Results of the data health check
         """
+        _features: List[str] = []
+        if kwargs.get('include') is not None:
+            for include in list(set(kwargs.get('include'))):
+                if include in self.features:
+                    _features.append(include)
+        if kwargs.get('exclude') is not None:
+            _features: List[str] = self.features
+            for exclude in list(set(kwargs.get('exclude'))):
+                if exclude in _features:
+                    del _features[_features.index(exclude)]
+        if len(_features) == 0:
+            _features = self.features
         _index: list = []
         _cases: list = []
-        _features: list = []
+        __features: list = []
         _info_table: dict = {}
         _tables: dict = {}
         _subplots: dict = {}
@@ -549,30 +652,31 @@ class DataExplorer:
                               'invariant': [],
                               'duplicate': {'cases': [], 'features': []}
                               }
-        _pool_mis = None
-        _pool_invariant = None
-        _pool_duplicate = None
         if not sparsity and not invariant and not duplicate_cases and not duplicate_features:
             raise DataExplorerException('No method for analyzing data health enabled')
         if other_mis is not None:
             self.df = self.df.replace(other_mis, np.nan)
-        if self.multi_threading:
-            _process: int = int(sparsity) + int(invariant) + int(duplicate_features) + int(duplicate_cases)
-            if (int(duplicate_features) + int(duplicate_cases)) == 2:
-                _process -= 1
-            self.thread_pool = ThreadPool(processes=_process)
-            if sparsity:
-                _mis = MissingDataAnalysis(data=self.df.to_numpy(), features=self.features)
-                _pool_mis = self.thread_pool.apply_async(func=_mis.freq_nan)
-            if invariant:
-                _pool_invariant = self.thread_pool.apply_async(func=self._check_invariant_features)
-            if duplicate_cases or duplicate_features:
-                _pool_duplicate = self.thread_pool.apply_async(func=self._check_duplicates, args=(duplicate_cases, duplicate_features))
         if sparsity:
-            if self.multi_threading:
-                _mis_analysis = _pool_mis.get()
-            else:
-                _mis_analysis = MissingDataAnalysis(data=self.df.to_numpy(), features=self.features).freq_nan()
+            _mis_analysis = {'features': {'abs': {}, 'rel': {}}, 'cases': {'abs': {}, 'rel': {}}}
+            _mis: dict = dict(cases=[], features=[])
+            for ft in _features:
+                _feature_mis: list = np.where(pd.isnull(self.df[ft].values.compute()))[0].tolist()
+                _mis['cases'].extend(_feature_mis)
+                if len(_feature_mis) > 0:
+                    _mis['features'].append(ft)
+            if len(_mis['cases']) > 0:
+                for case in list(set(_mis['cases'])):
+                    _df_case_wise = copy.deepcopy(self.df.loc[case, :].values.compute())
+                    _nan_case_wise = len(np.where(pd.isnull(_df_case_wise))[0])
+                    _mis_analysis['cases']['abs'].update({case: _nan_case_wise})
+                    _mis_analysis['cases']['rel'].update({case: 100 * round(_nan_case_wise / len(_features), 6)})
+                del _df_case_wise
+                for feature in list(set(_mis['features'])):
+                    _df_feature_wise = self.df.loc[:, feature].values.compute()
+                    _nan_feature_wise = len(np.where(pd.isnull(_df_feature_wise))[0])
+                    _mis_analysis['features']['abs'].update({feature: _nan_feature_wise})
+                    _mis_analysis['features']['rel'].update({feature: 100 * round(_nan_feature_wise / len(_df_feature_wise), 6)})
+                del _df_feature_wise
             _nan_cases = len(_mis_analysis['cases']['abs'].keys())
             _nan_features = len(_mis_analysis['features']['abs'].keys())
             _data_health['sparsity']['cases'] = list(EasyExploreUtils().subset_dict(d=_mis_analysis['cases']['rel'],
@@ -584,40 +688,40 @@ class DataExplorer:
                                                                str(100 * round(_nan_cases / self.n_cases, 3))
                                                                )
             _info_table['sparsity_features'] = '{} ({} %)'.format(_nan_features,
-                                                                  str(100 * round(_nan_features / self.n_features, 3))
+                                                                  str(100 * round(_nan_features / len(_features), 3))
                                                                   )
             _index.append('Amount of missing data case-wise')
             _index.append('Amount of missing data feature-wise')
             if self.plot:
                 _df_feature_mis = pd.DataFrame(data=_mis_analysis['features'])
                 _df_feature_mis = _df_feature_mis.rename(columns={'abs': 'N', 'rel': '%'},
-                                                         index=EasyExploreUtils().replace_dict_keys(d=_mis_analysis['features']['rel'],
-                                                                                                    new_keys=self.features
-                                                                                                    )
+                                                         index={val: k for k, val in _mis_analysis['features']['rel'].items()}
                                                          )
-                if any(self.df.isnull()):
+                if any(self.df.isnull().compute()):
                     _df_case_mis = pd.DataFrame(data=_mis_analysis['cases'])
-                    _df_all_data: pd.DataFrame = self.df.applymap(lambda x: 1 if x == x else 0)
+                    _df_all_data = self.df.applymap(lambda x: 1 if x == x else 0).compute()
                     _df_nan_case_sum: pd.DataFrame = self._nan_case_summary(nan_case_df=_df_case_mis['rel'])
                     _subplots.update({'Sparsity of data set': dict(data=_df_nan_case_sum,
                                                                    features=[],
                                                                    plot_type='pie',
-                                                                   kwargs=dict(values=[_df_all_data.sum().sum(), (self.n_cases * self.n_features) - _df_all_data.sum().sum()],
+                                                                   kwargs=dict(values=[_df_all_data.sum().sum(),
+                                                                                       (self.n_cases * len(_features)) - _df_all_data.sum().sum()
+                                                                                       ],
                                                                                labels=['Valid Data', 'Missing Data']
                                                                                )
                                                                    ),
                                       'Missing Data Distribution Case-wise': dict(data=_df_nan_case_sum,
                                                                                   features=[],
                                                                                   plot_type='pie',
-                                                                                  kwargs=dict(values=_df_nan_case_sum.loc[:, 'N'].values.tolist(),
-                                                                                              labels=_df_nan_case_sum.loc[:, 'N'].index.values.tolist()
+                                                                                  kwargs=dict(values=list(_df_nan_case_sum.loc[:, 'N'].values),
+                                                                                              labels=list(_df_nan_case_sum.loc[:, 'N'].index.values)
                                                                                               )
                                                                                   ),
                                       'Missing Data Distribution Features-wise': dict(data=_df_feature_mis,
                                                                                       features=[],
                                                                                       plot_type='pie',
-                                                                                      kwargs=dict(values=_df_feature_mis.loc[:, 'N'].values.tolist(),
-                                                                                                  labels=_df_feature_mis.loc[:, 'N'].index.values.tolist()
+                                                                                      kwargs=dict(values=list(_df_feature_mis.loc[:, 'N'].values),
+                                                                                                  labels=list(_df_feature_mis.loc[:, 'N'].index.values)
                                                                                                   )
                                                                                       ),
                                       'Sparsity of the features': dict(data=_df_feature_mis,
@@ -627,10 +731,12 @@ class DataExplorer:
                                                                        )
                                       })
                     if nan_heat_map:
-                        _subplots.update({'Missing Data Heatmap': dict(data=self.df,
-                                                                       features=[],
+                        _subplots.update({'Missing Data Heatmap': dict(data=pd.DataFrame(data=self.df[_features].values.compute(),
+                                                                                         columns=_features
+                                                                                         ),
+                                                                       features=None,
                                                                        plot_type='heat',
-                                                                       kwargs=dict(z=self.df.isnull().astype(int).values,
+                                                                       kwargs=dict(z=self.df.isnull().astype(int).values.compute(),
                                                                                    colorbar=dict(title='Value Range',
                                                                                                  tickvals=['0', '1'],
                                                                                                  ticktext=['Valid',
@@ -639,12 +745,9 @@ class DataExplorer:
                                                                        )
                                           })
         if invariant:
-            if self.thread_pool:
-                _data_health['invariant'] = _pool_invariant.get()
-            else:
-                _data_health['invariant'] = self._check_invariant_features()
+            _data_health['invariant'] = self._check_invariant_features()
             _i = len(_data_health['invariant'])
-            _info_table['invariant'] = '{} ({} %)'.format(_i, str(100 * round(_i / self.n_features, 4)))
+            _info_table['invariant'] = '{} ({} %)'.format(_i, str(100 * round(_i / len(_features), 4)))
             _index.append('Amount of invariant features')
             if self.plot:
                 _label: List[str] = []
@@ -659,21 +762,18 @@ class DataExplorer:
                                                              )
                                   })
         if duplicate_features:
-            if self.multi_threading:
-                _data_health['duplicate'] = _pool_duplicate.get()
-            else:
-                _data_health['duplicate'] = self._check_duplicates(by_row=duplicate_cases, by_col=duplicate_features)
+            _data_health['duplicate'] = self._check_duplicates(by_row=duplicate_cases, by_col=duplicate_features)
             if duplicate_cases:
                 _dc = len(_data_health['duplicate']['cases'])
                 _info_table['duplicate_cases'] = '{} ({} %)'.format(_dc, str(100 * round(_dc / self.n_cases, 4)))
                 _index.append('Amount of duplicated cases')
             _d = len(_data_health['duplicate']['features'])
-            _info_table['duplicate_features'] = '{} ({} %)'.format(_d, str(100 * round(_d / self.n_features, 4)))
+            _info_table['duplicate_features'] = '{} ({} %)'.format(_d, str(100 * round(_d / len(_features), 4)))
             _index.append('Amount of duplicated features')
             if self.plot:
                 _duplicate_cases: List[str] = []
                 _duplicate_features: List[str] = []
-                for i, ft in enumerate(self.features):
+                for i, ft in enumerate(_features):
                     if i in _data_health['duplicate']['cases']:
                         _duplicate_cases.append('duplicate')
                     else:
@@ -687,25 +787,29 @@ class DataExplorer:
                                                           plot_type='pie',
                                                           interactive=True
                                                           ),
-                                  'Duplicate Features': dict(data=pd.DataFrame(data=dict(features=self.features, duplicate_features=_duplicate_features)),
+                                  'Duplicate Features': dict(data=pd.DataFrame(data=dict(features=_features, duplicate_features=_duplicate_features)),
                                                              features=['duplicate_features'],
                                                              plot_type='pie',
                                                              interactive=True
                                                              )
                                   })
         for mis_feature in _data_health['sparsity']['features']:
-            _features.append(mis_feature)
+            __features.append(mis_feature)
         for inv_feature in _data_health['invariant']:
-            _features.append(inv_feature)
+            __features.append(inv_feature)
         for dup_feature in _data_health['duplicate']['features']:
-            _features.append(dup_feature)
+            __features.append(dup_feature)
         if duplicate_cases:
             for dup_case in _data_health['duplicate']['cases']:
                 _cases.append(dup_case)
         for mis_case in _data_health['sparsity']['cases']:
             _cases.append(mis_case)
         if self.plot:
-            _results_after_cleaning: pd.DataFrame = pd.DataFrame(columns=self.features, index=self.data_index)
+            _results_after_cleaning: dd.core.DataFrame = dd.from_pandas(data=pd.DataFrame(columns=_features, index=self.data_index),
+                                                                        npartitions=self.partitions,
+                                                                        sort=True,
+                                                                        name=None
+                                                                        )
             _results_after_cleaning = _results_after_cleaning.fillna(0)
             if _data_health.get('sparsity') is not None:
                 for mis in _data_health['sparsity'].get('features'):
@@ -718,11 +822,13 @@ class DataExplorer:
                     _results_after_cleaning.loc[:, dup_ft] = 3
                 for dup_cases in _data_health['duplicate'].get('cases'):
                     _results_after_cleaning.loc[dup_cases, :] = 3
+            for ft in _results_after_cleaning.columns:
+                _results_after_cleaning[ft] = _results_after_cleaning[ft].astype(dtype='int32')
             _summary: pd.DataFrame = pd.DataFrame(data=_info_table.values(), columns=['N (%)'], index=_index)
-            _subplots.update({'Data Structure Describing Data Health': dict(data=_results_after_cleaning,
+            _subplots.update({'Data Structure Describing Data Health': dict(data=_results_after_cleaning.compute(),
                                                                             features=[],
                                                                             plot_type='heat',
-                                                                            kwargs=dict(z=_results_after_cleaning.values,
+                                                                            kwargs=dict(z=_results_after_cleaning.values.compute(),
                                                                                         colorbar=dict(title='Value Range',
                                                                                                       tickvals=['0', '1', '2', '3'],
                                                                                                       ticktext=['Valid', 'Missing', 'Invariant', 'Duplicate']
@@ -736,6 +842,7 @@ class DataExplorer:
                                                                 )
                               })
             DataVisualizer(title='Data Health Check',
+                           feature_types=self.feature_types,
                            subplots=_subplots,
                            interactive=True,
                            width=500,
@@ -743,9 +850,8 @@ class DataExplorer:
                            render=True if self.file_path is None else False,
                            file_path=self.file_path
                            ).run()
-        return dict(cases=list(set(_cases)),
-                    features=list(set(_features))
-                    )
+        del _results_after_cleaning
+        return dict(cases=list(set(_cases)), features=list(set(__features)))
 
     def data_typing(self) -> dict:
         """
@@ -758,8 +864,8 @@ class DataExplorer:
         _typing: dict = {}
         _table: Dict[str, list] = {'feature_type': [], 'data_type': [], 'rec': []}
         for i in range(0, len(self.features), 1):
-            if any(self.df[self.features[i]].isnull()):
-                if len(self.df[self.features[i]].unique()) == 1:
+            if any(self.df[self.features[i]].isnull().compute()):
+                if len(self.df[self.features[i]].unique().compute()) == 1:
                     _table['feature_type'].append('float')
                     _table['data_type'].append('unknown')
                     _table['rec'].append('Drop feature (no valid data)')
@@ -785,7 +891,7 @@ class DataExplorer:
                     _feature.append(self.features[i])
                     _typing[self.features[i]] = 'int'
                 elif self.features[i] in self.feature_types.get('continuous'):
-                    if any(self.df[self.features[i]].isnull()):
+                    if any(self.df[self.features[i]].isnull().compute()):
                         _table['feature_type'].append('float')
                         _table['data_type'].append('continuous')
                         _table['rec'].append('Handle missing data')
@@ -795,11 +901,14 @@ class DataExplorer:
                     _feature.append(self.features[i])
                     if self.features[i] in self.feature_types.get('categorical'):
                         _table['data_type'].append('categorical')
-                        if any(self.df[self.features[i]].isnull()):
+                        if any(self.df[self.features[i]].isnull().compute()):
                             _table['rec'].append('Handle missing data and convert to integer')
                         else:
                             _table['rec'].append('Convert to integer')
                         _typing[self.features[i]] = 'int'
+                    else:
+                        _table['data_type'].append('id_text')
+                        _table['rec'].append('Convert to string')
             elif str(self.data_types[i]).find('int') >= 0:
                 if self.features[i] not in self.feature_types.get('categorical'):
                     _table['feature_type'].append('integer')
@@ -826,7 +935,7 @@ class DataExplorer:
                     _feature.append(self.features[i])
                     _table['data_type'].append('continuous')
                     _typing[self.features[i]] = 'float'
-                    if any(self.df[self.features[i]].isnull()):
+                    if any(self.df[self.features[i]].isnull().compute()):
                         _table['rec'].append('Handle missing data and convert to float')
                     else:
                         _table['rec'].append('Convert to float')
@@ -835,14 +944,14 @@ class DataExplorer:
                     _feature.append(self.features[i])
                     _table['data_type'].append('categorical')
                     _typing[self.features[i]] = 'int'
-                    if any(self.df[self.features[i]].isnull()):
+                    if any(self.df[self.features[i]].isnull().compute()):
                         _table['rec'].append('Handle missing data and convert to integer by label encoding')
                     else:
                         _table['rec'].append('Convert to integer by label encoding')
         if self.plot:
             _df: pd.DataFrame = pd.DataFrame(data=_table)
             if _df.shape[0] == 0:
-                Log(write=False).log('All feature and data types are correct')
+                Log(write=False).log('All features and data points are correctly typed')
             else:
                 _df = _df.rename(columns={'feature_type': 'Feature Type', 'data_type': 'Data Type', 'rec': 'Recommendation'},
                                  index={idx: name for idx, name in zip(range(len(_feature)), _feature)}
@@ -850,6 +959,7 @@ class DataExplorer:
                 _kwargs: dict = dict(index_title='Features')
                 DataVisualizer(title='Data Type Check',
                                df=_df,
+                               feature_types=self.feature_types,
                                plot_type='table',
                                interactive=True,
                                height=500,
@@ -894,7 +1004,7 @@ class DataExplorer:
         :param plot_type: str
             Name of the plot type to use:
                 -> geo: Geomap
-                -> denisty: Density map
+                -> density: Density map
 
         :return: pd.DataFrame
             Statistics based on geographical features
@@ -905,13 +1015,13 @@ class DataExplorer:
             if len(geo_features) > 0:
                 _geo_features: List[str] = []
                 for geo in geo_features:
-                    if geo in self.df.keys():
+                    if geo in self.df.columns:
                         _geo_features.append(geo)
                 if len(_geo_features) > 0:
                     _agg: dict = {conti: ['count', 'min', 'quantile', 'median', 'mean', 'max', 'sum'] for conti in self.feature_types.get('continuous')}
                     _categorical_features: List[str] = self.feature_types.get('categorical') + self.feature_types.get('ordinal')
                     _agg.update({cat: ['count'] for cat in _categorical_features if cat not in _geo_features})
-                    _geo_stats: pd.DataFrame = self.df[_geo_features].groupby().aggregate(_agg)
+                    _geo_stats: pd.DataFrame = self.df[_geo_features].groupby().aggregate(_agg).compute()
                 else:
                     _geo_stats: pd.DataFrame = pd.DataFrame()
             else:
@@ -920,28 +1030,33 @@ class DataExplorer:
             if lat is None:
                 raise DataExplorerException('No latitude feature found')
             else:
-                if lat not in self.df.keys():
+                if lat not in self.df.columns:
                     raise DataExplorerException('Latitude feature not found in data set')
             if lon is None:
                 raise DataExplorerException('No longitude feature found')
             else:
-                if lon not in self.df.keys():
+                if lon not in self.df.columns:
                     raise DataExplorerException('Longitude feature not found in data set')
             if val is None:
                 raise DataExplorerException('No continuous value feature found')
             else:
-                if val not in self.df.keys():
+                if val not in self.df.columns:
                     raise DataExplorerException('Continuous value feature not found in data set')
             if plot_type in ['geo', 'density']:
                 _plot_type: str = plot_type
             else:
                 _plot_type: str = 'density'
-            self.df = self.df.loc[~self.df[val].isnull(), :]
-            self.df = self.df.loc[~self.df[lat].isnull(), :]
-            self.df = self.df.loc[~self.df[lon].isnull(), :]
-            DataVisualizer(title='Geo Map "{}" (n={})'.format(val, self.df.shape[0]),
-                           df=self.df,
+            _df: dd.DataFrame = self.df[[val, lat, lon]]
+            _df = _df.loc[~_df[val].isnull(), :]
+            _df = _df.loc[~_df[lat].isnull(), :]
+            _df = _df.loc[~_df[lon].isnull(), :]
+            _df[val] = _df[val].astype(dtype='float64')
+            _df[lat] = _df[lat].astype(dtype='float64')
+            _df[lon] = _df[lon].astype(dtype='float64')
+            DataVisualizer(title='Geo Map "{}" (n={})'.format(val, len(_df)),
+                           df=_df.compute(),
                            features=[val],
+                           feature_types=self.feature_types,
                            plot_type=_plot_type,
                            interactive=True,
                            height=750,
@@ -950,12 +1065,14 @@ class DataExplorer:
                            file_path=self.file_path,
                            **dict(lat=lat, lon=lon)
                            ).run()
+            del _df
         return _geo_stats
 
     def outlier_detector(self,
                          kind: str = 'uni',
                          multi_meth: List[str] = None,
-                         contour: bool = False
+                         contour: bool = False,
+                         **kwargs
                          ) -> Dict[str, List[int]]:
         """
         Detect univariate or multivariate outliers
@@ -969,166 +1086,180 @@ class DataExplorer:
         :param multi_meth: List[str]
             Algorithms for running multivariate outlier detection
                 -> if: Isolation Forest
-                -> knn: K-Nearest Neightbor
+                -> knn: K-Nearest Neighbor
 
         :param contour: bool
             Generate contour chart
 
+        :param kwargs: dict
+            Key-word arguments
+
         :return: dict
             Detected outliers
         """
+        _features: List[str] = []
+        if kwargs.get('include') is not None:
+            for include in list(set(kwargs.get('include'))):
+                if include in self.features:
+                    _features.append(include)
+        if kwargs.get('exclude') is not None:
+            _features: List[str] = self.features
+            for exclude in list(set(kwargs.get('exclude'))):
+                if exclude in _features:
+                    del _features[_features.index(exclude)]
+        if len(_features) == 0:
+            _features = self.features
         _subplots: dict = {}
         _outlier: Dict[str, List[int]] = {}
-        if kind is 'uni':
-            _outlier.update({'uni': self._check_outliers()})
-            _subplots.update({'Univariate Outlier Detection': dict(data=self.df,
-                                                                   features=self.feature_types.get('continuous'),
-                                                                   plot_type='violin',
-                                                                   melt=True,
-                                                                   kwargs=dict(layout=dict(points='outliers'))
-                                                                   )
-                              })
-        elif kind in ['bi', 'multi']:
-            if len(self.features) < 2:
-                raise DataExplorerException('Not enough features for running a multivariate outlier detection')
-            _multi_meth: List[str] = ['knn'] if multi_meth is None else multi_meth
-            _anomaly_detection: dict = AnomalyDetector(df=self.df,
-                                                       feature_types=self.feature_types
-                                                       ).multivariate(contour_plot=contour)
-            for meth in _multi_meth:
-                _outlier.update({'multi': _anomaly_detection.get('cases')})
-                self.df['outlier'] = _anomaly_detection[meth].get('pred')
-                if contour:
-                    _multi: dict = ({'contour': dict(x=_anomaly_detection[meth].get('space'),
-                                                     y=_anomaly_detection[meth].get('space'),
-                                                     z=_anomaly_detection[meth].get('anomaly_score'),
-                                                     colorscale='Blues',
-                                                     hoverinfo='none'
+        _continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
+        if len(_continuous_features) > 0:
+            if kind is 'uni':
+                _outlier.update({'uni': self._check_outliers()})
+                _subplots.update({'Univariate Outlier Detection': dict(data=self.df,
+                                                                       features=_continuous_features,
+                                                                       plot_type='violin',
+                                                                       melt=True,
+                                                                       kwargs=dict(layout=dict(points='outliers'))
+                                                                       )
+                                  })
+            elif kind in ['bi', 'multi']:
+                if len(_features) < 2:
+                    raise DataExplorerException('Not enough features for running a multivariate outlier detection')
+                _multi_meth: List[str] = ['knn'] if multi_meth is None else multi_meth
+                _anomaly_detection: dict = AnomalyDetector(df=self.df[_continuous_features].compute(),
+                                                           feature_types=self.feature_types
+                                                           ).multivariate(contour_plot=contour)
+                for meth in _multi_meth:
+                    _outlier.update({'multi': _anomaly_detection.get('cases')})
+                    self.df['outlier'] = from_array(x=_anomaly_detection[meth].get('pred'))
+                    if contour:
+                        _multi: dict = ({'contour': dict(x=_anomaly_detection[meth].get('space'),
+                                                         y=_anomaly_detection[meth].get('space'),
+                                                         z=_anomaly_detection[meth].get('anomaly_score'),
+                                                         colorscale='Blues',
+                                                         hoverinfo='none'
+                                                         )
+                                         })
+                    else:
+                        _multi: dict = {}
+                    if len(_features) == 2:
+                        _multi.update(
+                            {'scatter_inlier': dict(x=self.df.loc[self.df['outlier'] == 0, _features[0]].values.compute(),
+                                                    y=self.df.loc[self.df['outlier'] == 0, _features[1]].values.compute(),
+                                                    mode='markers',
+                                                    name='inlier',
+                                                    marker=dict(color='rgba(255, 255, 255, 1)') if contour else dict(color='rgba(107, 142, 35, 1)'),
+                                                    hoverinfo='text',
+                                                    showlegend=False if contour else True
+                                                    ),
+                             'scatter_outlier': dict(x=self.df.loc[self.df['outlier'] == 1, _features[0]].values.compute(),
+                                                     y=self.df.loc[self.df['outlier'] == 1, _features[1]].values.compute(),
+                                                     mode='markers',
+                                                     name='outlier',
+                                                     marker=dict(color='rgba(0, 0, 0, 1)') if contour else dict(color='rgba(178, 34, 34, 1)'),
+                                                     hoverinfo='text',
+                                                     showlegend=False if contour else True
                                                      )
-                                     })
-                else:
-                    _multi: dict = {}
-                if len(self.features) == 2:
-                    _multi.update(
-                        {'scatter_inlier': dict(x=self.df.loc[self.df['outlier'] == 0, self.features[0]].values,
-                                                y=self.df.loc[self.df['outlier'] == 0, self.features[1]].values,
-                                                mode='markers',
-                                                name='inlier',
-                                                marker=dict(color='rgba(255, 255, 255, 1)') if contour else dict(color='rgba(107, 142, 35, 1)'),
-                                                hoverinfo='text',
-                                                showlegend=False if contour else True
-                                                ),
-                         'scatter_outlier': dict(x=self.df.loc[self.df['outlier'] == 1, self.features[0]].values,
-                                                 y=self.df.loc[self.df['outlier'] == 1, self.features[1]].values,
-                                                 mode='markers',
-                                                 name='outlier',
-                                                 marker=dict(color='rgba(0, 0, 0, 1)') if contour else dict(color='rgba(178, 34, 34, 1)'),
-                                                 hoverinfo='text',
-                                                 showlegend=False if contour else True
-                                                 )
-                         })
-                    _subplots.update({'Multivariate Outlier Detection': dict(data=self.df,
-                                                                             features=self.feature_types.get('continuous'),
-                                                                             plot_type='multi',
-                                                                             kwargs=dict(multi=_multi,
-                                                                                         layout=dict(
-                                                                                             xaxis=dict(title=self.features[0]),
-                                                                                             yaxis=dict(title=self.features[1])
-                                                                                             )
-                                                                                         )
-                                                                             )
-                                      })
-                else:
-                    _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=self.features, max_features_each_pair=2)
-                    for i, pair in enumerate(_pairs):
-                        _multi.update({'scatter_inlier_{}'.format(i): dict(x=self.df.loc[self.df['outlier'] == 0, pair[0]].values,
-                                                                           y=self.df.loc[self.df['outlier'] == 0, pair[1]].values,
-                                                                           mode='markers',
-                                                                           name='inlier ({} | {})'.format(pair[0], pair[1]),
-                                                                           marker=dict(color='rgba(255, 255, 255, 1)') if contour else dict(color='rgba(107, 142, 35, 1)'),
-                                                                           showlegend=True
-                                                                           ),
-                                       'scatter_outlier_{}'.format(i): dict(x=self.df.loc[self.df['outlier'] == 1, pair[0]].values,
-                                                                            y=self.df.loc[self.df['outlier'] == 1, pair[1]].values,
-                                                                            mode='markers',
-                                                                            name='outlier ({} | {})'.format(pair[0], pair[1]),
-                                                                            marker=dict(color='rgba(0, 0, 0, 1)') if contour else dict(color='rgba(178, 34, 34, 1)'),
-                                                                            showlegend=True
-                                                                            )
-                                       })
-                        if kind is 'bi':
-                            DataVisualizer(title='Bivariate Outlier Detection',
-                                           df=self.df,
-                                           plot_type='multi',
-                                           interactive=True,
-                                           height=500,
-                                           width=500,
-                                           render=True if self.file_path is None else False,
-                                           file_path=None if self.file_path is None else '{}/{}_{}'.format(self.file_path, pair[0], pair[1]),
-                                           **dict(multi={'scatter_inlier_{}'.format(i): _multi.get('scatter_inlier_{}'.format(i)),
-                                                         'scatter_outlier_{}'.format(i): _multi.get('scatter_outlier_{}'.format(i))
-                                                         },
-                                                  layout=dict(xaxis=dict(title=pair[0]),
-                                                              yaxis=dict(title=pair[1])
-                                                              )
-                                                  )
-                                           ).run()
-                    if kind is 'multi':
+                             })
                         _subplots.update({'Multivariate Outlier Detection': dict(data=self.df,
-                                                                                 features=self.feature_types.get('continuous'),
+                                                                                 features=_continuous_features,
                                                                                  plot_type='multi',
-                                                                                 render=True if self.file_path is None else False,
-                                                                                 file_path=self.file_path,
-                                                                                 kwargs=dict(multi=_multi)
+                                                                                 kwargs=dict(multi=_multi,
+                                                                                             layout=dict(
+                                                                                                 xaxis=dict(title=_features[0]),
+                                                                                                 yaxis=dict(title=_features[1])
+                                                                                                 )
+                                                                                             )
                                                                                  )
                                           })
+                    else:
+                        _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_features, max_features_each_pair=2)
+                        for i, pair in enumerate(_pairs):
+                            _multi.update({'scatter_inlier_{}'.format(i): dict(x=self.df.loc[self.df['outlier'] == 0, pair[0]].values.compute(),
+                                                                               y=self.df.loc[self.df['outlier'] == 0, pair[1]].values.compute(),
+                                                                               mode='markers',
+                                                                               name='inlier ({} | {})'.format(pair[0], pair[1]),
+                                                                               marker=dict(color='rgba(255, 255, 255, 1)') if contour else dict(color='rgba(107, 142, 35, 1)'),
+                                                                               showlegend=True
+                                                                               ),
+                                           'scatter_outlier_{}'.format(i): dict(x=self.df.loc[self.df['outlier'] == 1, pair[0]].values.compute(),
+                                                                                y=self.df.loc[self.df['outlier'] == 1, pair[1]].values.compute(),
+                                                                                mode='markers',
+                                                                                name='outlier ({} | {})'.format(pair[0], pair[1]),
+                                                                                marker=dict(color='rgba(0, 0, 0, 1)') if contour else dict(color='rgba(178, 34, 34, 1)'),
+                                                                                showlegend=True
+                                                                                )
+                                           })
+                            if kind is 'bi':
+                                DataVisualizer(title='Bivariate Outlier Detection',
+                                               df=self.df,
+                                               feature_types=self.feature_types,
+                                               plot_type='multi',
+                                               interactive=True,
+                                               height=500,
+                                               width=500,
+                                               render=True if self.file_path is None else False,
+                                               file_path=None if self.file_path is None else '{}/{}_{}'.format(self.file_path, pair[0], pair[1]),
+                                               **dict(multi={'scatter_inlier_{}'.format(i): _multi.get('scatter_inlier_{}'.format(i)),
+                                                             'scatter_outlier_{}'.format(i): _multi.get('scatter_outlier_{}'.format(i))
+                                                             },
+                                                      layout=dict(xaxis=dict(title=pair[0]),
+                                                                  yaxis=dict(title=pair[1])
+                                                                  )
+                                                      )
+                                               ).run()
+                        if kind is 'multi':
+                            _subplots.update({'Multivariate Outlier Detection': dict(data=self.df,
+                                                                                     features=_continuous_features,
+                                                                                     plot_type='multi',
+                                                                                     render=True if self.file_path is None else False,
+                                                                                     file_path=self.file_path,
+                                                                                     kwargs=dict(multi=_multi)
+                                                                                     )
+                                              })
+            else:
+                raise DataExplorerException('Type of outlier detection ({}) not supported'.format(type))
+            if self.plot:
+                if kind is not 'bi':
+                    DataVisualizer(subplots=_subplots,
+                                   feature_types=self.feature_types,
+                                   interactive=True,
+                                   height=500,
+                                   width=500,
+                                   render=True if self.file_path is None else False,
+                                   file_path=self.file_path
+                                   ).run()
         else:
-            raise DataExplorerException('Type of outlier detection ({}) not supported'.format(type))
-        if self.plot:
-            if kind is not 'bi':
-                DataVisualizer(subplots=_subplots,
-                               interactive=True,
-                               height=500,
-                               width=500,
-                               render=True if self.file_path is None else False,
-                               file_path=self.file_path
-                               ).run()
+            Log(write=False, level='info').log(msg='No continuous features found to run outlier detection')
         return _outlier
 
     def text_analyzer(self,
                       lang: str = None,
+                      lang_model_size: str = 'sm',
                       find_occurances: List[str] = None,
-                      count_length: bool = True,
-                      count_numbers: bool = True,
-                      count_characters: bool = True,
-                      count_unique_characters: bool = True,
-                      count_special_characters: bool = True,
+                      counter: bool = True,
                       get_linguistic_features: bool = True,
-                      similarity: bool = False
-                      ) -> pd.DataFrame:
+                      similarity: bool = False,
+                      include_categoricals: bool = True,
+                      **kwargs
+                      ) -> TextMiner:
         """
         Text analysis
 
         :param lang: str
             Pre-defined language
 
+        :param lang_model_size: str
+            Name of the language model size:
+                -> sm: small
+                -> md: mid-size
+                -> lg: large
+
         :param find_occurances: List[str]
             Occurances to find (any type)
 
-        :param count_length: bool
-            Whether to count text length (all text elements combined) or not
-
-        :param count_numbers: bool
-            Whether to count all numbers in text or not
-
-        :param count_characters: bool
-            Whether to count all characters in text or not
-
-        :param count_unique_characters: bool
-            Whether to count all unique characters in text or not
-
-        :param count_special_characters: bool
-            Whether to count all special characters in text or not
+        :param counter: bool
+            Whether to generate simple counter features
 
         :param get_linguistic_features: bool
             Whether to generate and explore linguistic features extracted by processing features containing natural language
@@ -1136,78 +1267,47 @@ class DataExplorer:
         :param similarity: bool
             Whether to calculate similarity of text or not
 
-        :return: Pandas DataFrame:
-            Generated features
+        :param include_categoricals: bool
+            Include categorical features
+
+        :return: TextMiner object:
+            Results of text mining
         """
-        _features: List[str] = self.feature_types.get('categorical') + self.feature_types.get('id_text')
-        _text_miner: TextMiner = TextMiner(df=self.df, features=_features, lang=lang, auto_interpret_natural_language=False)
+        _features: List[str] = []
+        if kwargs.get('include') is not None:
+            for include in list(set(kwargs.get('include'))):
+                if include in self.features:
+                    _features.append(include)
+        if kwargs.get('exclude') is not None:
+            _features: List[str] = self.features
+            for exclude in list(set(kwargs.get('exclude'))):
+                if exclude in _features:
+                    del _features[_features.index(exclude)]
+        if len(_features) == 0:
+            _features = self.features
+        _text_features: List[str] = [id_text for id_text in self.feature_types.get('id_text') if id_text in _features]
+        if include_categoricals:
+            _text_features = _text_features + [cat for cat in self.feature_types.get('categorical') if cat in _features]
+        _text_miner: TextMiner = TextMiner(df=self.df,
+                                           features=_text_features,
+                                           lang=lang,
+                                           lang_model_size=lang_model_size if lang_model_size in ['sm', 'md', 'lg'] else 'sm',
+                                           auto_interpret_natural_language=False,
+                                           **kwargs
+                                           )
         if find_occurances is not None:
             for occurance in find_occurances:
                 _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), search_text=occurance)
-        if count_length:
-            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_length=True)
-        if count_numbers:
-            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_numbers=True)
-        if count_characters:
-            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_characters=True)
-        if count_unique_characters:
-            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_length=True)
-        if count_special_characters:
-            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), count_special_characters=True)
+        if counter:
+            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'),
+                                         count_length=True,
+                                         count_numbers=True,
+                                         count_characters=True,
+                                         count_special_characters=True
+                                         )
         if get_linguistic_features:
             _text_miner.generate_linguistic_features()
         if similarity:
             _text_miner.similarity(features=_text_miner.segments.get('phrases'))
-        _text_miner.splitter()
-        return _text_miner.get_generated_features()
-
-
-class MissingDataAnalysis:
-    """
-    Class for missing data analysis
-    """
-    def __init__(self,
-                 data: np.array,
-                 features: List[str],
-                 other_mis: list = None
-                 ):
-        """
-        :param data: Numpy array containing the data set
-        :param other_mis#: List of values to convert to Numpy missing values
-        """
-        self.data_set = data
-        self.features = features
-        self.other_mis = other_mis if other_mis is not None else []
-        if len(self.other_mis) > 0:
-            self.data_set = self._set_nan()
-
-    def _set_nan(self) -> np.array:
-        """
-
-        Set missing data value
-
-        :return: Numpy array containing pre-processed data set
-        """
-        for other_mis in self.other_mis:
-            self.data_set[np.where(self.data_set == other_mis)] = np.nan
-        return self.data_set
-
-    def freq_nan(self) -> dict:
-        """
-
-        Frequency of missing data
-
-        :return: Pandas DataFrame containing the absolute and relative frequency of missing data of each feature and case
-        """
-        _freq_nan = {'features': {'abs': {}, 'rel': {}}, 'cases': {'abs': {}, 'rel': {}}}
-        _mis = np.where(pd.isnull(self.data_set))
-        if len(_mis[0]) > 0 or len(_mis[1]) > 0:
-            for case in np.unique(_mis[0]):
-                _nan_case_wise = len(np.where(pd.isnull(self.data_set[case, :]))[0])
-                _freq_nan['cases']['abs'].update({case: _nan_case_wise})
-                _freq_nan['cases']['rel'].update({case: 100 * round(_nan_case_wise / self.data_set[case, :].shape[0], 6)})
-            for feature in np.unique(_mis[1]):
-                _nan_feature_wise = len(np.where(pd.isnull(self.data_set[:, feature]))[0])
-                _freq_nan['features']['abs'].update({feature: _nan_feature_wise})
-                _freq_nan['features']['rel'].update({feature: 100 * round(_nan_feature_wise / self.data_set[:, feature].shape[0], 6)})
-        return _freq_nan
+        _text_miner.get_numeric_features()
+        return _text_miner

@@ -1,3 +1,4 @@
+import dask.dataframe as dd
 import ipywidgets as widgets
 import networkx as nx
 import numpy as np
@@ -58,7 +59,7 @@ plots: List[str] = ['bar',
 
 # TODO:
 #  Geo Stats Hovertemplate
-#  Chorolethmap handle geojson input output
+#  Chorolethmap: handle geojson input output
 #  Check Missings in each categorical distribution chart
 
 
@@ -74,12 +75,13 @@ class DataVisualizer:
     Class for visualizing data in jupyter notebooks
     """
     def __init__(self,
+                 df=None,
                  title: str = '',
-                 df: pd.DataFrame = None,
                  features: List[str] = None,
                  time_features: List[str] = None,
                  graph_features: Dict[str, str] = None,
                  group_by: List[str] = None,
+                 feature_types: Dict[str, List[str]] = None,
                  plot_type: str = None,
                  subplots: dict = None,
                  melt: bool = False,
@@ -120,7 +122,7 @@ class DataVisualizer:
         :param title: str
             Name of the plot title
 
-        :param df: pd.DataFrame
+        :param df: Pandas DataFrame oder dask dataframe
             Data set
 
         :param features: List[str]
@@ -129,8 +131,11 @@ class DataVisualizer:
         :param time_features: List[str]
             Name of the time regarding features in line plots
 
+        :param feature_types: Dict[str, List[str]]
+            Pre-defined feature type segmentation
+
         :param melt: bool
-            Melt subplots into one mainplot
+            Melt subplots into one main plot
 
         :param brushing: bool
             Generate additional scatter chart for case-based exploration of feature connections
@@ -146,6 +151,7 @@ class DataVisualizer:
 
         :param subplots: dict
             Subplot configuration
+
         :param rows_sub: int
             Number of rows to use in subplot
 
@@ -189,8 +195,26 @@ class DataVisualizer:
             Key word arguments for handling plotly
         """
         self.interactive: bool = interactive
-        if df is not None:
-            if df.shape[0] == 0 or df.shape[1] == 0:
+        _features: List[str] = [] if features is None else features
+        _group_by_features: List[str] = [] if group_by is None else group_by
+        _time_features: List[str] = [] if time_features is None else time_features
+        _graph_features: List[str] = [] if graph_features is None else graph_features
+        _color_features: List[str] = [] if color_feature is None else [color_feature]
+        _all_features: List[str] = _features + _graph_features + _time_features + _graph_features + _color_features
+        if isinstance(df, dd.DataFrame):
+            try:
+                if len(_all_features) > 0:
+                    self.df: pd.DataFrame = pd.DataFrame(data=df[_all_features].values.compute(), columns=_all_features)
+                else:
+                    self.df: pd.DataFrame = pd.DataFrame(data=df.values.compute(), columns=list(df.columns))
+            except MemoryError:
+                raise DataVisualizerException('Data set is too big (cases={} | features={}) to visualize using Plot.ly (offline)'.format(len(df), len(df.columns)))
+        elif isinstance(df, pd.DataFrame):
+            self.df: pd.DataFrame = df
+        if df is None:
+            self.df = df
+        else:
+            if len(df) == 0 or len(df.columns) == 0:
                 raise DataVisualizerException('Data set is empty')
         if subplots is None and plot_type is None:
             raise DataVisualizerException('Neither plot type nor subplots found')
@@ -204,32 +228,45 @@ class DataVisualizer:
         pd.options.display.max_rows = max_row if max_row > 0 else 50
         pd.options.display.max_columns = max_col if max_col > 0 else 20
         self.title: str = title
-        self.df: pd.DataFrame = df
         if self.df is None:
             self.features: List[str] = features
             self.n_features: int = 0
             self.index: list = None
         else:
-            self.features: List[str] = list(df.keys()) if features is None else features
+            self.features: List[str] = list(df.columns) if features is None else features
             self.n_features: int = len(self.features)
-            self.index: list = self.df.index.values.tolist()
+            self.index: list = list(self.df.index.values)
         self.time_features: List[str] = time_features
         self.graph_features: Dict[str, str] = graph_features
         self.group_by: List[str] = group_by
-        if self.df is None:
-            self.feature_types: Dict[str, List[str]] = {}
+        if feature_types is None:
+            if self.df is None:
+                if self.kwargs.get('df') is None and self.kwargs.get('data') is None:
+                    self.feature_types: Dict[str, List[str]] = {}
+                else:
+                    self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.kwargs.get('df') if self.kwargs.get('data') is None else self.kwargs.get('data'),
+                                                                                                    features=self.kwargs.get('features'),
+                                                                                                    dtypes=list(self.kwargs.get('df')[self.kwargs.get('features')].dtypes) if self.kwargs.get('data') is None else list(self.kwargs.get('data')[self.kwargs.get('features')].dtypes),
+                                                                                                    continuous=None,
+                                                                                                    categorical=None,
+                                                                                                    ordinal=None,
+                                                                                                    date=None,
+                                                                                                    id_text=None,
+                                                                                                    date_edges=None
+                                                                                                    )
+            else:
+                self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.df,
+                                                                                                features=self.features,
+                                                                                                dtypes=list(self.df[self.features].dtypes),
+                                                                                                continuous=None,
+                                                                                                categorical=None,
+                                                                                                ordinal=None,
+                                                                                                date=None,
+                                                                                                id_text=None,
+                                                                                                date_edges=None
+                                                                                                )
         else:
-            self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.df,
-                                                                                            features=self.features,
-                                                                                            dtypes=self.df[self.features].dtypes.tolist(),
-                                                                                            continuous=None,
-                                                                                            categorical=None,
-                                                                                            ordinal=None,
-                                                                                            date=None,
-                                                                                            id_text=None,
-                                                                                            max_cats=500,
-                                                                                            date_edges=None
-                                                                                            )
+            self.feature_types: Dict[str, List[str]] = feature_types
         self.plot: dict = {}
         self.plot_type: str = plot_type
         self.subplots: dict = subplots
@@ -371,8 +408,14 @@ class DataVisualizer:
                     if isinstance(self.subplots.get(plot), dict):
                         if 'data' in self.subplots.get(plot).keys():
                             if not isinstance(self.subplots[plot].get('data'), pd.DataFrame):
-                                self.subplots[plot].update({'data': None})
-                                #raise DataVisualizerException('Key-word argument "data" should be a Pandas DataFrame not a {}'.format(type(self.subplots.get('data'))))
+                                if isinstance(self.subplots[plot].get('data'), dd.DataFrame):
+                                    self.subplots[plot].update({'data': pd.DataFrame(data=self.subplots[plot].get('data').values.compute(),
+                                                                                     columns=self.subplots[plot].get('data').columns
+                                                                                     )
+                                                                })
+                                else:
+                                    self.subplots[plot].update({'data': None})
+                                    #raise DataVisualizerException('Key-word argument "data" should be a Pandas DataFrame not a {}'.format(type(self.subplots.get('data'))))
                         else:
                             if self.df is None:
                                 self.subplots[plot].update({'data': None})
@@ -380,10 +423,24 @@ class DataVisualizer:
                                 self.subplots[plot].update({'data': self.df})
                         if 'df' in self.subplots.get(plot).keys():
                             if not isinstance(self.subplots[plot].get('df'), pd.DataFrame):
-                                self.subplots[plot].update({'df': None})
+                                if isinstance(self.subplots[plot].get('data'), dd.DataFrame):
+                                    self.subplots[plot].update(
+                                        {'data': pd.DataFrame(data=self.subplots[plot].get('data').values.compute(),
+                                                              columns=self.subplots[plot].get('data').columns
+                                                              )
+                                         })
+                                else:
+                                    self.subplots[plot].update({'data': None})
                                 if 'data' in self.subplots.get(plot).keys():
                                     if not isinstance(self.subplots[plot].get('data'), pd.DataFrame):
-                                        self.subplots[plot].update({'data': None})
+                                        if isinstance(self.subplots[plot].get('data'), dd.DataFrame):
+                                            self.subplots[plot].update({'data': pd.DataFrame(
+                                                data=self.subplots[plot].get('data').values.compute(),
+                                                columns=self.subplots[plot].get('data').columns
+                                                )
+                                                                        })
+                                        else:
+                                            self.subplots[plot].update({'data': None})
                                 else:
                                     self.subplots[plot].update({'data': None})
                             else:
@@ -663,18 +720,6 @@ class DataVisualizer:
                 self.plot['kwargs']['layout'].update({'xaxis': dict(title=dict(text=self.plot.get('xaxis_label')[t]))})
             if self.plot.get('yaxis_label') is not None:
                 self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=self.plot.get('yaxis_label')[t]))})
-            if self.plot.get('features') is not None:
-                self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.df,
-                                                                                                features=self.plot.get('features'),
-                                                                                                dtypes=self.df[self.plot.get('features')].dtypes.tolist(),
-                                                                                                continuous=None,
-                                                                                                categorical=None,
-                                                                                                ordinal=None,
-                                                                                                date=None,
-                                                                                                id_text=None,
-                                                                                                max_cats=500,
-                                                                                                date_edges=None
-                                                                                                )
             if self.plot.get('color_feature') is not None:
                 if str(self.df[self.plot.get('color_feature')].dtype).find('object') >= 0:
                     _color_feature = LabelEncoder().fit_transform(y=self.df[self.plot.get('color_feature')])
@@ -713,7 +758,7 @@ class DataVisualizer:
                 _cells_fill: List[str] = ['cornflowerblue' if col == 0 else 'white' for col in
                                           range(0, self.df.shape[1], 1)]
                 self.plot['kwargs'].update({'header': dict(
-                    values=self.df.keys().tolist() if self.plot['kwargs'].get('header_values') is None else self.plot[
+                    values=self.df.columns if self.plot['kwargs'].get('header_values') is None else self.plot[
                         'kwargs'].get('header_values'),
                     line=dict(color='darkslategray') if self.plot['kwargs'].get('header_line') is None else self.plot[
                         'kwargs'].get('header_line'),
@@ -873,11 +918,11 @@ class DataVisualizer:
                 self.plot['kwargs'].update({'X': np.transpose(self.df.values),
                                             'orientation': 'bottom' if self.plot['kwargs'].get(
                                                 'orientation') is None else self.plot['kwargs'].get('orientation'),
-                                            'labels': list(self.df.keys()) if self.plot['kwargs'].get(
+                                            'labels': self.df.columns if self.plot['kwargs'].get(
                                                 'labels') is None else self.plot['kwargs'].get('labels'),
                                             'colorscale': _color_scale,
                                             'linkagefun': linkage,
-                                            # 'hovertext': self.df.keys() if self.plot['kwargs'].get('hovertext') is None else self.plot['kwargs'].get('hovertext'),
+                                            # 'hovertext': self.df.columns if self.plot['kwargs'].get('hovertext') is None else self.plot['kwargs'].get('hovertext'),
                                             'color_threshold': 1.5 if self.plot['kwargs'].get(
                                                 'color_threshold') is None else self.plot['kwargs'].get(
                                                 'color_threshold')
@@ -1007,10 +1052,8 @@ class DataVisualizer:
                 if self.plot.get('group_by') is None:
                     self.plot['kwargs'].update(
                         {'z': self.df.values if self.plot['kwargs'].get('z') is None else self.plot['kwargs'].get('z'),
-                         'x': self.df.keys().tolist() if self.plot['kwargs'].get('x') is None else self.plot[
-                             'kwargs'].get('x'),
-                         'y': self.df.index.values.tolist() if self.plot['kwargs'].get('y') is None else self.plot[
-                             'kwargs'].get('y'),
+                         'x': self.plot.get('features') if self.plot['kwargs'].get('x') is None else self.plot['kwargs'].get('x'),
+                         'y': self.df.index.values.tolist() if self.plot['kwargs'].get('y') is None else self.plot['kwargs'].get('y'),
                          'colorbar': self.plot['kwargs'].get('colorbar'),
                          'colorscale': _color_scale
                          })
@@ -1032,12 +1075,12 @@ class DataVisualizer:
                                                         })
                             if val in INVALID_VALUES:
                                 self.df[group] = self.df[group].replace(INVALID_VALUES, np.nan)
-                                self.plot['kwargs'].update({'x': self.df.keys(),
+                                self.plot['kwargs'].update({'x': self.plot.get('features'),
                                                             'y': self.df.index.values,
                                                             'z': self.df.loc[self.df[group].isnull(), :].values
                                                             })
                             else:
-                                self.plot['kwargs'].update({'x': self.df.keys(),
+                                self.plot['kwargs'].update({'x': self.plot.get('features'),
                                                             'y': self.df.index.values,
                                                             'z': self.df.loc[self.df[group] == val, :].values
                                                             })
@@ -3191,7 +3234,7 @@ class DataVisualizer:
         """
         if self.subplots is None:
             if self.df is None:
-                raise DataVisualizerException('No data found')
+                raise DataVisualizerException('No data set found')
             if self.df.shape[0] == 0:
                 raise DataVisualizerException('No cases found')
             if self.plot_type is None:
@@ -3200,5 +3243,8 @@ class DataVisualizer:
             self._unit_conversion(to_unit='pixel')
             self._config_plotly_offline()
             self._run_plotly_offline()
+            del self.df
+            del self.plot
+            del self.subplots
         else:
-            raise NotImplementedError('Static visualization not implemented')
+            raise NotImplementedError('Static visualization not supported')
