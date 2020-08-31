@@ -360,7 +360,10 @@ class DataExplorer:
         else:
             if len([conti for conti in self.feature_types.get('continuous') if conti in _features]) > 0:
                 _agg: dict = {conti: ['count', 'min', 'mean', 'max', 'sum'] for conti in self.feature_types.get('continuous')}
-                _break_down_stats = self.df.groupby(by=_cat_features).aggregate(_agg).compute()
+                try:
+                    _break_down_stats = self.df.groupby(by=_cat_features).aggregate(_agg).compute()
+                except TypeError:
+                    Log(write=False).log(msg='Categorical break down statistics could not be calculated. Please check input values of categorical features')
                 if self.plot:
                     DataVisualizer(title='Breakdown Statistics',
                                    df=self.df,
@@ -527,7 +530,10 @@ class DataExplorer:
             _categorical_features: List[str] = [feature for feature in self.feature_types.get('ordinal') + self.feature_types.get('categorical') if feature in _features]
             if len(_categorical_features) > 0:
                 for ft in _categorical_features:
-                    _distribution[ft] = self.df[ft].value_counts(sort=True, ascending=False, dropna=self.include_nan).compute()
+                    try:
+                        _distribution[ft] = self.df[ft].value_counts(sort=True, ascending=False, dropna=self.include_nan).compute()
+                    except TypeError:
+                        Log(write=False).log(msg='Distribution of categorical feature "{}" not possible. Please check unique values'.format(ft))
                 _subplots.update({'Categorical Features': dict(data=self.df,
                                                                features=_categorical_features,
                                                                plot_type='bar',
@@ -1123,15 +1129,19 @@ class DataExplorer:
                                                                        )
                                   })
             elif kind in ['bi', 'multi']:
-                if len(_features) < 2:
+                if len(_continuous_features) < 2:
                     raise DataExplorerException('Not enough features for running a multivariate outlier detection')
                 _multi_meth: List[str] = ['knn'] if multi_meth is None else multi_meth
-                _anomaly_detection: dict = AnomalyDetector(df=self.df[_continuous_features].compute(),
+                _df: dd.DataFrame = self.df[_continuous_features]
+                _df = _df.repartition(npartitions=1)
+                for ft in _df.columns:
+                    _df = _df.loc[~_df[ft].isnull(), :]
+                _anomaly_detection: dict = AnomalyDetector(df=_df.compute(),
                                                            feature_types=self.feature_types
                                                            ).multivariate(contour_plot=contour)
                 for meth in _multi_meth:
                     _outlier.update({'multi': _anomaly_detection.get('cases')})
-                    self.df['outlier'] = from_array(x=_anomaly_detection[meth].get('pred'))
+                    _df['outlier'] = from_array(x=_anomaly_detection[meth].get('pred'))
                     if contour:
                         _multi: dict = ({'contour': dict(x=_anomaly_detection[meth].get('space'),
                                                          y=_anomaly_detection[meth].get('space'),
@@ -1142,18 +1152,18 @@ class DataExplorer:
                                          })
                     else:
                         _multi: dict = {}
-                    if len(_features) == 2:
+                    if len(_continuous_features) == 2:
                         _multi.update(
-                            {'scatter_inlier': dict(x=self.df.loc[self.df['outlier'] == 0, _features[0]].values.compute(),
-                                                    y=self.df.loc[self.df['outlier'] == 0, _features[1]].values.compute(),
+                            {'scatter_inlier': dict(x=_df.loc[_df['outlier'] == 0, _continuous_features[0]].values.compute(), #features[0]
+                                                    y=_df.loc[_df['outlier'] == 0, _continuous_features[1]].values.compute(), #_features[1]
                                                     mode='markers',
                                                     name='inlier',
                                                     marker=dict(color='rgba(255, 255, 255, 1)') if contour else dict(color='rgba(107, 142, 35, 1)'),
                                                     hoverinfo='text',
                                                     showlegend=False if contour else True
                                                     ),
-                             'scatter_outlier': dict(x=self.df.loc[self.df['outlier'] == 1, _features[0]].values.compute(),
-                                                     y=self.df.loc[self.df['outlier'] == 1, _features[1]].values.compute(),
+                             'scatter_outlier': dict(x=_df.loc[_df['outlier'] == 1, _continuous_features[0]].values.compute(),
+                                                     y=_df.loc[_df['outlier'] == 1, _continuous_features[1]].values.compute(),
                                                      mode='markers',
                                                      name='outlier',
                                                      marker=dict(color='rgba(0, 0, 0, 1)') if contour else dict(color='rgba(178, 34, 34, 1)'),
@@ -1161,29 +1171,29 @@ class DataExplorer:
                                                      showlegend=False if contour else True
                                                      )
                              })
-                        _subplots.update({'Multivariate Outlier Detection': dict(data=self.df,
+                        _subplots.update({'Multivariate Outlier Detection': dict(data=_df,
                                                                                  features=_continuous_features,
                                                                                  plot_type='multi',
                                                                                  kwargs=dict(multi=_multi,
                                                                                              layout=dict(
-                                                                                                 xaxis=dict(title=_features[0]),
-                                                                                                 yaxis=dict(title=_features[1])
+                                                                                                 xaxis=dict(title=_continuous_features[0]),
+                                                                                                 yaxis=dict(title=_continuous_features[1])
                                                                                                  )
                                                                                              )
                                                                                  )
                                           })
                     else:
-                        _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_features, max_features_each_pair=2)
+                        _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=_continuous_features, max_features_each_pair=2)
                         for i, pair in enumerate(_pairs):
-                            _multi.update({'scatter_inlier_{}'.format(i): dict(x=self.df.loc[self.df['outlier'] == 0, pair[0]].values.compute(),
-                                                                               y=self.df.loc[self.df['outlier'] == 0, pair[1]].values.compute(),
+                            _multi.update({'scatter_inlier_{}'.format(i): dict(x=_df.loc[_df['outlier'] == 0, pair[0]].values.compute(),
+                                                                               y=_df.loc[_df['outlier'] == 0, pair[1]].values.compute(),
                                                                                mode='markers',
                                                                                name='inlier ({} | {})'.format(pair[0], pair[1]),
                                                                                marker=dict(color='rgba(255, 255, 255, 1)') if contour else dict(color='rgba(107, 142, 35, 1)'),
                                                                                showlegend=True
                                                                                ),
-                                           'scatter_outlier_{}'.format(i): dict(x=self.df.loc[self.df['outlier'] == 1, pair[0]].values.compute(),
-                                                                                y=self.df.loc[self.df['outlier'] == 1, pair[1]].values.compute(),
+                                           'scatter_outlier_{}'.format(i): dict(x=_df.loc[_df['outlier'] == 1, pair[0]].values.compute(),
+                                                                                y=_df.loc[_df['outlier'] == 1, pair[1]].values.compute(),
                                                                                 mode='markers',
                                                                                 name='outlier ({} | {})'.format(pair[0], pair[1]),
                                                                                 marker=dict(color='rgba(0, 0, 0, 1)') if contour else dict(color='rgba(178, 34, 34, 1)'),
