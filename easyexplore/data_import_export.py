@@ -5,6 +5,7 @@ import pickle
 import sqlite3
 import zipfile
 
+from dask import dataframe as dd
 from sqlalchemy import create_engine
 from typing import List
 
@@ -76,6 +77,7 @@ class DataImporter(FileUtils):
     def __init__(self,
                  file_path: str,
                  as_data_frame: bool = True,
+                 use_dask: bool = True,
                  create_dir: bool = True,
                  sep: str = ',',
                  **kwargs: dict
@@ -87,8 +89,11 @@ class DataImporter(FileUtils):
         :param as_data_frame: bool
             Import data set as pandas data frame or not
 
+        :param use_dask: bool
+            Use dask library for parallel computation
+
         :param create_dir: bool
-            Boolean indicating whether to create directories if they are not existed
+            Create directories if they are not existed
 
         :param sep: str
             File separator
@@ -98,6 +103,8 @@ class DataImporter(FileUtils):
         """
         super().__init__(file_path=file_path, create_dir=create_dir)
         self.as_df: bool = as_data_frame
+        self.use_dask: bool = use_dask
+        self.partitions: int = 4 if kwargs.get('npartitions') is None else kwargs.get('npartitions')
         self.sep: str = sep
         self.kwargs: dict = kwargs
         self._config_args()
@@ -155,13 +162,61 @@ class DataImporter(FileUtils):
                             'memory_map': False if self.kwargs.get('memory_map') is None else self.kwargs.get('memory_map')
                             })
 
-    def _excel_as_df(self) -> pd.DataFrame:
+    def _excel_as_df(self):
         """
         Import excel file as Pandas DataFrame
 
         :return: pd.DataFrame
             Pandas DataFrame containing the content of the html file
         """
+        if self.use_dask:
+            return dd.from_pandas(data=pd.read_excel(io=self.kwargs.get('filepath'),
+                                                     sheet_name=self.kwargs.get('sheet_name'),
+                                                     header=self.kwargs.get('header'),
+                                                     names=self.kwargs.get('names'),
+                                                     index_col=self.kwargs.get('index_col'),
+                                                     usecols=self.kwargs.get('usecols'),
+                                                     squeeze=self.kwargs.get('squeeze'),
+                                                     prefix=self.kwargs.get('prefix'),
+                                                     dtype=self.kwargs.get('dtype'),
+                                                     engine=self.kwargs.get('engine'),
+                                                     converters=self.kwargs.get('converters'),
+                                                     true_values=self.kwargs.get('true_values'),
+                                                     false_values=self.kwargs.get('false_values'),
+                                                     skipinitialspace=self.kwargs.get('skipinitialspace'),
+                                                     skiprows=self.kwargs.get('skiprows'),
+                                                     skipfooter=self.kwargs.get('skipfooter'),
+                                                     nrows=self.kwargs.get('nrows'),
+                                                     na_values=self.kwargs.get('na_values'),
+                                                     keep_default_na=self.kwargs.get('keep_default_na'),
+                                                     na_filter=self.kwargs.get('na_filter'),
+                                                     verbose=self.kwargs.get('verbose'),
+                                                     skip_blank_lines=self.kwargs.get('skip_blank_lines'),
+                                                     parse_dates=self.kwargs.get('parse_dates'),
+                                                     infer_datetime_format=self.kwargs.get('infer_datetime_format'),
+                                                     keep_date_col=self.kwargs.get('keep_date_col'),
+                                                     date_parser=self.kwargs.get('date_parser'),
+                                                     dayfirst=self.kwargs.get('dayfirst'),
+                                                     iterator=self.kwargs.get('iterator'),
+                                                     thousands=self.kwargs.get('thousands'),
+                                                     decimal=self.kwargs.get('decimal'),
+                                                     float_precision=self.kwargs.get('float_precision'),
+                                                     lineterminator=self.kwargs.get('lineterminator'),
+                                                     quotechar=self.kwargs.get('quotechar'),
+                                                     quoting=self.kwargs.get('quoting'),
+                                                     doublequote=self.kwargs.get('doublequote'),
+                                                     escapechar=self.kwargs.get('escapechar'),
+                                                     comment=self.kwargs.get('comment'),
+                                                     encoding=self.kwargs.get('encoding'),
+                                                     error_bad_lines=self.kwargs.get('error_bad_lines'),
+                                                     warn_bad_lines=self.kwargs.get('warn_bad_lines'),
+                                                     low_memory=self.kwargs.get('low_memory')
+                                                     ),
+                                  npartitions=self.partitions,
+                                  chunksize=self.kwargs.get('chunksize'),
+                                  sort=True if self.kwargs.get('sort') is None else self.kwargs.get('sort'),
+                                  name=self.kwargs.get('name')
+                                  )
         return pd.read_excel(io=self.kwargs.get('filepath'),
                              sheet_name=self.kwargs.get('sheet_name'),
                              header=self.kwargs.get('header'),
@@ -170,7 +225,6 @@ class DataImporter(FileUtils):
                              usecols=self.kwargs.get('usecols'),
                              squeeze=self.kwargs.get('squeeze'),
                              prefix=self.kwargs.get('prefix'),
-                             #mangle_dupe_cols=self.kwargs.get('mangle_dup_cols'),
                              dtype=self.kwargs.get('dtype'),
                              engine=self.kwargs.get('engine'),
                              converters=self.kwargs.get('converters'),
@@ -191,8 +245,6 @@ class DataImporter(FileUtils):
                              date_parser=self.kwargs.get('date_parser'),
                              dayfirst=self.kwargs.get('dayfirst'),
                              iterator=self.kwargs.get('iterator'),
-                             #chunksize=self.kwargs.get('chunksize'),
-                             #compression=self.kwargs.get('compression'),
                              thousands=self.kwargs.get('thousands'),
                              decimal=self.kwargs.get('decimal'),
                              float_precision=self.kwargs.get('float_precision'),
@@ -206,7 +258,6 @@ class DataImporter(FileUtils):
                              error_bad_lines=self.kwargs.get('error_bad_lines'),
                              warn_bad_lines=self.kwargs.get('warn_bad_lines'),
                              low_memory=self.kwargs.get('low_memory'),
-                             #memory_map=self.kwargs.get('memory_map')
                              )
 
     def _file(self):
@@ -273,27 +324,41 @@ class DataImporter(FileUtils):
                              object_pairs_hook=self.kwargs.get('object_pairs_hook')
                              )
 
-    def _json_as_df(self) -> pd.DataFrame:
+    def _json_as_df(self):
         """
         Import json file as Pandas DataFrame
 
-        :return: pd.DataFrame
+        :return: Pandas DataFrame or dask dataframe
             Content of the json file
         """
+        if self.use_dask:
+            return dd.read_json(url_path=self.kwargs.get('filepath'),
+                                orient='records' if self.kwargs.get('orient') is None else self.kwargs.get('orient'),
+                                lines=self.kwargs.get('lines'),
+                                storage_options=self.kwargs.get('storage_options'),
+                                blocksize=self.kwargs.get('blocksize'),
+                                sample=2 ** 20 if self.kwargs.get('sample') is None else self.kwargs.get('sample'),
+                                encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding'),
+                                errors='strict' if self.kwargs.get('errors') is None else self.kwargs.get('errors'),
+                                compression='infer' if self.kwargs.get('compression') is None else self.kwargs.get('compression'),
+                                meta=self.kwargs.get('meta'),
+                                engine=pd.read_json
+                                )
         return pd.read_json(path_or_buf=self.kwargs.get('filepath'),
-                            orient=None,
+                            orient='records' if self.kwargs.get('orient') is None else self.kwargs.get('orient'),
                             typ='frame',
-                            dtype=True,
-                            convert_axes=True,
-                            convert_dates=True,
-                            keep_default_dates=True,
-                            numpy=False,
-                            precise_float=False,
-                            date_unit=None,
-                            encoding=None,
-                            lines=False,
-                            chunksize=None,
-                            compression=self.kwargs.get('compression'))
+                            dtype=True if self.kwargs.get('dtype') is None else self.kwargs.get('dtype'),
+                            convert_axes=True if self.kwargs.get('convert_axes') is None else self.kwargs.get('convert_axes'),
+                            convert_dates=True if self.kwargs.get('convert_dates') is None else self.kwargs.get('convert_dates'),
+                            keep_default_dates=True if self.kwargs.get('keep_default_dates') is None else self.kwargs.get('keep_default_dates'),
+                            numpy=False if self.kwargs.get('numpy') is None else self.kwargs.get('numpy'),
+                            precise_float=False if self.kwargs.get('precise_float') is None else self.kwargs.get('precise_float'),
+                            date_unit=self.kwargs.get('date_unit'),
+                            encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding'),
+                            lines=False if self.kwargs.get('lines') is None else self.kwargs.get('lines'),
+                            chunksize=self.kwargs.get('chunksize'),
+                            compression=self.kwargs.get('compression')
+                            )
 
     def _pickle(self) -> pickle.load:
         """
@@ -305,22 +370,40 @@ class DataImporter(FileUtils):
         with open(self.file_path, 'rb') as file:
             return pickle.load(file=file)
 
-    def _pickle_as_df(self) -> pd.DataFrame:
+    def _pickle_as_df(self):
         """
         Import pickle file as Pandas DataFrame
 
-        :return: pd.DataFrame
+        :return: Pandas DataFrame or dask dataframe
             Content of the pickle file
         """
-        return pd.read_pickle(path=self.full_path, compression=self.kwargs.get('compression'))
+        if self.use_dask:
+            return dd.from_pandas(data=pd.read_pickle(filepath_or_buffer=self.full_path, compression=self.kwargs.get('compression')),
+                                  npartitions=self.partitions,
+                                  chunksize=self.kwargs.get('chunksize'),
+                                  sort=True if self.kwargs.get('sort') is None else self.kwargs.get('sort'),
+                                  name=self.kwargs.get('name')
+                                  )
+        return pd.read_pickle(filepath_or_buffer=self.full_path, compression=self.kwargs.get('compression'))
 
-    def _text_as_df(self) -> pd.DataFrame:
+    def _text_as_df(self):
         """
         Import text file (csv, txt) as Pandas DataFrame
 
-        :return: pd.DataFrame
+        :return: Pandas DataFrame or dask dataframe
             Content of the text file
         """
+        if self.use_dask:
+            return dd.read_csv(urlpath=self.kwargs.get('filepath'),
+                               blocksize='default' if self.kwargs.get('blocksize') is None else self.kwargs.get('blocksize'),
+                               lineterminator=self.kwargs.get('lineterminator'),
+                               #compression=self.kwargs.get('compression'),
+                               sample=256000 if self.kwargs.get('sample') is None else self.kwargs.get('sample'),
+                               enforce=False if self.kwargs.get('enforce') is None else self.kwargs.get('enforce'),
+                               assume_missing=True if self.kwargs.get('assume_missing') is None else self.kwargs.get('assume_missing'),
+                               storage_options=self.kwargs.get('storage_options'),
+                               include_path_column=False if self.kwargs.get('include_path_column') is None else self.kwargs.get('include_path_column')
+                               )
         return pd.read_csv(filepath_or_buffer=self.kwargs.get('filepath'),
                            sep=self.kwargs.get('sep'),
                            header=self.kwargs.get('header'),
@@ -368,9 +451,12 @@ class DataImporter(FileUtils):
                            memory_map=self.kwargs.get('memory_map')
                            )
 
-    def file(self):
+    def file(self, table_name: str = None):
         """
         Import data from file
+
+        :param table_name: str
+            Name of the table of the local database file
 
         :return: object
             File content
@@ -385,6 +471,21 @@ class DataImporter(FileUtils):
             return self._html_as_df() if self.as_df else self._file()
         elif self.file_type in ['xls', 'xlsx']:
             return self._excel_as_df() if self.as_df else self._file()
+        elif self.file_type == 'db':
+            _con = DBUtils(table_name=table_name, file_path=self.full_path)
+            _con.create_connection()
+            try:
+                if self.use_dask:
+                    _df: dd.DataFrame = dd.from_pandas(data=_con.get_table(), npartitions=self.partitions)
+                    #_df: dd.DataFrame = dd.read_sql_table(table=table_name, uri=self.full_path, index_col='', divisions=self.partitions)
+                else:
+                    _df: pd.DataFrame = _con.get_table()
+            except sqlite3.Error as e:
+                _df: pd.DataFrame = pd.DataFrame()
+                print(e)
+            finally:
+                _con.con.close()
+            return _df
         else:
             raise FileUtilsException('File type ({}) not supported'.format(self.file_type))
 

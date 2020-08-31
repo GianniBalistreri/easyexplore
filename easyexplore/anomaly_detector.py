@@ -110,7 +110,7 @@ class AnomalyDetector:
         """
         self.seed: int = seed if seed > 0 else 1234
         self.df: pd.DataFrame = df
-        self.features: List[str] = list(df.keys()) if features is None else features
+        self.features: List[str] = list(df.columns) if features is None else features
         self.feature_types: Dict[str, List[str]] = feature_types
         self.cases: list = []
         self.outlier_threshold: float = outlier_threshold if outlier_threshold > 0 else 0.15
