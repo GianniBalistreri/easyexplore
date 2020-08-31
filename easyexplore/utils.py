@@ -269,23 +269,25 @@ class StatsUtils:
     """
     Class for calculating univariate and multivariate statistics
     """
-    def __init__(self,
-                 data,
-                 features: List[str]
-                 ):
+    def __init__(self, data, features: List[str], partitions: int = 1):
         """
         :param data: Pandas or dask DataFrame
             Data set
 
         :param features: List[str]
             Name of the features
+
+        :param partitions: int
+            Number of partitions to create using parallel computing framework dask
         """
         if isinstance(data, pd.DataFrame):
-            self.df: pd.DataFrame = data
+            self.df: dd.DataFrame = dd.from_pandas(data=data, npartitions=partitions)
         elif isinstance(data, dd.DataFrame):
-            self.df: dd = data
-        self.data_set = data
+            self.df: dd.DataFrame = data
         self.features = features
+        self.n_features: int = len(features)
+        self.n_cases: int = len(self.df)
+        self.p: float = 0.95
         self.nan_policy = 'omit'
 
     def _anderson_darling_test(self, feature: str, sig_level: float = 0.05) -> float:
@@ -301,7 +303,7 @@ class StatsUtils:
         :return: float
             Probability describing significance level
         """
-        _stat = anderson(x=self.data_set[feature], dist='norm')
+        _stat = anderson(x=self.df[feature].values.compute(), dist='norm')
         try:
             _i: int = _stat.significance_level.tolist().index(100 * sig_level)
             p: float = _stat.critical_values[_i]
@@ -313,11 +315,10 @@ class StatsUtils:
         """
         Bartlette's test for sphericity
         """
-        _n_cases, _n_features = self.data_set.shape
-        _cor = self.data_set[self.features].corr('pearson')
+        _cor = self.df[self.features].corr('pearson').compute()
         _cor_det = np.linalg.det(_cor.values)
-        _statistic: np.ndarray = -np.log(_cor_det) * (_n_cases - 1 - (2 * _n_features + 5) / 6)
-        _dof = _n_features * (_n_features - 1) / 2
+        _statistic: np.ndarray = -np.log(_cor_det) * (self.n_cases - 1 - (2 * self.n_features + 5) / 6)
+        _dof = self.n_features * (self.n_features - 1) / 2
         return dict(statistic=_statistic, p=chi2.pdf(_statistic, _dof))
 
     def _dagostino_k2_test(self, feature: str) -> float:
@@ -330,7 +331,7 @@ class StatsUtils:
         :return: float
             Statistical probability value (p-value)
         """
-        stat, p = normaltest(a=self.data_set[feature], axis=0, nan_policy='propagate')
+        stat, p = normaltest(a=self.df[feature].values.compute(), axis=0, nan_policy='propagate')
         return p
 
     def _kaiser_meyer_olkin_test(self) -> dict:
@@ -361,7 +362,7 @@ class StatsUtils:
         :return: float
             Statistical probability value (p-value)
         """
-        return shapiro(x=self.data_set[feature])
+        return shapiro(x=self.df[feature].values.compute())
 
     def curtosis_test(self) -> List[str]:
         """
@@ -389,10 +390,10 @@ class StatsUtils:
             Correlation matrix
         """
         if meth in ['pearson', 'kendall', 'spearman']:
-            _cor: pd.DataFrame = self.data_set[self.features].corr(method=meth, min_periods=min_obs)
+            _cor: pd.DataFrame = self.df[self.features].corr(method=meth, min_periods=min_obs).compute()
         elif meth == 'partial':
-            if self.data_set.shape[0] - self.data_set.isnull().astype(dtype=int).sum().sum() > 0:
-                _cov: np.ndarray = np.cov(m=self.data_set[self.features].dropna())
+            if len(self.df) - self.df.isnull().astype(dtype=int).sum().sum().compute() > 0:
+                _cov: np.ndarray = np.cov(m=self.df[self.features].dropna())
                 try:
                     assert np.linalg.det(_cov) > np.finfo(np.float32).eps
                     _inv_var_cov: np.ndarray = np.linalg.inv(_cov)
@@ -406,7 +407,8 @@ class StatsUtils:
                 _cov2cor: np.ndarray = _inv_var_cov / np.outer(_std, _std)
                 _cor: pd.DataFrame = pd.DataFrame(data=np.nan_to_num(x=_cov2cor, copy=True) * -1,
                                                   columns=self.features,
-                                                  index=self.features)
+                                                  index=self.features
+                                                  )
             else:
                 _cor: pd.DataFrame = pd.DataFrame()
                 Log(write=False, level='info').log(msg='Can not calculate coefficients for partial correlation because of the high missing data rate')
@@ -443,11 +445,11 @@ class StatsUtils:
         """
         _reject = None
         if meth == 'pearson':
-            _correlation_test = pearsonr(x=self.data_set[x], y=self.data_set[y])
+            _correlation_test = pearsonr(x=self.df[x].values.compute(), y=self.df[y].values.compute())
         elif meth == 'spearman':
-            _correlation_test = spearmanr(a=self.data_set[x], b=self.data_set[y], axis=0, nan_policy=self.nan_policy)
+            _correlation_test = spearmanr(a=self.df[x].values.compute(), b=self.df[y].values.compute(), axis=0, nan_policy=self.nan_policy)
         elif meth == 'kendall':
-            _correlation_test = kendalltau(x=self.data_set[x], y=self.data_set[y], nan_policy=self.nan_policy)
+            _correlation_test = kendalltau(x=self.df[x].values.compute(), y=self.df[y].values.compute(), nan_policy=self.nan_policy)
         elif meth == 'chi-squared':
             _correlation_test = chi2_contingency(observed=freq_table, correction=yates_correction, lambda_=power_divergence)
         else:
@@ -456,8 +458,8 @@ class StatsUtils:
             _reject = False
         else:
             _reject = True
-        return {'feature': ''.join(self.data_set.keys()),
-                'cases': len(self.data_set.values),
+        return {'feature': ''.join(self.df.keys()),
+                'cases': len(self.df.values),
                 'test_statistic': _correlation_test[0],
                 'p_value': _correlation_test[1],
                 'reject': _reject}
@@ -518,13 +520,13 @@ class StatsUtils:
         if meth == 'kruskal-wallis':
             _non_parametric_test = kruskal(args, self.nan_policy)
         elif meth == 'mann-whitney':
-            _non_parametric_test = mannwhitneyu(x=self.data_set[x],
-                                                y=self.data_set[y],
+            _non_parametric_test = mannwhitneyu(x=self.df[x].values.compute(),
+                                                y=self.df[y].values.compute(),
                                                 use_continuity=continuity_correction,
                                                 alternative=alternative)
         elif meth == 'wilcoxon':
-            _non_parametric_test = wilcoxon(x=self.data_set[x],
-                                            y=self.data_set[y],
+            _non_parametric_test = wilcoxon(x=self.df[x].values.compute(),
+                                            y=self.df[y].values.compute(),
                                             zero_method=zero_meth,
                                             correction=continuity_correction)
         elif meth == 'friedman':
@@ -535,11 +537,12 @@ class StatsUtils:
             _reject = False
         else:
             _reject = True
-        return {'feature': ''.join(self.data_set.keys()),
-                'cases': len(self.data_set.values),
+        return {'feature': ''.join(list(self.df.columns)),
+                'cases': self.n_cases,
                 'test_statistic': _non_parametric_test[0],
                 'p_value': _non_parametric_test[1],
-                'reject': _reject}
+                'reject': _reject
+                }
 
     def normality_test(self, alpha: float = 0.05, meth: str = 'shapiro-wilk') -> dict:
         """
@@ -585,10 +588,10 @@ class StatsUtils:
         """
         _reject = None
         if meth == 't-test':
-            _parametric_test = ttest_ind(a=self.data_set[x], b=self.data_set[y],
+            _parametric_test = ttest_ind(a=self.df[x].values.compute(), b=self.df[y].values.compute(),
                                          axis=0, equal_var=not welch_t_test, nan_policy=self.nan_policy)
         elif meth == 't-test-paired':
-            _parametric_test = ttest_rel(a=self.data_set[x], b=self.data_set[y], axis=0, nan_policy=self.nan_policy)
+            _parametric_test = ttest_rel(a=self.df[x].values.compute(), b=self.df[y].values.compute(), axis=0, nan_policy=self.nan_policy)
         elif meth == 'anova':
             _parametric_test = f_oneway(args)
         elif meth == 'z-test':
@@ -599,8 +602,8 @@ class StatsUtils:
             _reject = False
         else:
             _reject = True
-        return {'feature': ''.join(self.data_set.keys()),
-                'cases': len(self.data_set.values),
+        return {'feature': ''.join(list(self.df.columns)),
+                'cases': self.n_cases,
                 'test_statistic': _parametric_test[0],
                 'p_value': _parametric_test[1],
                 'reject': _reject
@@ -644,7 +647,7 @@ class StatsUtils:
             _axis = 1
         else:
             raise EasyExploreUtilsException('Axis ({}) not supported'.format(axis))
-        return self.data_set[self.features].skew(axis=_axis).to_dict()
+        return self.df[self.features].compute().skew(axis=_axis)
 
 
 class EasyExploreUtilsException(Exception):
@@ -714,7 +717,7 @@ class EasyExploreUtils:
         if id_text is not None:
             if feature in id_text:
                 return {'id_text': feature}
-        _feature_data = df[feature]
+        _feature_data = copy.deepcopy(df[feature])
         if str(dtype).find('float') >= 0:
             _unique = _feature_data.unique().values.compute()
             if any(_feature_data.isnull().compute()):
@@ -741,7 +744,7 @@ class EasyExploreUtils:
                 else:
                     if len(str(_feature_data.min().compute()).split('.')[0]) > 4:
                         try:
-                            assert pd.to_datetime(_feature_data)
+                            assert pd.to_datetime(_feature_data.compute())
                             if date_edges is None:
                                 return {'date': feature}
                             else:
@@ -754,7 +757,7 @@ class EasyExploreUtils:
                     else:
                         return {'categorical': feature}
         elif str(dtype).find('int') >= 0:
-            if len(_feature_data) == len(_feature_data.unique().compute()):
+            if len(_feature_data) == len(_feature_data.unique().values.compute()):
                 return {'id_text': feature}
             else:
                 return {'categorical': feature}
@@ -883,7 +886,7 @@ class EasyExploreUtils:
         if isinstance(df, dd.DataFrame):
             _df: dd.DataFrame = df
         elif isinstance(df, pd.DataFrame):
-            _df: dd.DataFrame = dd.from_pandas(data=df, npartitions=self.cpu)
+            _df: dd.DataFrame = dd.from_pandas(data=df, npartitions=1)
         else:
             raise EasyExploreUtilsException('Format of data input ({}) not supported. Use Pandas or dask DataFrame instead'.format(type(df)))
         _table: Dict[str, List[str]] = {'feature_type': [], 'data_type': [], 'rec': []}
@@ -1320,7 +1323,7 @@ class EasyExploreUtils:
             Name of detected files
         """
         if os.path.exists(file_path):
-            if file_path.split('.')[-1] is 'zip':
+            if file_path.split('.')[-1] == 'zip':
                 return zipfile.ZipFile(file_path).namelist()
             else:
                 return [f for f in os.listdir(file_path) if os.path.isfile(os.path.join(file_path, f))]
