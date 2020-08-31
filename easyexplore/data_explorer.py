@@ -537,23 +537,23 @@ class DataExplorer:
         if continuous:
             _continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
             if len(_continuous_features) > 0:
-                _desc: dict = self.df[_continuous_features].describe(percentiles=PERCENTILES).to_dict().compute()
-                _norm: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).normality_test(alpha=0.05, meth='shapiro-wilk')
-                _skew: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).skewness_test(axis='col')
-                _annotations: List[dict] = []
-                for ft in _desc.keys():
-                    _annotations.append(dict(text='Mean={}<br></br>Median={}<br></br>Std={}<br></br>Normality:{}<br></br>Skewness:{}'.format(self.df[ft].mean(), self.df[ft].median(), self.df[ft].std(), _norm.get(ft), _skew.get(ft)),
-                                             align='left',
-                                             showarrow=False,
-                                             x=0.5,
-                                             y=0.9,
-                                             xref='paper',
-                                             yref='paper',
-                                             bordercolor='black',
-                                             borderwidth=0
-                                             )
-                                        )
-                    _distribution[ft] = _desc.get(ft)
+                _desc: dict = self.df[_continuous_features].describe(percentiles=PERCENTILES).compute()
+                #_norm: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).normality_test(alpha=0.05, meth='shapiro-wilk')
+                #_skew: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).skewness_test(axis='col')
+                #_annotations: List[dict] = []
+                #for ft in _desc.keys():
+                #    _annotations.append(dict(text='Mean={}<br></br>Median={}<br></br>Std={}<br></br>Normality:{}<br></br>Skewness:{}'.format(self.df[ft].mean().compute(), np.median(self.df[ft].values.compute()), self.df[ft].std().compute(), _norm.get(ft), _skew.get(ft)),
+                #                             align='left',
+                #                             showarrow=False,
+                #                             x=0.5,
+                #                             y=0.9,
+                #                             xref='paper',
+                #                             yref='paper',
+                #                             bordercolor='black',
+                #                             borderwidth=0
+                #                             )
+                #                        )
+                #    _distribution[ft] = _desc.get(ft)
                 _subplots.update({'Continuous Features': dict(data=self.df,
                                                               features=self.feature_types.get('continuous'),
                                                               plot_type='hist',
@@ -1113,7 +1113,7 @@ class DataExplorer:
         _outlier: Dict[str, List[int]] = {}
         _continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
         if len(_continuous_features) > 0:
-            if kind is 'uni':
+            if kind == 'uni':
                 _outlier.update({'uni': self._check_outliers()})
                 _subplots.update({'Univariate Outlier Detection': dict(data=self.df,
                                                                        features=_continuous_features,
@@ -1190,7 +1190,7 @@ class DataExplorer:
                                                                                 showlegend=True
                                                                                 )
                                            })
-                            if kind is 'bi':
+                            if kind == 'bi':
                                 DataVisualizer(title='Bivariate Outlier Detection',
                                                df=self.df,
                                                feature_types=self.feature_types,
@@ -1208,7 +1208,7 @@ class DataExplorer:
                                                                   )
                                                       )
                                                ).run()
-                        if kind is 'multi':
+                        if kind == 'multi':
                             _subplots.update({'Multivariate Outlier Detection': dict(data=self.df,
                                                                                      features=_continuous_features,
                                                                                      plot_type='multi',
@@ -1220,7 +1220,7 @@ class DataExplorer:
             else:
                 raise DataExplorerException('Type of outlier detection ({}) not supported'.format(type))
             if self.plot:
-                if kind is not 'bi':
+                if kind != 'bi':
                     DataVisualizer(subplots=_subplots,
                                    feature_types=self.feature_types,
                                    interactive=True,
@@ -1240,7 +1240,7 @@ class DataExplorer:
                       counter: bool = True,
                       get_linguistic_features: bool = True,
                       similarity: bool = False,
-                      include_categoricals: bool = True,
+                      include_categorical: bool = True,
                       **kwargs
                       ) -> TextMiner:
         """
@@ -1267,7 +1267,7 @@ class DataExplorer:
         :param similarity: bool
             Whether to calculate similarity of text or not
 
-        :param include_categoricals: bool
+        :param include_categorical: bool
             Include categorical features
 
         :return: TextMiner object:
@@ -1286,7 +1286,7 @@ class DataExplorer:
         if len(_features) == 0:
             _features = self.features
         _text_features: List[str] = [id_text for id_text in self.feature_types.get('id_text') if id_text in _features]
-        if include_categoricals:
+        if include_categorical:
             _text_features = _text_features + [cat for cat in self.feature_types.get('categorical') if cat in _features]
         _text_miner: TextMiner = TextMiner(df=self.df,
                                            features=_text_features,

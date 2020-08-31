@@ -201,12 +201,13 @@ class DataVisualizer:
         _graph_features: List[str] = [] if graph_features is None else graph_features
         _color_features: List[str] = [] if color_feature is None else [color_feature]
         _all_features: List[str] = _features + _graph_features + _time_features + _graph_features + _color_features
+        _all_features = list(set(_all_features))
         if isinstance(df, dd.DataFrame):
             try:
                 if len(_all_features) > 0:
-                    self.df: pd.DataFrame = pd.DataFrame(data=df[_all_features].values.compute(), columns=_all_features)
+                    self.df: pd.DataFrame = pd.DataFrame(data=df[_all_features].compute(), columns=_all_features)
                 else:
-                    self.df: pd.DataFrame = pd.DataFrame(data=df.values.compute(), columns=list(df.columns))
+                    self.df: pd.DataFrame = pd.DataFrame(data=df.compute(), columns=list(df.columns))
             except MemoryError:
                 raise DataVisualizerException('Data set is too big (cases={} | features={}) to visualize using Plot.ly (offline)'.format(len(df), len(df.columns)))
         elif isinstance(df, pd.DataFrame):

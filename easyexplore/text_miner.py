@@ -284,7 +284,7 @@ class TextMiner:
         else:
             if len(features) > 0:
                 self.features: List[str] = [text_feature for text_feature in features if str(df[text_feature].dtype).find('object') >= 0]
-            if len(self.features) == 0:
+            else:
                 self.features: List[str] = [text_feature for text_feature in df.columns if str(df[text_feature].dtype).find('object') >= 0]
         if len(self.features) == 0:
             raise TextMinerException('No text feature found in data set')

@@ -1,19 +1,23 @@
 import setuptools
 import subprocess
+import sys
 
 from easyexplore.text_miner import LANG_MODELS
 
 # Install complete dask library for handling big data sets using parallel computing:
-subprocess.run(['python -m pip install "dask[complete]"'], shell=True)
+subprocess.run(['python{} -m pip install "dask[complete]"'.format('3' if sys.platform.find('win') != 0 else '')], shell=True)
 
 # Install jupyter notebook extensions for using EasyExplore_examples.ipynb more conveniently:
-subprocess.run(['python -m pip install jupyter_contrib_nbextensions && jupyter contrib nbextension install'], shell=True)
+subprocess.run(['python{} -m pip install jupyter_contrib_nbextensions && jupyter contrib nbextension install'.format('3' if sys.platform.find('win') != 0 else '')], shell=True)
 
 # Install spacy language models:
-subprocess.run('python -m pip install spacy', shell=True)
+subprocess.run('python{} -m pip install spacy'.format('3' if sys.platform.find('win') != 0 else ''), shell=True)
 for lang in LANG_MODELS.keys():
     for model in LANG_MODELS[lang]['model']['spacy'].keys():
-        subprocess.run('python -m spacy download {}'.format(LANG_MODELS[lang]['model']['spacy'][model]), shell=True)
+        subprocess.run('python{} -m spacy download {}'.format('3' if sys.platform.find('win') != 0 else '',
+                                                              LANG_MODELS[lang]['model']['spacy'][model]
+                                                              ),
+                       shell=True)
 
 with open('README.md', 'r') as _read_me:
     long_description = _read_me.read()
@@ -25,7 +29,7 @@ requires = [r.strip() for r in requires.split('\n') if ((r.strip()[0] != "#") an
 
 setuptools.setup(
     name='easyexplore',
-    version='0.3.1',
+    version='0.3.2',
     author='Gianni Francesco Balistreri',
     author_email='gbalistreri@gmx.de',
     description='Toolbox for easy and effective data exploration',
