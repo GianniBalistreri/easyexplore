@@ -1528,7 +1528,7 @@ class DataVisualizer:
                     for i, ft in enumerate(self.plot.get('features')):
                         if _desc.get(ft) is None:
                             self.plot['kwargs'].update({'ticktext': self.df[ft].unique()})
-                            self.df[ft] = LabelEncoder().fit_transform(y=self.df[ft])
+                            self.df[ft] = EasyExploreUtils().label_encoder(values=self.df[ft].values) #LabelEncoder().fit_transform(y=self.df[ft])
                             self.plot['kwargs'].update({'tickvals': sorted(self.df[ft].unique())})
                             _range: list = [self.df[ft].min(), self.df[ft].max()]
                         else:
@@ -1579,11 +1579,11 @@ class DataVisualizer:
                                 _val: np.array = self.df.loc[self.df[group] == val, self.plot.get('features')].values
                                 _desc: dict = self.df.loc[self.df[group] == val, self.plot.get('features')].describe(
                                     percentiles=_perc).to_dict()
-                            print(_val, '\n\n', _desc)
+                            #print(_val, '\n\n', _desc)
                             for j, ft in enumerate(self.plot.get('features')):
                                 if _desc.get(ft) is None:
                                     self.plot['kwargs'].update({'ticktext': self.df[ft].unique()})
-                                    self.df[ft] = LabelEncoder().fit_transform(y=self.df[ft])
+                                    self.df[ft] = EasyExploreUtils().label_encoder(values=self.df[ft].values) #LabelEncoder().fit_transform(y=self.df[ft])
                                     self.plot['kwargs'].update({'tickvals': sorted(self.df[ft].unique())})
                                     _range: list = [self.df[ft].min(), self.df[ft].max()]
                                 else:
