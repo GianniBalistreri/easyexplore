@@ -1161,11 +1161,11 @@ class EasyExploreUtils:
         return _graph
 
     @staticmethod
-    def get_duplicates(df: pd.DataFrame, cases: bool = True, features: bool = True) -> Dict[str, list]:
+    def get_duplicates(df, cases: bool = True, features: bool = True) -> Dict[str, list]:
         """
         Get duplicate cases and / or features
 
-        :param df: pd.DataFrame
+        :param df: Pandas or dask DataFrame
             Data set
 
         :param cases: bool
@@ -1177,11 +1177,17 @@ class EasyExploreUtils:
         :return Dict[str, list]
             Duplicated cases and / or features
         """
+        if isinstance(df, pd.DataFrame):
+            _df: pd.DataFrame = df
+        elif isinstance(df, dd.DataFrame):
+            _df: pd.DataFrame = df.compute()
+        else:
+            raise EasyExploreUtilsException('Format of data set ({}) not supported. Use Pandas DataFrame or dask dataframe instead'.format(type(df)))
         _duplicates: dict = dict(cases=[], features=[])
         if cases:
-            _duplicates['cases'] = df.loc[df.duplicated(), :].index.values.tolist()
+            _duplicates['cases'] = _df.loc[_df.duplicated(), :].index.values.tolist()
         if features:
-            _duplicates['features'] = df.loc[:, df.transpose().duplicated()].keys().tolist()
+            _duplicates['features'] = _df.loc[:, _df.transpose().duplicated()].columns.tolist()
         return _duplicates
 
     def get_feature_types(self,
@@ -1344,24 +1350,32 @@ class EasyExploreUtils:
         return [obj for obj in os.listdir(file_path)]
 
     @staticmethod
-    def get_invariant_features(df: pd.DataFrame) -> List[str]:
+    def get_invariant_features(df) -> List[str]:
         """
         Get invariant features of data set
 
-        :param df: pd.DataFrame
+        :param df: Pandas or dask DataFrame
             Data set
 
         :return List[str]
             Names of invariant features
         """
+        if isinstance(df, pd.DataFrame):
+            _df: dd.DataFrame = dd.from_pandas(data=df, npartitions=1)
+        elif isinstance(df, dd.DataFrame):
+            _df: dd.DataFrame = df
+            if _df.npartitions > 1:
+                _df = _df.repartition(npartitions=1)
+        else:
+            raise EasyExploreUtilsException('Format of data set ({}) not supported. Use Pandas or dask DataFrame instead'.format(type(df)))
         _invariant_features: List[str] = []
-        for ft in df.keys():
-            _unique_values: np.ndarray = df[ft].unique()
+        for ft in _df.columns:
+            _unique_values: np.ndarray = _df[ft].unique().values.compute()
             if len(_unique_values) <= 2:
                 if len(_unique_values) == 1:
                     _invariant_features.append(ft)
                 else:
-                    if any(df[ft].isnull()):
+                    if any(_df[ft].isnull().compute()):
                         _invariant_features.append(ft)
         return _invariant_features
 

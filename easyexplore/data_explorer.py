@@ -355,11 +355,12 @@ class DataExplorer:
         if plot_type not in ['radar', 'parcoords', 'sunburst', 'tree', 'hist', 'violin']:
             raise DataExplorerException('Plot type ({}) for visualizing categorical breakdown not supported'.format(plot_type))
         _cat_features: List[str] = [feature for feature in self.feature_types.get('categorical') + self.feature_types.get('ordinal') if feature in _features]
+        _continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
         if len(_cat_features) == 0:
             Log(write=False, level='info').log(msg='No categorical features found to breakdown')
         else:
-            if len([conti for conti in self.feature_types.get('continuous') if conti in _features]) > 0:
-                _agg: dict = {conti: ['count', 'min', 'mean', 'max', 'sum'] for conti in self.feature_types.get('continuous')}
+            if len(_continuous_features) > 0:
+                _agg: dict = {conti: ['count', 'min', 'mean', 'max', 'sum'] for conti in _continuous_features}
                 try:
                     _break_down_stats = self.df.groupby(by=_cat_features).aggregate(_agg).compute()
                 except TypeError:
@@ -367,7 +368,7 @@ class DataExplorer:
                 if self.plot:
                     DataVisualizer(title='Breakdown Statistics',
                                    df=self.df,
-                                   features=[ft for ft in self.feature_types.get('continuous') + _cat_features if ft in _features],
+                                   features=_continuous_features + _cat_features,
                                    group_by=_cat_features,
                                    plot_type=plot_type,
                                    melt=False,
