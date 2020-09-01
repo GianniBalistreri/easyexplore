@@ -769,7 +769,7 @@ class DataExplorer:
                                                              )
                                   })
         if duplicate_features:
-            _data_health['duplicate'] = self._check_duplicates(by_row=duplicate_cases, by_col=duplicate_features)
+            _data_health['duplicate'] = EasyExploreUtils().get_duplicates(df=self.df, cases=duplicate_cases, features=duplicate_features)
             if duplicate_cases:
                 _dc = len(_data_health['duplicate']['cases'])
                 _info_table['duplicate_cases'] = '{} ({} %)'.format(_dc, str(100 * round(_dc / self.n_cases, 4)))
@@ -780,11 +780,12 @@ class DataExplorer:
             if self.plot:
                 _duplicate_cases: List[str] = []
                 _duplicate_features: List[str] = []
-                for i, ft in enumerate(_features):
+                for i in range(0, self.n_cases, 1):
                     if i in _data_health['duplicate']['cases']:
                         _duplicate_cases.append('duplicate')
                     else:
                         _duplicate_cases.append('unique')
+                for ft in _features:
                     if ft in _data_health['duplicate']['features']:
                         _duplicate_features.append('duplicate')
                     else:
@@ -812,11 +813,7 @@ class DataExplorer:
         for mis_case in _data_health['sparsity']['cases']:
             _cases.append(mis_case)
         if self.plot:
-            _results_after_cleaning: dd.core.DataFrame = dd.from_pandas(data=pd.DataFrame(columns=_features, index=self.data_index),
-                                                                        npartitions=self.partitions,
-                                                                        sort=True,
-                                                                        name=None
-                                                                        )
+            _results_after_cleaning: pd.core.DataFrame = pd.DataFrame(data=np.nan, columns=_features, index=self.data_index)
             _results_after_cleaning = _results_after_cleaning.fillna(0)
             if _data_health.get('sparsity') is not None:
                 for mis in _data_health['sparsity'].get('features'):
@@ -832,10 +829,10 @@ class DataExplorer:
             for ft in _results_after_cleaning.columns:
                 _results_after_cleaning[ft] = _results_after_cleaning[ft].astype(dtype='int32')
             _summary: pd.DataFrame = pd.DataFrame(data=_info_table.values(), columns=['N (%)'], index=_index)
-            _subplots.update({'Data Structure Describing Data Health': dict(data=_results_after_cleaning.compute(),
+            _subplots.update({'Data Structure Describing Data Health': dict(data=_results_after_cleaning,
                                                                             features=[],
                                                                             plot_type='heat',
-                                                                            kwargs=dict(z=_results_after_cleaning.values.compute(),
+                                                                            kwargs=dict(z=_results_after_cleaning.values,
                                                                                         colorbar=dict(title='Value Range',
                                                                                                       tickvals=['0', '1', '2', '3'],
                                                                                                       ticktext=['Valid', 'Missing', 'Invariant', 'Duplicate']
