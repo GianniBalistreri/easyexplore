@@ -1482,6 +1482,20 @@ class EasyExploreUtils:
         return _df_perc
 
     @staticmethod
+    def label_encoder(values: np.array) -> np.array:
+        """
+        Label encoder
+
+        :param values: np.array
+            Values to encode into numeric values
+        """
+        _unique: list = list(pd.unique(values))
+        _enc_val: list = []
+        for val in values:
+            _enc_val.append(_unique.index(val))
+        return np.array(_enc_val)
+
+    @staticmethod
     def replace_dict_keys(d: dict, new_keys: List[str]) -> dict:
         """
         Replace keys of a dictionary by values of given list
