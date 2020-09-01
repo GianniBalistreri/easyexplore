@@ -2747,6 +2747,8 @@ class DataVisualizer:
                             self._show_plotly_offline()
                     else:
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
+                            if ft in self.feature_types.get('categorical') and group in self.feature_types.get('categorical'):
+                                continue
                             if ft == group:
                                 if self.plot.get('melt'):
                                     if i == len(self.plot.get('features')):
