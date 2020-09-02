@@ -338,7 +338,7 @@ class TextMiner:
             if len(self.segments.get('phrases')) > 0:
                 Log(write=False, logger_file_path=None).log(msg='Recognized natural language. Start interpretation ...')
                 self._interpret_text()
-        Log(write=False, logger_file_path=None).log(msg='Text {} finished. Happy Mining :)'.format('processing' if self.auto_interpretation else 'segmentation'))
+        Log(write=False, logger_file_path=None).log(msg='Text {} finished'.format('processing' if self.auto_interpretation else 'segmentation'))
 
     def _apply_clustering(self, features: List[str], k: int = 3):
         """
