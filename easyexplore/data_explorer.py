@@ -768,7 +768,7 @@ class DataExplorer:
                                                              plot_type='pie'
                                                              )
                                   })
-        if duplicate_features:
+        if duplicate_features or duplicate_cases:
             _data_health['duplicate'] = EasyExploreUtils().get_duplicates(df=self.df, cases=duplicate_cases, features=duplicate_features)
             if duplicate_cases:
                 _dc = len(_data_health['duplicate']['cases'])
@@ -790,17 +790,20 @@ class DataExplorer:
                         _duplicate_features.append('duplicate')
                     else:
                         _duplicate_features.append('unique')
-                _subplots.update({'Duplicate Cases': dict(data=pd.DataFrame(data=dict(duplicate_cases=_duplicate_cases)),
-                                                          features=['duplicate_cases'],
-                                                          plot_type='pie',
-                                                          interactive=True
-                                                          ),
-                                  'Duplicate Features': dict(data=pd.DataFrame(data=dict(features=_features, duplicate_features=_duplicate_features)),
-                                                             features=['duplicate_features'],
-                                                             plot_type='pie',
-                                                             interactive=True
-                                                             )
-                                  })
+                if duplicate_cases:
+                    _subplots.update({'Duplicate Cases': dict(data=pd.DataFrame(data=dict(duplicate_cases=_duplicate_cases)),
+                                                              features=['duplicate_cases'],
+                                                              plot_type='pie',
+                                                              interactive=True
+                                                              )
+                                      })
+                if duplicate_features:
+                    _subplots.update({'Duplicate Features': dict(data=pd.DataFrame(data=dict(features=_features, duplicate_features=_duplicate_features)),
+                                                                 features=['duplicate_features'],
+                                                                 plot_type='pie',
+                                                                 interactive=True
+                                                                 )
+                                      })
         for mis_feature in _data_health['sparsity']['features']:
             __features.append(mis_feature)
         for inv_feature in _data_health['invariant']:
@@ -813,7 +816,7 @@ class DataExplorer:
         for mis_case in _data_health['sparsity']['cases']:
             _cases.append(mis_case)
         if self.plot:
-            _results_after_cleaning: pd.core.DataFrame = pd.DataFrame(data=np.nan, columns=_features, index=self.data_index)
+            _results_after_cleaning: pd.DataFrame = pd.DataFrame(data=np.nan, columns=_features, index=self.data_index)
             _results_after_cleaning = _results_after_cleaning.fillna(0)
             if _data_health.get('sparsity') is not None:
                 for mis in _data_health['sparsity'].get('features'):
