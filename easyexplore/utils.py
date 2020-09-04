@@ -1199,7 +1199,8 @@ class EasyExploreUtils:
                           ordinal: List[str] = None,
                           date: List[str] = None,
                           id_text: List[str] = None,
-                          date_edges: Tuple[str, str] = None
+                          date_edges: Tuple[str, str] = None,
+                          print_msg: bool = False
                           ) -> Dict[str, List[str]]:
         """
         Get feature types
@@ -1231,10 +1232,14 @@ class EasyExploreUtils:
         :param date_edges:
             Minimum and maximum time for identifying date features
 
+        :param print_msg: bool
+            Print segmentation message
+
         :return: dict
             List of feature names for each feature type
         """
-        Log(write=False, level='info').log(msg='Start feature type segmentation...')
+        if print_msg:
+            Log(write=False, level='info').log(msg='Start feature type segmentation...')
         if isinstance(df, pd.DataFrame):
             _df: dd.DataFrame = dd.from_pandas(data=df, npartitions=4)
         elif isinstance(df, dd.DataFrame):

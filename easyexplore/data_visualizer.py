@@ -253,7 +253,8 @@ class DataVisualizer:
                                                                                                     ordinal=None,
                                                                                                     date=None,
                                                                                                     id_text=None,
-                                                                                                    date_edges=None
+                                                                                                    date_edges=None,
+                                                                                                    print_msg=False
                                                                                                     )
             else:
                 self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.df,
@@ -264,7 +265,8 @@ class DataVisualizer:
                                                                                                 ordinal=None,
                                                                                                 date=None,
                                                                                                 id_text=None,
-                                                                                                date_edges=None
+                                                                                                date_edges=None,
+                                                                                                print_msg=False
                                                                                                 )
         else:
             self.feature_types: Dict[str, List[str]] = feature_types
