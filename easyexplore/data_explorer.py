@@ -191,7 +191,8 @@ class DataExplorer:
                                                     ordinal=self.ordinal,
                                                     date=self.date,
                                                     id_text=self.id_text,
-                                                    date_edges=self.date_edges
+                                                    date_edges=self.date_edges,
+                                                    print_msg=True
                                                     )
 
     def _check_duplicates(self, by_row: bool = True, by_col: bool = True) -> Dict[str, list]:
