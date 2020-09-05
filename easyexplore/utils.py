@@ -1258,21 +1258,21 @@ class EasyExploreUtils:
                 _date_edges = None
                 Log(write=False, level='warning').log(msg='Date edges ({}) cannot be converted into datetime\nError: {}'.format(date_edges, e))
         for i, feature in enumerate(features):
-            _analytical_type: Dict[str, str] = self._get_analytical_type(*[_df,
-                                                                           feature,
-                                                                           dtypes[i],
-                                                                           continuous,
-                                                                           categorical,
-                                                                           ordinal,
-                                                                           date,
-                                                                           id_text,
-                                                                           _date_edges
-                                                                           ]
+            _analytical_type: Dict[str, str] = self._get_analytical_type(df=_df,
+                                                                         feature=feature,
+                                                                         dtype=dtypes[i],
+                                                                         continuous=continuous,
+                                                                         categorical=categorical,
+                                                                         ordinal=ordinal,
+                                                                         date=date,
+                                                                         id_text=id_text,
+                                                                         date_edges=_date_edges
                                                                          )
             _type: str = list(_analytical_type.keys())[0]
             _feature: str = _analytical_type[list(_analytical_type.keys())[0]]
             _feature_types[copy.deepcopy(_type)].append(copy.deepcopy(_feature))
-        Log(write=False, level='info').log(msg='Segmentation finished')
+        if print_msg:
+            Log(write=False, level='info').log(msg='Segmentation finished')
         return _feature_types
 
     @staticmethod
