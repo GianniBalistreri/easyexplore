@@ -61,6 +61,7 @@ plots: List[str] = ['bar',
 #  Geo Stats Hovertemplate
 #  Chorolethmap: handle geojson input output
 #  Check Missings in each categorical distribution chart
+#  Fix bugs in Parcats brushing feature
 
 
 class DataVisualizerException(Exception):
@@ -200,7 +201,7 @@ class DataVisualizer:
         _time_features: List[str] = [] if time_features is None else time_features
         _graph_features: List[str] = [] if graph_features is None else graph_features
         _color_features: List[str] = [] if color_feature is None else [color_feature]
-        _all_features: List[str] = _features + _graph_features + _time_features + _graph_features + _color_features
+        _all_features: List[str] = _features + _group_by_features + _time_features + _graph_features + _color_features
         _all_features = list(set(_all_features))
         if isinstance(df, dd.DataFrame):
             try:
@@ -1266,7 +1267,7 @@ class DataVisualizer:
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).parallel_category())
                         else:
                             self.plot['kwargs'].update({'marker': dict(
-                                color=np.zeros(self.df.shape[0], dtype='uint8') if self.plot['kwargs'].get(
+                                color=np.zeros(len(self.df), dtype='uint8') if self.plot['kwargs'].get(
                                     'color') is None else self.plot['kwargs'].get('color'),
                                 cmin=-0.5 if self.plot['kwargs'].get('cmin') is None else self.plot['kwargs'].get(
                                     'cmin'),
@@ -3193,7 +3194,7 @@ class DataVisualizer:
         # Update scatter selection
         self.fig.data[0].selectedpoints = points.point_inds
         # Update parcats colors
-        new_color = np.zeros(self.df.shape[0], dtype='uint8')
+        new_color = np.zeros(len(self.df), dtype='uint8')
         new_color[points.point_inds] = 1
         self.fig.data[1].line.color = new_color
 
