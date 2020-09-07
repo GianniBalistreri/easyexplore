@@ -647,7 +647,7 @@ class StatsUtils:
             _axis = 1
         else:
             raise EasyExploreUtilsException('Axis ({}) not supported'.format(axis))
-        return self.df[self.features].compute().skew(axis=_axis)
+        return self.df[self.features].compute().skew(axis=_axis).to_dict()
 
 
 class EasyExploreUtilsException(Exception):
