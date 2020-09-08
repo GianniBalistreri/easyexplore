@@ -29,7 +29,7 @@ requires = [r.strip() for r in requires.split('\n') if ((r.strip()[0] != "#") an
 
 setuptools.setup(
     name='easyexplore',
-    version='0.4.2',
+    version='0.4.3',
     author='Gianni Francesco Balistreri',
     author_email='gbalistreri@gmx.de',
     description='Toolbox for easy and effective data exploration',

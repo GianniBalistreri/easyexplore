@@ -1,6 +1,7 @@
 import copy
 import dask.dataframe as dd
 import emoji
+import nltk
 import numpy as np
 import pandas as pd
 import spacy
@@ -13,6 +14,8 @@ from googletrans import Translator
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from typing import Dict, List
+
+nltk.download('stopwords')
 
 
 TEXT_FEATURE_SEGMENTS: Dict[str, List[str]] = dict(enumeration=[],
@@ -1214,20 +1217,35 @@ class TextMiner:
             else:
                 Log(write=False, level='info').log(msg='Feature "{}" not found in data set'.format(feature))
 
-    def get_numeric_features(self, compute: bool = False) -> dd.DataFrame:
+    def get_numeric_features(self, features: List[str] = None, compute: bool = False):
         """
         Get all generated numeric features
 
-        :return: dask DataFrame
+        :param features: List[str]
+            Name of the generated features to extract
+
+        :param compute: bool
+            Convert dask to Pandas DataFrame
+
+        :return: Pandas or dask DataFrame
             Data set containing generated features only
         """
         _generated_features: List[str] = []
-        for segment in self.segments.keys():
-            if segment != 'unknown':
-                for feature in self.segments.get(segment):
-                    _features: List[str] = self.get_str_match(cases=list(self.df.columns), substring='{}_'.format(feature))
-                    if len(_features) > 0:
-                        _generated_features.extend(_features)
+        if features is None:
+            for segment in self.segments.keys():
+                if segment != 'unknown':
+                    for feature in self.segments.get(segment):
+                        _features: List[str] = self.get_str_match(cases=list(self.df.columns),
+                                                                  substring='{}_'.format(feature))
+                        if len(_features) > 0:
+                            _generated_features.extend(_features)
+        else:
+            if len(features) > 0:
+                for feature in self.generated_features.keys():
+                    for seg in self.generated_features[feature].keys():
+                        for seg_feature in self.generated_features[feature][seg]:
+                            if seg_feature in features:
+                                _generated_features.append(seg_feature)
         if len(_generated_features) == 0:
             Log(write=False, level='info').log(msg='No generated features found')
             return pd.DataFrame() if compute else dd.from_pandas(data=pd.DataFrame(), npartitions=self.df.npartitions)
