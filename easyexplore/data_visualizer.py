@@ -243,7 +243,7 @@ class DataVisualizer:
         self.group_by: List[str] = group_by
         if feature_types is None:
             if self.df is None:
-                if self.kwargs.get('df') is None and self.kwargs.get('data') is None:
+                if kwargs.get('df') is None and kwargs.get('data') is None:
                     self.feature_types: Dict[str, List[str]] = {}
                 else:
                     self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.kwargs.get('df') if self.kwargs.get('data') is None else self.kwargs.get('data'),
@@ -1208,6 +1208,8 @@ class DataVisualizer:
                         _brushing.append(ft)
                     else:
                         _dimensions.append(dict(label=ft, values=self.df[ft].values))
+                if len(_dimensions) == 0:
+                    Log(write=False).log(msg='No categorical features found. You cannot use Parallel Category chart without categorical features')
                 self.plot['kwargs'].update({'dimensions': _dimensions})
                 # if _color_feature is None:
                 #    self.plot['kwargs'].update({'marker': dict(color='gray') if self.plot['kwargs'].get('marker') is None else self.plot['kwargs'].get('marker'),
