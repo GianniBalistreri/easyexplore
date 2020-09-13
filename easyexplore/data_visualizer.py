@@ -1,3 +1,4 @@
+import copy
 import dask.dataframe as dd
 import ipywidgets as widgets
 import networkx as nx
@@ -32,7 +33,7 @@ plots: List[str] = ['bar',
                     'contour_hist',
                     'dendro',
                     'density',
-                    'distplot',
+                    'dist',
                     #'funnel',
                     #'funnel_area',
                     'geo',
@@ -203,6 +204,7 @@ class DataVisualizer:
         _color_features: List[str] = [] if color_feature is None else [color_feature]
         _all_features: List[str] = _features + _group_by_features + _time_features + _graph_features + _color_features
         _all_features = list(set(_all_features))
+        self.grouping: bool = False
         if isinstance(df, dd.DataFrame):
             try:
                 if len(_all_features) > 0:
@@ -296,6 +298,7 @@ class DataVisualizer:
         self.color_feature: str = color_feature
         self.color_type: str = ''
         self.table_color: dict = dict(line='#7D7F80', fill='#a1c3d1')
+        self.path: str = ''
         self.file_path: str = file_path
         self.file_path_extension: str = ''
         self.max_str_length: int = 40
@@ -720,6 +723,8 @@ class DataVisualizer:
             self.title = title
             self.plot = self.subplots.get(title)
             self.df = self.plot.get('data')
+            if self.plot.get('group_by') is not None and len(self.plot.get('group_by')) > 0:
+                self.grouping = True
             if self.plot.get('xaxis_label') is not None:
                 self.plot['kwargs']['layout'].update({'xaxis': dict(title=dict(text=self.plot.get('xaxis_label')[t]))})
             if self.plot.get('yaxis_label') is not None:
@@ -1920,7 +1925,12 @@ class DataVisualizer:
                         _sorted_df: pd.DataFrame = self.df.sort_values(by=[tft])
                         for group in self.plot.get('group_by'):
                             _group_val: np.array = _sorted_df[group].unique()
-                            for val in _group_val:
+                            for ext, val in enumerate(_group_val, start=1):
+                                self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(tft, group, ext))
+                                if ext == 0:
+                                    self.grouping = True
+                                elif ext == len(_group_val):
+                                    self.grouping = False
                                 self.plot['kwargs'].update(
                                     {'name': self._trim(input_str='{} ({}={})'.format(_features[0], group, val))})
                                 if val in INVALID_VALUES:
@@ -1948,6 +1958,7 @@ class DataVisualizer:
                         if self.plot.get('melt'):
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
                         else:
+                            self.grouping = False
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).line()
                             self._show_plotly_offline()
                     if len(_data) > 0:
@@ -1995,6 +2006,10 @@ class DataVisualizer:
                         for group in self.plot.get('group_by'):
                             _group_val: np.array = _sorted_df[group].unique()
                             for k, ft in enumerate(self.plot.get('features'), start=1):
+                                if k == 0:
+                                    self.grouping = True
+                                elif k == len(_group_val):
+                                    self.grouping = False
                                 for ext, val in enumerate(_group_val):
                                     self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, ext))
                                     self.plot['kwargs'].update({'mode': 'lines' if self.plot['kwargs'].get(
@@ -2016,15 +2031,15 @@ class DataVisualizer:
                                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
                                 if self.plot.get('melt'):
                                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
-                                    if k == len(self.df[group].unique()) and j == len(self.plot.get('features')):
+                                    if k == len(_group_val) and j == len(self.plot.get('features')):
                                         self.fig = _data
                                         self._show_plotly_offline()
                                 else:
                                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
-                                    if k == len(self.df[group].unique()):
-                                        self.fig = _data
-                                        self._show_plotly_offline()
-                                        _data = []
+                                    self.grouping = False
+                                    self.fig = _data
+                                    self._show_plotly_offline()
+                                    _data = []
             ##################
             # Scatter Chart: #
             ##################
@@ -2057,6 +2072,7 @@ class DataVisualizer:
                                 self.fig = _data
                                 self._show_plotly_offline()
                         else:
+                            self.grouping = False
                             if self.plot.get('xaxis_label') is None:
                                 self.plot['kwargs']['layout'].update({'xaxis': dict(title=dict(text=pair[0]))})
                             if self.plot.get('yaxis_label') is None:
@@ -2068,7 +2084,11 @@ class DataVisualizer:
                     for i, pair in enumerate(_pairs, start=1):
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
                             _group_val: np.array = self.df[group].unique()
-                            for ext, val in enumerate(_group_val):
+                            for ext, val in enumerate(_group_val, start=1):
+                                if ext == 0:
+                                    self.grouping = True
+                                elif ext == len(_group_val):
+                                    self.grouping = False
                                 self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                     'mode') is None else self.plot['kwargs'].get('mode'),
                                                             'marker': dict(size=12,
@@ -2097,17 +2117,17 @@ class DataVisualizer:
                                     self.plot['kwargs']['layout'].update({'xaxis': dict(title=dict(text=pair[0]))})
                                 if self.plot.get('yaxis_label') is None:
                                     self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
-                            if self.plot.get('melt'):
-                                if i == len(_pairs) and j == len(self.plot.get('group_by')):
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(pair[0],
-                                                                                                      pair[1],
-                                                                                                      group
-                                                                                                      )
-                                                                          )
-                                    self.fig = _data
-                                    self._show_plotly_offline()
-                            else:
-                                if j == len(self.plot.get('group_by')):
+                                if self.plot.get('melt'):
+                                    if i == len(_pairs) and j == len(self.plot.get('group_by')):
+                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(pair[0],
+                                                                                                          pair[1],
+                                                                                                          group
+                                                                                                          )
+                                                                              )
+                                        self.fig = _data
+                                        self._show_plotly_offline()
+                                else:
+                                    self.grouping = False
                                     self.file_path_extension = self._trim(input_str='{}_{}_{}_{}'.format(pair[0],
                                                                                                          pair[1],
                                                                                                          group,
@@ -2157,6 +2177,7 @@ class DataVisualizer:
                                 self.fig = _data
                                 self._show_plotly_offline()
                         else:
+                            self.grouping = False
                             if self.plot.get('xaxis_label') is None:
                                 self.plot['kwargs']['layout'].update({'xaxis': dict(title=dict(text=pair[0]))})
                             if self.plot.get('yaxis_label') is None:
@@ -2174,7 +2195,11 @@ class DataVisualizer:
                     for i, pair in enumerate(_pairs, start=1):
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
                             _group_val: np.array = self.df[group].unique()
-                            for ext, val in enumerate(_group_val):
+                            for ext, val in enumerate(_group_val, start=1):
+                                if ext == 0:
+                                    self.grouping = True
+                                elif ext == len(_group_val):
+                                    self.grouping = False
                                 self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                     'mode') is None else self.plot['kwargs'].get('mode'),
                                                             'marker': dict(size=12,
@@ -2214,17 +2239,17 @@ class DataVisualizer:
                                     self.fig = _data
                                     self._show_plotly_offline()
                             else:
-                                if j == len(self.plot.get('group_by')):
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}_{}_{}'.format(pair[0],
-                                                                                                            pair[1],
-                                                                                                            pair[2],
-                                                                                                            group,
-                                                                                                            ext
-                                                                                                            )
-                                                                          )
-                                    self.fig = _data
-                                    self._show_plotly_offline()
-                                    _data = []
+                                self.grouping = False
+                                self.file_path_extension = self._trim(input_str='{}_{}_{}_{}_{}'.format(pair[0],
+                                                                                                        pair[1],
+                                                                                                        pair[2],
+                                                                                                        group,
+                                                                                                        ext
+                                                                                                        )
+                                                                      )
+                                self.fig = _data
+                                self._show_plotly_offline()
+                                _data = []
             #######################
             # Network Graph Chart #
             #######################
@@ -2346,7 +2371,12 @@ class DataVisualizer:
                             for group in self.plot.get('group_by'):
                                 if str(self.df[group].dtype).find('date') >= 0:
                                     self.df[group] = self.df[group].astype(str)
-                                for j, val in enumerate(self.df[group].unique(), start=1):
+                                _unique: np.array = self.df[group].unique()
+                                for j, val in enumerate(_unique, start=1):
+                                    if j == 0:
+                                        self.grouping = True
+                                    elif j == len(_unique):
+                                        self.grouping = False
                                     if val in INVALID_VALUES:
                                         _freq: pd.DataFrame = self.df.loc[self.df[group].isnull(), ft].value_counts()
                                     else:
@@ -2450,7 +2480,12 @@ class DataVisualizer:
                             for j, group in enumerate(self.plot.get('group_by'), start=1):
                                 if str(self.df[group].dtype).find('date') >= 0:
                                     self.df[group] = self.df[group].astype(str)
-                                for k, val in enumerate(self.df[group].unique(), start=1):
+                                _unique: np.array = self.df[group].unique()
+                                for k, val in enumerate(_unique, start=1):
+                                    if k == 0:
+                                        self.grouping = True
+                                    elif k == len(_unique):
+                                        self.grouping = False
                                     if val in INVALID_VALUES:
                                         _freq: pd.DataFrame = self.df.loc[self.df[group].isnull(), ft].value_counts()
                                     else:
@@ -2483,21 +2518,21 @@ class DataVisualizer:
                                                                 })
                                     if self.plot.get('melt'):
                                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
-                                        if k == len(self.df[group].unique()) and i == len(self.plot.get('features')):
+                                        if k == len(_unique) and i == len(self.plot.get('features')):
                                             self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                             self.fig = _data
                                             self._show_plotly_offline()
                                     else:
+                                        self.grouping = False
                                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
-                                        if k == len(self.df[group].unique()):
-                                            self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
-                                                                                                              group,
-                                                                                                              k
-                                                                                                              )
-                                                                                  )
-                                            self.fig = _data
-                                            self._show_plotly_offline()
-                                            _data = []
+                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
+                                                                                                          group,
+                                                                                                          k
+                                                                                                          )
+                                                                              )
+                                        self.fig = _data
+                                        self._show_plotly_offline()
+                                        _data = []
             ####################
             # Histogram Chart: #
             ####################
@@ -2547,7 +2582,12 @@ class DataVisualizer:
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
                             if str(self.df[group].dtype).find('date') >= 0:
                                 self.df[group] = self.df[group].astype(str)
-                            for k, val in enumerate(self.df[group].unique(), start=1):
+                            _unique: np.array = self.df[group].unique()
+                            for k, val in enumerate(_unique, start=1):
+                                if k == 0:
+                                    self.grouping = True
+                                elif k == len(_unique):
+                                    self.grouping = False
                                 if val in INVALID_VALUES:
                                     _x: np.array = self.df.loc[self.df[group].isnull(), ft].values
                                 else:
@@ -2573,21 +2613,21 @@ class DataVisualizer:
                                                                 'share_yaxis': True
                                                                 })
                                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
-                                    if k == len(self.df[group].unique()) and i == len(self.plot.get('features')):
+                                    if k == len(_unique) and i == len(self.plot.get('features')):
                                         self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                         self.fig = _data
                                         self._show_plotly_offline()
                                 else:
+                                    self.grouping = False
                                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
-                                    if k == len(self.df[group].unique()):
-                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
-                                                                                                          group,
-                                                                                                          k
-                                                                                                          )
-                                                                              )
-                                        self.fig = _data
-                                        self._show_plotly_offline()
-                                        _data = []
+                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
+                                                                                                      group,
+                                                                                                      k
+                                                                                                      )
+                                                                          )
+                                    self.fig = _data
+                                    self._show_plotly_offline()
+                                    _data = []
             ###################
             # Distplot Chart: #
             ###################
@@ -2642,7 +2682,12 @@ class DataVisualizer:
                         for j, group in enumerate(self.plot.get('group_by'), start=1):
                             if str(self.df[group].dtype).find('date') >= 0:
                                 self.df[group] = self.df[group].astype(str)
-                            for k, val in enumerate(self.df[group].unique(), start=1):
+                            _unique: np.array = self.df[group].unique()
+                            for k, val in enumerate(_unique, start=1):
+                                if k == 0:
+                                    self.grouping = True
+                                elif k == len(_unique):
+                                    self.grouping = False
                                 if val in INVALID_VALUES:
                                     _x: np.array = self.df.loc[self.df[group].isnull(), ft].values
                                 else:
@@ -2685,7 +2730,7 @@ class DataVisualizer:
                                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
                                         self._show_plotly_offline()
                                 else:
-                                    if k == len(self.df[group].unique()):
+                                    if k == len(_unique):
                                         self.plot['kwargs'].update({'hist_data': [_x] if self.plot['kwargs'].get(
                                             'hist_data') is None or i > 1 else self.plot['kwargs'].get('hist_data'),
                                                                     'group_labels': [ft] if self.plot['kwargs'].get(
@@ -2741,7 +2786,7 @@ class DataVisualizer:
                                                         })
                             _sub_fig: go.Violin = PlotlyAdapter(plot=self.plot, offline=True).violin()
                         if self.plot.get('melt'):
-                            self.file_path_extension = '{}_{}'.format(self.file_path_extension, self._trim(input_str=ft))
+                            self.file_path_extension = '{}_melt'.format(self._trim(input_str=ft))
                             _data.append(_sub_fig)
                             if i == len(self.plot.get('features')):
                                 self.fig = _data
@@ -2757,12 +2802,18 @@ class DataVisualizer:
                             if ft == group:
                                 if self.plot.get('melt'):
                                     if i == len(self.plot.get('features')):
+                                        self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                         self.fig = _data
                                         self._show_plotly_offline()
                             else:
                                 if str(self.df[group].dtype).find('date') >= 0:
                                     self.df[group] = self.df[group].astype(str)
-                                for k, val in enumerate(self.df[group].unique(), start=1):
+                                _unique: np.array = self.df[group].unique()
+                                for k, val in enumerate(_unique, start=1):
+                                    if k == 1:
+                                        self.grouping = True
+                                    elif k == len(_unique):
+                                        self.grouping = False
                                     if val in INVALID_VALUES:
                                         _values: np.array = self.df.loc[self.df[group].isnull(), ft].values
                                     else:
@@ -2817,16 +2868,18 @@ class DataVisualizer:
                                                                     })
                                         _sub_fig: go.Violin = PlotlyAdapter(plot=self.plot, offline=True).violin()
                                     _data.append(_sub_fig)
-                                if self.plot.get('melt'):
-                                    if i == len(self.plot.get('features')):
-                                        self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
+                                    if self.plot.get('melt'):
+                                        if i == len(self.plot.get('features')):
+                                            self.fig = _data
+                                            if k == len(_unique):
+                                                self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
+                                                self._show_plotly_offline()
+                                    else:
+                                        self.grouping = False
+                                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, k))
                                         self.fig = _data
                                         self._show_plotly_offline()
-                                else:
-                                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, k))
-                                    self.fig = _data
-                                    self._show_plotly_offline()
-                                    _data = []
+                                        _data = []
             ####################
             # Ridgeline Chart: #
             ####################
@@ -3128,12 +3181,12 @@ class DataVisualizer:
             if len(self.plot.get('file_path')) > 0:
                 if len(self.file_path_extension) > 0:
                     _file_type: str = self.plot.get('file_path').split('.')[-1]
-                    self.plot['file_path'] = self.plot.get('file_path').replace('.{}'.format(_file_type),
-                                                                                '_{}.{}'.format(self.file_path_extension, _file_type)
-                                                                                )
+                    _file_path: str = self.plot.get('file_path').replace(self.plot.get('file_path').split('/')[-1], '')
+                    self.plot['file_path'] = '{}{}.{}'.format(_file_path, self.file_path_extension, _file_type)
                     self.file_path_extension = ''
-                Log(write=False).log('Saving plotly chart locally at: {}'.format(self.plot.get('file_path')))
-                PlotlyAdapter(plot=self.plot, offline=True, fig=_fig).save()
+                if not self.grouping:
+                    Log(write=False).log('Saving plotly chart locally at: {}'.format(self.plot.get('file_path')))
+                    PlotlyAdapter(plot=self.plot, offline=True, fig=_fig).save()
             else:
                 Log(write=False).log('Cannot save file locally because file path is empty')
         if self.render:
