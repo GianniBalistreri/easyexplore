@@ -61,13 +61,13 @@ LANG_MODELS: Dict[str, dict] = dict(#za=dict(name='chinese',
                                                                   )
                                                        )
                                             ),
-                                    gr=dict(name='greek',
-                                            model=dict(spacy=dict(sm='gr_core_news_sm',
-                                                                  md='gr_core_news_md',
-                                                                  lg='gr_core_news_lg'
-                                                                  )
-                                                       )
-                                            ),
+                                    #gr=dict(name='greek',
+                                    #        model=dict(spacy=dict(sm='gr_core_news_sm',
+                                    #                              md='gr_core_news_md',
+                                    #                              lg='gr_core_news_lg'
+                                    #                              )
+                                    #                   )
+                                    #        ),
                                     de=dict(name='german',
                                             model=dict(spacy=dict(sm='de_core_news_sm',
                                                                   md='de_core_news_md',
@@ -96,13 +96,13 @@ LANG_MODELS: Dict[str, dict] = dict(#za=dict(name='chinese',
                                                                   )
                                                        )
                                             ),
-                                    xx=dict(name='multi-language',
-                                            model=dict(spacy=dict(sm='xx_ent_wiki_sm',
-                                                                  md='xx_ent_wiki_md',
-                                                                  lg='xx_ent_wiki_lg'
-                                                                  )
-                                                       )
-                                            ),
+                                    #xx=dict(name='multi-language',
+                                    #        model=dict(spacy=dict(sm='xx_ent_wiki_sm',
+                                    #                              md='xx_ent_wiki_md',
+                                    #                              lg='xx_ent_wiki_lg'
+                                    #                              )
+                                    #                   )
+                                    #        ),
                                     nb=dict(name='norwegian_bokmal',
                                             model=dict(spacy=dict(sm='nb_core_news_sm',
                                                                   md='nb_core_news_md',
@@ -131,13 +131,13 @@ LANG_MODELS: Dict[str, dict] = dict(#za=dict(name='chinese',
                                                                   )
                                                        )
                                             ),
-                                    ru=dict(name='russian',
-                                            model=dict(spacy=dict(sm='ru_core_news_sm',
-                                                                  md='ru_core_news_md',
-                                                                  lg='ru_core_news_lg'
-                                                                  )
-                                                       )
-                                            ),
+                                    #ru=dict(name='russian',
+                                    #        model=dict(spacy=dict(sm='ru_core_news_sm',
+                                    #                              md='ru_core_news_md',
+                                    #                              lg='ru_core_news_lg'
+                                    #                              )
+                                    #                   )
+                                    #        ),
                                     es=dict(name='spanish',
                                             model=dict(spacy=dict(sm='es_core_news_sm',
                                                                   md='es_core_news_md',
