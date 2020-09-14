@@ -384,7 +384,8 @@ class DataImporter(FileUtils):
                                enforce=False if self.kwargs.get('enforce') is None else self.kwargs.get('enforce'),
                                assume_missing=True if self.kwargs.get('assume_missing') is None else self.kwargs.get('assume_missing'),
                                storage_options=self.kwargs.get('storage_options'),
-                               include_path_column=False if self.kwargs.get('include_path_column') is None else self.kwargs.get('include_path_column')
+                               include_path_column=False if self.kwargs.get('include_path_column') is None else self.kwargs.get('include_path_column'),
+                               dtype=str if self.kwargs.get('dtype') is None else self.kwargs.get('dtype')
                                )
         return pd.read_csv(filepath_or_buffer=self.kwargs.get('filepath'),
                            sep=self.kwargs.get('sep'),
@@ -395,7 +396,7 @@ class DataImporter(FileUtils):
                            squeeze=self.kwargs.get('squeeze'),
                            prefix=self.kwargs.get('prefix'),
                            mangle_dupe_cols=self.kwargs.get('mangle_dup_cols'),
-                           dtype=self.kwargs.get('dtype'),
+                           dtype=str if self.kwargs.get('dtype') is None else self.kwargs.get('dtype'),
                            engine=self.kwargs.get('engine'),
                            converters=self.kwargs.get('converters'),
                            true_values=self.kwargs.get('true_values'),
