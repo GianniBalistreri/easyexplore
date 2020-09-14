@@ -863,12 +863,20 @@ class EasyExploreUtils:
         elif str(dtype).find('bool') >= 0:
             return {'categorical': feature}
 
-    def check_dtypes(self, df, date_edges: Tuple[str, str] = None) -> dict:
+    def check_dtypes(self, df, feature_types: Dict[str, List[str]] = None, date_edges: Tuple[str, str] = None) -> dict:
         """
         Check if data types of Pandas DataFrame match with the analytical measurement of data
 
         :param df: Pandas DataFrame or dask dataframe
             Data set
+
+        :param feature_types: Dict[str, List[str]]
+            Pre-defined feature types
+                -> id_text
+                -> categorical
+                -> ordinal
+                -> continuous
+                -> date
 
         :param date_edges: Tuple[str, str]
 
@@ -878,11 +886,14 @@ class EasyExploreUtils:
         _typing: dict = dict(meta={}, conversion={})
         _features: List[str] = list(df.columns)
         _dtypes: List[str] = [str(dt) for dt in df.dtypes.tolist()]
-        _feature_types: Dict[str, List[str]] = self.get_feature_types(df=df,
-                                                                      features=_features,
-                                                                      dtypes=df.dtypes.tolist(),
-                                                                      date_edges=date_edges
-                                                                      )
+        if feature_types is None:
+            _feature_types: Dict[str, List[str]] = self.get_feature_types(df=df,
+                                                                          features=_features,
+                                                                          dtypes=df.dtypes.tolist(),
+                                                                          date_edges=date_edges
+                                                                          )
+        else:
+            _feature_types: Dict[str, List[str]] = feature_types
         if isinstance(df, dd.DataFrame):
             _df: dd.DataFrame = df
         elif isinstance(df, pd.DataFrame):
