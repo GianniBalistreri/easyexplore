@@ -876,7 +876,7 @@ class EasyExploreUtils:
             Data type conversion recommendation
         """
         _typing: dict = dict(meta={}, conversion={})
-        _features: List[str] = list(df.keys())
+        _features: List[str] = list(df.columns)
         _dtypes: List[str] = [str(dt) for dt in df.dtypes.tolist()]
         _feature_types: Dict[str, List[str]] = self.get_feature_types(df=df,
                                                                       features=_features,
