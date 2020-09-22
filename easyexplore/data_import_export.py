@@ -370,7 +370,7 @@ class DataImporter(FileUtils):
 
     def _text_as_df(self):
         """
-        Import text file (csv, txt) as Pandas DataFrame
+        Import text file (csv, tsv, txt) as Pandas or dask DataFrame
 
         :return: Pandas DataFrame or dask dataframe
             Content of the text file
