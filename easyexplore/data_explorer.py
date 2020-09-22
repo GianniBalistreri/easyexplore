@@ -543,7 +543,12 @@ class DataExplorer:
                                                                )
                                   })
         if continuous:
-            _continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
+            _continuous_features: List[str] = []
+            for conti in self.feature_types.get('continuous'):
+                if conti in _features:
+                    if str(self.df[conti].dtype).find('float') < 0:
+                        self.df[conti] = self.df[conti].astype(float)
+                    _continuous_features.append(conti)
             if len(_continuous_features) > 0:
                 _desc: dict = self.df[_continuous_features].describe(percentiles=PERCENTILES).compute()
                 #_norm: dict = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).normality_test(alpha=0.05, meth='shapiro-wilk')
@@ -573,10 +578,20 @@ class DataExplorer:
             if len(self.feature_types.get('date')) == 0:
                 Log(write=False, level='error').log('No time feature found in data set')
             else:
-                _date_features: List[str] = [date for date in self.feature_types.get('date') if date in _features]
+                __continuous_features: List[str] = []
+                for conti in self.feature_types.get('continuous'):
+                    if conti in _features:
+                        if str(self.df[conti].dtype).find('float') < 0:
+                            self.df[conti] = self.df[conti].astype(float)
+                        __continuous_features.append(conti)
+                _date_features: List[str] = []
+                for date in self.feature_types.get('date'):
+                    if date in _features:
+                        if str(self.df[date].dtype).find('object') >= 0:
+                            self.df[date] = dd.from_array(x=pd.to_datetime(self.df[date].values.compute(), errors='coerce'))
+                        _date_features.append(date)
                 for ft in _date_features:
                     _distribution[ft] = self.df[ft].value_counts(sort=True, ascending=False, dropna=self.include_nan).compute()
-                __continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
                 if len(_date_features) > 0 and len(__continuous_features) > 0:
                     _subplots.update({'Distribution over Time': dict(data=self.df,
                                                                      features=__continuous_features,
@@ -1054,6 +1069,12 @@ class DataExplorer:
                 _plot_type: str = plot_type
             else:
                 _plot_type: str = 'density'
+            if str(self.df[val].dtype).find('object') >= 0:
+                self.df[val] = self.df[val].astype(float)
+            if str(self.df[lat].dtype).find('object') >= 0:
+                self.df[lat] = self.df[lat].astype(float)
+            if str(self.df[lon].dtype).find('object') >= 0:
+                self.df[lon] = self.df[lon].astype(float)
             _df: dd.DataFrame = self.df[[val, lat, lon]]
             _df = _df.loc[~_df[val].isnull(), :]
             _df = _df.loc[~_df[lat].isnull(), :]
@@ -1119,7 +1140,12 @@ class DataExplorer:
             _features = self.features
         _subplots: dict = {}
         _outlier: Dict[str, List[int]] = {}
-        _continuous_features: List[str] = [conti for conti in self.feature_types.get('continuous') if conti in _features]
+        _continuous_features: List[str] = []
+        for conti in self.feature_types.get('continuous'):
+            if conti in _features:
+                if str(self.df[conti].dtype).find('float') < 0:
+                    self.df[conti] = self.df[conti].astype(float)
+                _continuous_features.append(conti)
         if len(_continuous_features) > 0:
             if kind == 'uni':
                 _outlier.update({'uni': self._check_outliers()})
@@ -1300,6 +1326,8 @@ class DataExplorer:
         _text_features: List[str] = [id_text for id_text in self.feature_types.get('id_text') if id_text in _features]
         if include_categorical:
             _text_features = _text_features + [cat for cat in self.feature_types.get('categorical') if cat in _features]
+        if kwargs.get('dask_client') is None:
+            kwargs.update({'dask_client': self.dask_client})
         _text_miner: TextMiner = TextMiner(df=self.df,
                                            features=_text_features,
                                            lang=lang,
