@@ -717,7 +717,7 @@ class EasyExploreUtils:
         if id_text is not None:
             if feature in id_text:
                 return {'id_text': feature}
-        _feature_data = copy.deepcopy(df[feature])
+        _feature_data = df.loc[~df[feature].isnull(), feature]
         if str(dtype).find('float') >= 0:
             _unique = _feature_data.unique().values.compute()
             if any(_feature_data.isnull().compute()):
@@ -770,7 +770,7 @@ class EasyExploreUtils:
                 if text_val == text_val:
                     if (str(text_val).find('.') >= 0) or (str(text_val).replace(',', '').isdigit()):
                         _dot = True
-                    if str(text_val).replace('.', '').isdigit() or str(text_val).replace(',', '').isdigit():
+                    if str(text_val).replace('.', '').replace('-', '').isdigit() or str(text_val).replace(',', '').replace('-', '').isdigit():
                         if (len(str(text_val).split('.')) == 2) or (len(str(text_val).split(',')) == 2):
                             _digits += 1
                     if len(str(text_val).split('.')) > _max_dots:
@@ -791,7 +791,7 @@ class EasyExploreUtils:
                         else:
                             return {'id_text': feature}
                 else:
-                    if len(_feature_data) == len(_feature_data.unique()):
+                    if len(_feature_data) == len(_feature_data.unique().values.compute()):
                         return {'id_text': feature}
                     _len_of_feature = pd.DataFrame()
                     _len_of_feature[feature] = _feature_data[~_feature_data.isnull()].values.compute()
@@ -854,10 +854,10 @@ class EasyExploreUtils:
                                     return {'id_text': feature}
                                 else:
                                     return {'categorical': feature}
-                        if np.mean(_unique_values) == np.median(_unique_values):
-                            return {'id_text': feature}
-                        else:
-                            return {'categorical': feature}
+                        #if np.mean(_unique_values) == np.median(_unique_values):
+                        #    return {'id_text': feature}
+                        #else:
+                        return {'categorical': feature}
         elif str(dtype).find('date') >= 0:
             return {'date': feature}
         elif str(dtype).find('bool') >= 0:
@@ -1211,6 +1211,7 @@ class EasyExploreUtils:
                           date: List[str] = None,
                           id_text: List[str] = None,
                           date_edges: Tuple[str, str] = None,
+                          multi_threading: bool = False,
                           print_msg: bool = False
                           ) -> Dict[str, List[str]]:
         """
@@ -1243,6 +1244,9 @@ class EasyExploreUtils:
         :param date_edges:
             Minimum and maximum time for identifying date features
 
+        :param multi_threading: bool
+            Run feature type interpretation on multiple threads
+
         :param print_msg: bool
             Print segmentation message
 
@@ -1268,20 +1272,41 @@ class EasyExploreUtils:
             except Exception as e:
                 _date_edges = None
                 Log(write=False, level='warning').log(msg='Date edges ({}) cannot be converted into datetime\nError: {}'.format(date_edges, e))
+        _threads: dict = {}
         for i, feature in enumerate(features):
-            _analytical_type: Dict[str, str] = self._get_analytical_type(df=_df,
-                                                                         feature=feature,
-                                                                         dtype=dtypes[i],
-                                                                         continuous=continuous,
-                                                                         categorical=categorical,
-                                                                         ordinal=ordinal,
-                                                                         date=date,
-                                                                         id_text=id_text,
-                                                                         date_edges=_date_edges
-                                                                         )
-            _type: str = list(_analytical_type.keys())[0]
-            _feature: str = _analytical_type[list(_analytical_type.keys())[0]]
-            _feature_types[copy.deepcopy(_type)].append(copy.deepcopy(_feature))
+            if multi_threading:
+                _delayed_analytical_type: dask.delayed = dask.delayed(self._get_analytical_type(df=_df,
+                                                                                                feature=feature,
+                                                                                                dtype=dtypes[i],
+                                                                                                continuous=continuous,
+                                                                                                categorical=categorical,
+                                                                                                ordinal=ordinal,
+                                                                                                date=date,
+                                                                                                id_text=id_text,
+                                                                                                date_edges=_date_edges
+                                                                                                )
+                                                                      )
+                _threads.update({i: _delayed_analytical_type})
+            else:
+                _analytical_type: Dict[str, str] = self._get_analytical_type(df=_df,
+                                                                             feature=feature,
+                                                                             dtype=dtypes[i],
+                                                                             continuous=continuous,
+                                                                             categorical=categorical,
+                                                                             ordinal=ordinal,
+                                                                             date=date,
+                                                                             id_text=id_text,
+                                                                             date_edges=_date_edges
+                                                                             )
+                _type: str = list(_analytical_type.keys())[0]
+                _feature: str = _analytical_type[list(_analytical_type.keys())[0]]
+                _feature_types[copy.deepcopy(_type)].append(copy.deepcopy(_feature))
+        if multi_threading:
+            for thread in _threads.keys():
+                _analytical_type: Dict[str, str] = _threads.get(thread).compute()
+                _type: str = list(_analytical_type.keys())[0]
+                _feature: str = _analytical_type[list(_analytical_type.keys())[0]]
+                _feature_types[copy.deepcopy(_type)].append(copy.deepcopy(_feature))
         if print_msg:
             Log(write=False, level='info').log(msg='Segmentation finished')
         return _feature_types
