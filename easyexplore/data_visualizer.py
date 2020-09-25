@@ -202,7 +202,12 @@ class DataVisualizer:
         _time_features: List[str] = [] if time_features is None else time_features
         _graph_features: List[str] = [] if graph_features is None else graph_features
         _color_features: List[str] = [] if color_feature is None else [color_feature]
-        _all_features: List[str] = _features + _group_by_features + _time_features + _graph_features + _color_features
+        _geo_features: List[str] = []
+        if kwargs.get('lat') is not None:
+            _geo_features.append(kwargs.get('lat'))
+        if kwargs.get('lon') is not None:
+            _geo_features.append(kwargs.get('lon'))
+        _all_features: List[str] = _features + _group_by_features + _time_features + _graph_features + _color_features + _geo_features
         _all_features = list(set(_all_features))
         self.grouping: bool = False
         if isinstance(df, dd.DataFrame):
@@ -1686,8 +1691,7 @@ class DataVisualizer:
                                                                color='blue' if _color_feature is None else _color_feature,
                                                                colorscale='IceFire' if _color_scale is None else _color_scale,
                                                                opacity=0.7
-                                                               ) if self.plot['kwargs'].get('marker') is None else
-                    self.plot['kwargs'].get('marker')
+                                                               ) if self.plot['kwargs'].get('marker') is None else self.plot['kwargs'].get('marker')
                                                 })
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatter_mapbox()
                     self._show_plotly_offline()
@@ -1705,6 +1709,12 @@ class DataVisualizer:
                     self.df = self.df.loc[~self.df[feature].isnull(), _visualize_features]
                     self.df = self.df.loc[~self.df[self.plot['kwargs'].get('lon')].isnull(), :]
                     self.df = self.df.loc[~self.df[self.plot['kwargs'].get('lat')].isnull(), :]
+                    if str(self.df[feature].dtype).find('object') >= 0:
+                        self.df[feature] = self.df[feature].astype(float)
+                    if str(self.df[self.plot['kwargs'].get('lon')].dtype).find('object') >= 0:
+                        self.df[self.plot['kwargs'].get('lon')] = self.df[self.plot['kwargs'].get('lon')].astype(float)
+                    if str(self.df[self.plot['kwargs'].get('lat')].dtype).find('object') >= 0:
+                        self.df[self.plot['kwargs'].get('lat')] = self.df[self.plot['kwargs'].get('lat')].astype(float)
                     _lat_median: int = int(np.median(self.df[self.plot['kwargs'].get('lat')]))
                     _lon_median: int = int(np.median(self.df[self.plot['kwargs'].get('lon')]))
                     self.plot['kwargs'].update({'lon': self.df[self.plot['kwargs'].get('lon')],
@@ -1771,6 +1781,10 @@ class DataVisualizer:
                 if self.plot.get('group_by') is None:
                     for j, pair in enumerate(_pairs, start=1):
                         _fig: go.Figure = go.Figure()
+                        if str(self.df[pair[0]].dtype).find('float') < 0:
+                            self.df[pair[0]] = self.df[pair[0]].astype(float)
+                        if str(self.df[pair[1]].dtype).find('float') < 0:
+                            self.df[pair[1]] = self.df[pair[1]].astype(float)
                         self.file_path_extension = self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
                         self.plot['kwargs'].update({'x': self.df[pair[0]].values,
                                                     'y': self.df[pair[1]].values,

@@ -61,13 +61,13 @@ LANG_MODELS: Dict[str, dict] = dict(#za=dict(name='chinese',
                                                                   )
                                                        )
                                             ),
-                                    #gr=dict(name='greek',
-                                    #        model=dict(spacy=dict(sm='gr_core_news_sm',
-                                    #                              md='gr_core_news_md',
-                                    #                              lg='gr_core_news_lg'
-                                    #                              )
-                                    #                   )
-                                    #        ),
+                                    el=dict(name='greek',
+                                            model=dict(spacy=dict(sm='el_core_news_sm',
+                                                                  md='el_core_news_md',
+                                                                  lg='el_core_news_lg'
+                                                                  )
+                                                       )
+                                            ),
                                     de=dict(name='german',
                                             model=dict(spacy=dict(sm='de_core_news_sm',
                                                                   md='de_core_news_md',
@@ -264,10 +264,13 @@ class TextMiner:
         :param kwargs: dict
             Key-word arguments
         """
-        self.dask_client = EasyExploreUtils().dask_setup(client_name='text_miner',
-                                                         client_address=kwargs.get('client_address'),
-                                                         mode='threads' if kwargs.get('client_mode') is None else kwargs.get('client_mode')
-                                                         )
+        if kwargs.get('dask_client') is None:
+            self.dask_client = EasyExploreUtils().dask_setup(client_name='text_miner',
+                                                             client_address=kwargs.get('client_address'),
+                                                             mode='threads' if kwargs.get('client_mode') is None else kwargs.get('client_mode')
+                                                             )
+        else:
+            self.dask_client = kwargs.get('dask_client')
         self.partitions: int = 4 if kwargs.get('npartitions') is None else kwargs.get('npartitions')
         if isinstance(df, pd.DataFrame):
             self.df: dd.core.DataFrame = dd.from_pandas(data=df, npartitions=4 if kwargs.get('npartitions') is None else kwargs.get('npartitions'))

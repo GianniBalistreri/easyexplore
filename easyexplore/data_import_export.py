@@ -293,7 +293,7 @@ class DataImporter(FileUtils):
         :return: json.load
             Content of the json file
         """
-        with open(file=self.file_path,
+        with open(file=self.full_path,
                   mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
                   encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
                   ) as json_file:
@@ -349,7 +349,7 @@ class DataImporter(FileUtils):
         :return: pickle.load
             Content of pickle file
         """
-        with open(self.file_path, 'rb') as file:
+        with open(self.full_path, 'rb') as file:
             return pickle.load(file=file)
 
     def _pickle_as_df(self):
@@ -370,7 +370,7 @@ class DataImporter(FileUtils):
 
     def _text_as_df(self):
         """
-        Import text file (csv, txt) as Pandas DataFrame
+        Import text file (csv, tsv, txt) as Pandas or dask DataFrame
 
         :return: Pandas DataFrame or dask dataframe
             Content of the text file
