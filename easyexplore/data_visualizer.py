@@ -1647,8 +1647,8 @@ class DataVisualizer:
                     raise DataVisualizerException('No longitude information found')
                 if self.plot['kwargs'].get('lat') is None:
                     raise DataVisualizerException('No latitude information found')
-                _lat_median: int = int(np.median(self.plot['kwargs'].get('lat')))
-                _lon_median: int = int(np.median(self.plot['kwargs'].get('lon')))
+                _lat_median: int = int(np.median(self.df[self.plot['kwargs'].get('lat')]))
+                _lon_median: int = int(np.median(self.df[self.plot['kwargs'].get('lon')]))
                 _max_marker_size: int = 50 if self.plot['kwargs'].get('max_marker_size') is None else self.plot[
                     'kwargs'].get('max_marker_size')
                 self.plot['kwargs'].update({'lon': self.plot['kwargs'].get('lon'),
@@ -1735,8 +1735,8 @@ class DataVisualizer:
             # Chorolethmap Chart: #
             #######################
             elif self.plot.get('plot_type') == 'choro':
-                _lat_median: int = int(np.median(self.plot['kwargs'].get('lat')))
-                _lon_median: int = int(np.median(self.plot['kwargs'].get('lon')))
+                _lat_median: int = int(np.median(self.df[self.plot['kwargs'].get('lat')]))
+                _lon_median: int = int(np.median(self.df[self.plot['kwargs'].get('lon')]))
                 if self.plot['kwargs'].get('geojson') is None:
                     if self.plot['kwargs'].get('lon') is None:
                         raise DataVisualizerException('No longitude information found')
