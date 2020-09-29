@@ -1647,12 +1647,16 @@ class DataVisualizer:
                     raise DataVisualizerException('No longitude information found')
                 if self.plot['kwargs'].get('lat') is None:
                     raise DataVisualizerException('No latitude information found')
-                _lat_median: int = int(np.median(self.plot['kwargs'].get('lat')))
-                _lon_median: int = int(np.median(self.plot['kwargs'].get('lon')))
-                _max_marker_size: int = 50 if self.plot['kwargs'].get('max_marker_size') is None else self.plot[
-                    'kwargs'].get('max_marker_size')
-                self.plot['kwargs'].update({'lon': self.plot['kwargs'].get('lon'),
-                                            'lat': self.plot['kwargs'].get('lat'),
+                _visualize_features: List[str] = self.plot.get('features') + [self.plot['kwargs'].get('lon'), self.plot['kwargs'].get('lat')]
+                for viz_feature in _visualize_features:
+                    self.df = self.df.loc[~self.df[viz_feature].isnull(), _visualize_features]
+                    if str(self.df[viz_feature].dtype).find('object') >= 0:
+                        self.df[viz_feature] = self.df[viz_feature].astype(float)
+                _lat_median: int = int(np.median(self.df[self.plot['kwargs'].get('lat')]))
+                _lon_median: int = int(np.median(self.df[self.plot['kwargs'].get('lon')]))
+                _max_marker_size: int = 50 if self.plot['kwargs'].get('max_marker_size') is None else self.plot['kwargs'].get('max_marker_size')
+                self.plot['kwargs'].update({'lon': self.df[self.plot['kwargs'].get('lon')],
+                                            'lat': self.df[self.plot['kwargs'].get('lat')],
                                             'fill': 'toself' if self.plot['kwargs'].get('fill') is None else self.plot[
                                                 'kwargs'].get('fill')
                                             })
@@ -1706,15 +1710,10 @@ class DataVisualizer:
                     raise DataVisualizerException('No latitude information found')
                 for feature in self.plot.get('features'):
                     _visualize_features: List[str] = [feature, self.plot['kwargs'].get('lon'), self.plot['kwargs'].get('lat')]
-                    self.df = self.df.loc[~self.df[feature].isnull(), _visualize_features]
-                    self.df = self.df.loc[~self.df[self.plot['kwargs'].get('lon')].isnull(), :]
-                    self.df = self.df.loc[~self.df[self.plot['kwargs'].get('lat')].isnull(), :]
-                    if str(self.df[feature].dtype).find('object') >= 0:
-                        self.df[feature] = self.df[feature].astype(float)
-                    if str(self.df[self.plot['kwargs'].get('lon')].dtype).find('object') >= 0:
-                        self.df[self.plot['kwargs'].get('lon')] = self.df[self.plot['kwargs'].get('lon')].astype(float)
-                    if str(self.df[self.plot['kwargs'].get('lat')].dtype).find('object') >= 0:
-                        self.df[self.plot['kwargs'].get('lat')] = self.df[self.plot['kwargs'].get('lat')].astype(float)
+                    for viz_feature in _visualize_features:
+                        self.df = self.df.loc[~self.df[viz_feature].isnull(), _visualize_features]
+                        if str(self.df[viz_feature].dtype).find('object') >= 0:
+                            self.df[viz_feature] = self.df[viz_feature].astype(float)
                     _lat_median: int = int(np.median(self.df[self.plot['kwargs'].get('lat')]))
                     _lon_median: int = int(np.median(self.df[self.plot['kwargs'].get('lon')]))
                     self.plot['kwargs'].update({'lon': self.df[self.plot['kwargs'].get('lon')],
@@ -1735,8 +1734,13 @@ class DataVisualizer:
             # Chorolethmap Chart: #
             #######################
             elif self.plot.get('plot_type') == 'choro':
-                _lat_median: int = int(np.median(self.plot['kwargs'].get('lat')))
-                _lon_median: int = int(np.median(self.plot['kwargs'].get('lon')))
+                _visualize_features: List[str] = self.plot.get('features') + [self.plot['kwargs'].get('lon'), self.plot['kwargs'].get('lat')]
+                for viz_feature in _visualize_features:
+                    self.df = self.df.loc[~self.df[viz_feature].isnull(), _visualize_features]
+                    if str(self.df[viz_feature].dtype).find('object') >= 0:
+                        self.df[viz_feature] = self.df[viz_feature].astype(float)
+                _lat_median: int = int(np.median(self.df[self.plot['kwargs'].get('lat')]))
+                _lon_median: int = int(np.median(self.df[self.plot['kwargs'].get('lon')]))
                 if self.plot['kwargs'].get('geojson') is None:
                     if self.plot['kwargs'].get('lon') is None:
                         raise DataVisualizerException('No longitude information found')
