@@ -1018,7 +1018,7 @@ class EasyExploreUtils:
             raise EasyExploreUtilsException('Jupyter notebook could not be converted into "{}" file'.format(to))
 
     @staticmethod
-    def dask_setup(client_name: str, client_address: str = None, mode: str = 'threads') -> Client:
+    def dask_setup(client_name: str, client_address: str = None, mode: str = 'threads', **kwargs) -> Client:
         """
         Setup dask framework for parallel computation
 
@@ -1034,6 +1034,9 @@ class EasyExploreUtils:
                 processes: Multi-Processing
                 single-threaded: Single thread and process
 
+        :param kwargs: dict
+            Key-word arguments for dask client implementation
+
         :return: Client
             Initialized dask client object
         """
@@ -1043,7 +1046,13 @@ class EasyExploreUtils:
             dask.config.set(scheduler='processes')
         else:
             dask.config.set(scheduler='single-threaded')
-        return Client(address=client_address, name=client_name, set_as_default=True, processes=False)
+        return Client(address=client_address,
+                      name=client_name,
+                      set_as_default=True,
+                      processes=False,
+                      memory_limit='64GB' if kwargs.get('memory_limit') is None else kwargs.get('memory_limit'),
+                      **kwargs
+                      )
 
     @staticmethod
     def extract_tuple_el_in_list(list_of_tuples: List[tuple], tuple_pos: int) -> list:
