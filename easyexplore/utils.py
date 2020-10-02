@@ -1046,11 +1046,12 @@ class EasyExploreUtils:
             dask.config.set(scheduler='processes')
         else:
             dask.config.set(scheduler='single-threaded')
+        if kwargs.get('memory_limit') is None:
+            kwargs.update({'memory_limit': 'auto'})
         return Client(address=client_address,
                       name=client_name,
                       set_as_default=True,
                       processes=False,
-                      memory_limit='64GB' if kwargs.get('memory_limit') is None else kwargs.get('memory_limit'),
                       **kwargs
                       )
 
