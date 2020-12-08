@@ -342,6 +342,24 @@ class DataImporter(FileUtils):
                             compression=self.kwargs.get('compression')
                             )
 
+    def _parquet(self):
+        """
+        Import parquet file
+
+        :return dask DataFrame
+        """
+        return dd.read_parquet(path=self.kwargs.get('file_path'),
+                               columns=None,
+                               filters=self.kwargs.get('filters'),
+                               categories=self.kwargs.get('categories'),
+                               index=self.kwargs.get('index'),
+                               storage_options=self.kwargs.get('storage_options'),
+                               engine='auto',
+                               gather_statistics=self.kwargs.get('gather_statistics'),
+                               split_row_groups=self.kwargs.get('split_row_groups'),
+                               chunksize=self.kwargs.get('chunksize')
+                               )
+
     def _pickle(self) -> pickle.load:
         """
         Import pickle file
@@ -377,7 +395,7 @@ class DataImporter(FileUtils):
         """
         if self.use_dask:
             return dd.read_csv(urlpath=self.kwargs.get('filepath'),
-                               blocksize='default' if self.kwargs.get('blocksize') is None else self.kwargs.get('blocksize'),
+                               blocksize='default' if self.partitions > 1 else self.kwargs.get('blocksize'),
                                lineterminator=self.kwargs.get('lineterminator'),
                                #compression=self.kwargs.get('compression'),
                                sample=256000 if self.kwargs.get('sample') is None else self.kwargs.get('sample'),
@@ -469,6 +487,8 @@ class DataImporter(FileUtils):
             finally:
                 _con.con.close()
             return _df
+        elif self.file_type == 'parquet':
+            return self._parquet()
         else:
             raise FileUtilsException('File type ({}) not supported'.format(self.file_type))
 
@@ -534,7 +554,7 @@ class DataExporter(FileUtils):
             self.make_dir()
         if not overwrite:
             self._avoid_overwriting()
-        self.user_kwargs = kwargs
+        self.kwargs = kwargs
 
     def _avoid_overwriting(self):
         """
@@ -569,6 +589,25 @@ class DataExporter(FileUtils):
         with open(self.full_path, 'w', encoding='utf-8') as file:
             json.dump(self.obj, file, ensure_ascii=False)
 
+    def _parquet(self):
+        """
+        Export data as parquet file
+        """
+        dd.to_parquet(df=self.obj,
+                      path=self.full_path,
+                      engine='auto',
+                      compression='default' if self.kwargs.get('compression') is None else self.kwargs.get('compression'),
+                      write_index=True if self.kwargs.get('write_index') is None else self.kwargs.get('write_index'),
+                      append=False if self.kwargs.get('append') is None else self.kwargs.get('append'),
+                      ignore_divisions=False if self.kwargs.get('ignore_divisions') is None else self.kwargs.get('ignore_divisions'),
+                      partition_on=self.kwargs.get('partition_on'),
+                      storage_options=self.kwargs.get('storage_options'),
+                      write_metadata_file=True if self.kwargs.get('write_metadata_file') is None else self.kwargs.get('write_metadata_file'),
+                      compute=True if self.kwargs.get('compute') is None else self.kwargs.get('compute'),
+                      compute_kwargs=self.kwargs.get('compute_kwargs'),
+                      schema=self.kwargs.get('schema')
+                      )
+
     def _pickle(self):
         """
         Export data as pickle file
@@ -591,12 +630,38 @@ class DataExporter(FileUtils):
         _txt.write(self.obj)
         _txt.close()
 
+    def _text_from_df(self):
+        """
+        Export data as text file from data frame
+        """
+        self.obj.to_csv(path_or_buf=self.full_path,
+                        sep=self.kwargs.get('sep'),
+                        na_rep="" if self.kwargs.get('na_rep') is None else self.kwargs.get('na_rep'),
+                        float_format=self.kwargs.get('float_format'),
+                        columns=self.kwargs.get('columns'),
+                        header=True if self.kwargs.get('header') is None else self.kwargs.get('header'),
+                        index=False if self.kwargs.get('index') is None else self.kwargs.get('index'),
+                        index_label=self.kwargs.get('index_label'),
+                        mode='w',
+                        encoding=self.kwargs.get('encoding'),
+                        compression='infer' if self.kwargs.get('compression') is None else self.kwargs.get('compression'),
+                        quoting=self.kwargs.get('quoting'),
+                        chunksize=self.kwargs.get('chunksize'),
+                        date_format=self.kwargs.get('date_format'),
+                        doublequote=True if self.kwargs.get('doublequote') is None else self.kwargs.get('doublequote'),
+                        escapechar=self.kwargs.get('escapechar'),
+                        decimal='.' if self.kwargs.get('decimal') is None else self.kwargs.get('decimal')
+                        )
+
     def file(self):
         """
         Export data as file object
         """
-        if self.file_type in ['csv', 'txt']:
-            return self._text()
+        if self.file_type in ['csv', 'tsv', 'txt']:
+            if isinstance(self.obj, pd.DataFrame) or isinstance(self.obj, dd.DataFrame):
+                return self._text_from_df()
+            else:
+                return self._text()
         elif self.file_type in ['', 'p', 'pkl', 'pickle']:
             return self._pickle()
         elif self.file_type == 'json':
@@ -605,6 +670,8 @@ class DataExporter(FileUtils):
             return self._py()
         elif self.file_type == 'gitignore':
             return self._gitignore()
+        elif self.file_type == 'parquet':
+            return self._parquet()
         else:
             return self._text()
 
