@@ -9,7 +9,6 @@ import os
 import numpy as np
 import networkx as nx
 import pandas as pd
-import psutil
 import re
 import subprocess
 import zipfile
@@ -161,11 +160,12 @@ class EasyExplore:
         """
         if self.show_msg:
             if self.show_ram:
-                print('\n{}: RAM usage: {}%: {}\n'.format(datetime.now().strftime(self.timestamp_format),
-                                                          psutil.virtual_memory().percent,
-                                                          msg
-                                                          )
-                      )
+                #print('\n{}: RAM usage: {}%: {}\n'.format(datetime.now().strftime(self.timestamp_format),
+                #                                          psutil.virtual_memory().percent,
+                #                                          msg
+                #                                          )
+                #      )
+                print('\n{}: {}\n'.format(datetime.now().strftime(self.timestamp_format), msg))
             else:
                 print('\n{}: {}\n'.format(datetime.now().strftime(self.timestamp_format), msg))
 
@@ -210,11 +210,13 @@ class Log:
         self.write: bool = write
         self.timestamp_format: str = '%Y-%m-%d %H:%M:%S'
         if log_ram_usage:
-            self.ram: str = ' -> RAM {}%'.format(psutil.virtual_memory().percent)
+            #self.ram: str = ' -> RAM {}%'.format(psutil.virtual_memory().percent)
+            self.ram: str = ''
         else:
             self.ram: str = ''
         if log_cpu_usage:
-            self.cpu: str = ' -> CPU {}%'.format(psutil.cpu_percent(percpu=False))
+            #self.cpu: str = ' -> CPU {}%'.format(psutil.cpu_percent(percpu=False))
+            self.cpu: str = ''
         else:
             self.cpu: str = ''
         self.msg: str = '{}{}{} | '.format(datetime.now().strftime(self.timestamp_format), self.ram, self.cpu)
@@ -1049,9 +1051,19 @@ class EasyExploreUtils:
         if kwargs.get('memory_limit') is None:
             kwargs.update({'memory_limit': 'auto'})
         return Client(address=client_address,
-                      name=client_name,
+                      loop=kwargs.get('loop'),
+                      timeout=kwargs.get('timeout'),
                       set_as_default=True,
-                      processes=False,
+                      scheduler_file=kwargs.get('scheduler_file'),
+                      security=kwargs.get('security'),
+                      asynchronous=kwargs.get('asynchronous'),
+                      name=client_name,
+                      heartbeat_interval=kwargs.get('heartbeat_interval'),
+                      serializers=kwargs.get('serializers'),
+                      deserializers=kwargs.get('deserializers'),
+                      direct_to_workers=kwargs.get('direct_to_workers'),
+                      connection_limit=kwargs.get('connection_limit'),
+                      processes=False if kwargs.get('processes') is None else kwargs.get('processes'),
                       **kwargs
                       )
 
