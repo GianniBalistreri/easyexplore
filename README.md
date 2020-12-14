@@ -13,7 +13,6 @@ Toolbox for easy and effective data exploration in Python. It is designed to wor
         - DataExporter
     - DataExplorer
     - DataVisualizer
-    - TextMiner
 
 
 ## 1. Installation:
@@ -21,20 +20,16 @@ You can easily install EasyExplore via pip install easyexplore on every operatin
 
 ## 2. Requirements:
  - dask>=2.23.0
- - emoji>=0.5.4
  - geojson>=2.5.0
- - googletrans>=3.0.0
  - ipywidgets>=0.5.1
  - joblib>=0.14.1
  - networkx>=2.2
- - nltk>=3.5
  - numpy>=1.18.1
  - pandas>=1.1.0
  - plotly>=4.5.4
  - pyod>=0.7.7.1
  - psutil>=5.5.1
  - scipy>=1.4.1
- - spacy>=2.3.2
  - scikit-learn>=0.23.1
  - sqlalchemy>=1.3.15
  - statsmodels>=0.9.0
@@ -101,7 +96,6 @@ You can easily install EasyExplore via pip install easyexplore on every operatin
 
 - Data Visualizer:
 
-Let's make data visualization great again!
 Visualize your data set very easily using Plot.ly an interactive visualization library under the hood. The DataVisualizer is an efficient wrapper to abstract the most important elements for data exploration:
 
     -- Table Chart:
@@ -161,44 +155,6 @@ Visualize your data set very easily using Plot.ly an interactive visualization l
     -- Silhoutte Chart:
         Visualize partitionized clusters.
 
-- TextMiner
-
-Explore text data (natural language) by generating various numerical features describing the text
-
-    -- Segmentation:
-
-        Categorize potential text features into following segments ...
-            -> Web features
-                1) URL
-                2) EMail
-            -> Enumerated features
-            -> Natural language (original text features)
-            -> Identifier (original id features)
-            -> Unknown
-
-    -- Simple text processing:
-        Apply simple processing methods to text features
-            -> Merge two text features by given separator
-            -> Replace occurances
-            -> Subset data set or feature list by given string
-
-    -- Language methods:
-        Apply methods to ...
-            -> ... detect language in text
-            -> ... translate using Google Translate under the hood
-
-    -- Generate linguistic features:
-        Apply semantic text processing to generate numeric features
-            -> Clean text counter (text after removing stop words, punctuation and special character and lemmatizing)
-            -> Part-of-Speech Tagging counter & labels
-            -> Named Entity Recognition counter & labels
-            -> Dependencies counter & labels (Tree based / Noun Chunks)
-            -> Emoji counter & labels
-
-    -- Generate similarity / clustering features:
-        Apply similarity methods to generate continuous features using word embeddings
-            -> TF-IDF
-
 ## 4. Examples:
 
-Check the jupyter notebook for examples. Happy exploration :)
+Check the jupyter notebook for examples. Happy exploring :)
