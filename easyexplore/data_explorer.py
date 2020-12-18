@@ -7,7 +7,6 @@ import pandas as pd
 from .anomaly_detector import AnomalyDetector
 from .data_import_export import DataImporter
 from .data_visualizer import DataVisualizer
-from .text_miner import TextMiner
 from .utils import Log, PERCENTILES, StatsUtils, EasyExploreUtils
 from dask.array import from_array
 from dask.distributed import Client
@@ -1270,84 +1269,3 @@ class DataExplorer:
         else:
             Log(write=False, level='info').log(msg='No continuous features found to run outlier detection')
         return _outlier
-
-    def text_analyzer(self,
-                      lang: str = None,
-                      lang_model_size: str = 'sm',
-                      find_occurances: List[str] = None,
-                      counter: bool = True,
-                      get_linguistic_features: bool = True,
-                      similarity: bool = False,
-                      include_categorical: bool = True,
-                      **kwargs
-                      ) -> TextMiner:
-        """
-        Text analysis
-
-        :param lang: str
-            Pre-defined language
-
-        :param lang_model_size: str
-            Name of the language model size:
-                -> sm: small
-                -> md: mid-size
-                -> lg: large
-
-        :param find_occurances: List[str]
-            Occurances to find (any type)
-
-        :param counter: bool
-            Whether to generate simple counter features
-
-        :param get_linguistic_features: bool
-            Whether to generate and explore linguistic features extracted by processing features containing natural language
-
-        :param similarity: bool
-            Whether to calculate similarity of text or not
-
-        :param include_categorical: bool
-            Include categorical features
-
-        :return: TextMiner object:
-            Results of text mining
-        """
-        _features: List[str] = []
-        if kwargs.get('include') is not None:
-            for include in list(set(kwargs.get('include'))):
-                if include in self.features:
-                    _features.append(include)
-        if kwargs.get('exclude') is not None:
-            _features: List[str] = self.features
-            for exclude in list(set(kwargs.get('exclude'))):
-                if exclude in _features:
-                    del _features[_features.index(exclude)]
-        if len(_features) == 0:
-            _features = self.features
-        _text_features: List[str] = [id_text for id_text in self.feature_types.get('id_text') if id_text in _features]
-        if include_categorical:
-            _text_features = _text_features + [cat for cat in self.feature_types.get('categorical') if cat in _features]
-        if kwargs.get('dask_client') is None:
-            kwargs.update({'dask_client': self.dask_client})
-        _text_miner: TextMiner = TextMiner(df=self.df,
-                                           features=_text_features,
-                                           lang=lang,
-                                           lang_model_size=lang_model_size if lang_model_size in ['sm', 'md', 'lg'] else 'sm',
-                                           auto_interpret_natural_language=False,
-                                           **kwargs
-                                           )
-        if find_occurances is not None:
-            for occurance in find_occurances:
-                _text_miner.count_occurances(features=_text_miner.segments.get('phrases'), search_text=occurance)
-        if counter:
-            _text_miner.count_occurances(features=_text_miner.segments.get('phrases'),
-                                         count_length=True,
-                                         count_numbers=True,
-                                         count_characters=True,
-                                         count_special_characters=True
-                                         )
-        if get_linguistic_features:
-            _text_miner.generate_linguistic_features()
-        if similarity:
-            _text_miner.similarity(features=_text_miner.segments.get('phrases'))
-        _text_miner.get_numeric_features()
-        return _text_miner

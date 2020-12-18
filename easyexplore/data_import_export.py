@@ -113,8 +113,7 @@ class DataImporter(FileUtils):
         """
         Set configuration setting for the data import as Pandas DataFrame
         """
-        self.kwargs.update({'filepath': self.full_path,
-                            'sep': self.sep,
+        self.kwargs.update({'sep': self.sep,
                             'decimal': '.' if self.kwargs.get('decimal') is None else self.kwargs.get('decimal'),
                             'header': 0 if self.kwargs.get('header') is None else self.kwargs.get('header'),
                             'encoding': 'utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding'),
@@ -170,7 +169,7 @@ class DataImporter(FileUtils):
             Pandas DataFrame containing the content of the html file
         """
         if self.use_dask:
-            return dd.from_pandas(data=pd.read_excel(io=self.kwargs.get('filepath'),
+            return dd.from_pandas(data=pd.read_excel(io=self.full_path,
                                                      sheet_name=self.kwargs.get('sheet_name'),
                                                      header=self.kwargs.get('header'),
                                                      names=self.kwargs.get('names'),
@@ -199,7 +198,7 @@ class DataImporter(FileUtils):
                                   sort=True if self.kwargs.get('sort') is None else self.kwargs.get('sort'),
                                   name=self.kwargs.get('name')
                                   )
-        return pd.read_excel(io=self.kwargs.get('filepath'),
+        return pd.read_excel(io=self.full_path,
                              sheet_name=self.kwargs.get('sheet_name'),
                              header=self.kwargs.get('header'),
                              names=self.kwargs.get('names'),
@@ -249,7 +248,7 @@ class DataImporter(FileUtils):
         :return: object
             File content
         """
-        with open(file=self.file_path,
+        with open(file=self.full_path,
                   mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
                   encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
                   ) as file:
@@ -269,7 +268,6 @@ class DataImporter(FileUtils):
             Contents of the html file as pandas data frames
         """
         return pd.read_html(io=None,
-                            match=None,
                             flavor=self.kwargs.get('flavor'),
                             header=self.kwargs.get('header'),
                             index_col=self.kwargs.get('index_col'),
@@ -314,7 +312,7 @@ class DataImporter(FileUtils):
             Content of the json file
         """
         if self.use_dask:
-            return dd.read_json(url_path=self.kwargs.get('filepath'),
+            return dd.read_json(url_path=self.full_path,
                                 orient='records' if self.kwargs.get('orient') is None else self.kwargs.get('orient'),
                                 lines=self.kwargs.get('lines'),
                                 storage_options=self.kwargs.get('storage_options'),
@@ -326,7 +324,7 @@ class DataImporter(FileUtils):
                                 meta=self.kwargs.get('meta'),
                                 engine=pd.read_json
                                 )
-        return pd.read_json(path_or_buf=self.kwargs.get('filepath'),
+        return pd.read_json(path_or_buf=self.full_path,
                             orient='records' if self.kwargs.get('orient') is None else self.kwargs.get('orient'),
                             typ='frame',
                             dtype=True if self.kwargs.get('dtype') is None else self.kwargs.get('dtype'),
@@ -348,13 +346,13 @@ class DataImporter(FileUtils):
 
         :return dask DataFrame
         """
-        return dd.read_parquet(path=self.kwargs.get('file_path'),
+        return dd.read_parquet(path=self.full_path,
                                columns=None,
                                filters=self.kwargs.get('filters'),
                                categories=self.kwargs.get('categories'),
                                index=self.kwargs.get('index'),
                                storage_options=self.kwargs.get('storage_options'),
-                               engine='auto',
+                               engine='pyarrow',
                                gather_statistics=self.kwargs.get('gather_statistics'),
                                split_row_groups=self.kwargs.get('split_row_groups'),
                                chunksize=self.kwargs.get('chunksize')
@@ -378,7 +376,9 @@ class DataImporter(FileUtils):
             Content of the pickle file
         """
         if self.use_dask:
-            return dd.from_pandas(data=pd.read_pickle(filepath_or_buffer=self.full_path, compression=self.kwargs.get('compression')),
+            return dd.from_pandas(data=pd.read_pickle(filepath_or_buffer=self.full_path,
+                                                      compression=self.kwargs.get('compression')
+                                                      ),
                                   npartitions=self.partitions,
                                   chunksize=self.kwargs.get('chunksize'),
                                   sort=True if self.kwargs.get('sort') is None else self.kwargs.get('sort'),
@@ -394,7 +394,7 @@ class DataImporter(FileUtils):
             Content of the text file
         """
         if self.use_dask:
-            return dd.read_csv(urlpath=self.kwargs.get('filepath'),
+            return dd.read_csv(urlpath=self.full_path,
                                blocksize='default' if self.partitions > 1 else self.kwargs.get('blocksize'),
                                lineterminator=self.kwargs.get('lineterminator'),
                                #compression=self.kwargs.get('compression'),
@@ -405,7 +405,7 @@ class DataImporter(FileUtils):
                                include_path_column=False if self.kwargs.get('include_path_column') is None else self.kwargs.get('include_path_column'),
                                dtype=str if self.kwargs.get('dtype') is None else self.kwargs.get('dtype')
                                )
-        return pd.read_csv(filepath_or_buffer=self.kwargs.get('filepath'),
+        return pd.read_csv(filepath_or_buffer=self.full_path,
                            sep=self.kwargs.get('sep'),
                            header=self.kwargs.get('header'),
                            names=self.kwargs.get('names'),
