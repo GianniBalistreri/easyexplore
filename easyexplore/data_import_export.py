@@ -605,7 +605,7 @@ class DataExporter(FileUtils):
                       write_metadata_file=True if self.kwargs.get('write_metadata_file') is None else self.kwargs.get('write_metadata_file'),
                       compute=True if self.kwargs.get('compute') is None else self.kwargs.get('compute'),
                       compute_kwargs=self.kwargs.get('compute_kwargs'),
-                      schema=self.kwargs.get('schema')
+                      schema='infer' if self.kwargs.get('schema') is None else self.kwargs.get('schema')
                       )
 
     def _pickle(self):
