@@ -3196,15 +3196,22 @@ class DataVisualizer:
                            yaxis2=self.plot['kwargs']['layout'].get('yaxis2')
                            )
         if self.plot.get('file_path') is not None:
+            _original_file_path: str = self.plot.get('file_path')
             if len(self.plot.get('file_path')) > 0:
                 if len(self.file_path_extension) > 0:
                     _file_type: str = self.plot.get('file_path').split('.')[-1]
-                    _file_path: str = self.plot.get('file_path').replace(self.plot.get('file_path').split('/')[-1], '')
-                    self.plot['file_path'] = '{}{}.{}'.format(_file_path, self.file_path_extension, _file_type)
+                    _file_name: str = self.plot.get('file_path').split('/')[-1].split('.')[0]
+                    _file_path: str = '/'.join(self.plot.get('file_path').split('/')[0:len(self.plot.get('file_path').split('/'))-1]).split('.')[0]
+                    self.plot['file_path'] = '{}/{}{}.{}'.format(_file_path,
+                                                                 '{}_'.format(_file_name) if len(_file_name) > 0 else _file_name,
+                                                                 self.file_path_extension,
+                                                                 _file_type
+                                                                 )
                     self.file_path_extension = ''
                 if not self.grouping:
                     Log(write=False).log('Saving plotly chart locally at: {}'.format(self.plot.get('file_path')))
                     PlotlyAdapter(plot=self.plot, offline=True, fig=_fig).save()
+                self.plot['file_path'] = copy.deepcopy(_original_file_path)
             else:
                 Log(write=False).log('Cannot save file locally because file path is empty')
         if self.render:
