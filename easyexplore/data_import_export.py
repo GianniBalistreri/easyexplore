@@ -579,7 +579,7 @@ class DataExporter(FileUtils):
         """
         Export data as .gitignore file
         """
-        with open(self.file_path, 'w', encoding='utf-8') as file:
+        with open(self.full_path, 'w', encoding='utf-8') as file:
             file.write(self.obj)
 
     def _json(self):
