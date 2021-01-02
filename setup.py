@@ -25,7 +25,7 @@ setuptools.setup(
     description='Toolbox for easy and effective data exploration',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    keywords='data exploration interactive visualization machine learning text mining nlp',
+    keywords='data exploration interactive visualization machine learning plotly',
     license='GNU',
     url='https://github.com/GianniBalistreri/easyexplore',
     include_package_data=True,
@@ -43,7 +43,7 @@ setuptools.setup(
                          'test/test_data_import_export.py',
                          'test/test_data_visualizer.py',
                          'test/test_interactive_visualizer.py',
-                         'test/test_text_miner.py',
+                         #'test/test_text_miner.py',
                          'test/test_utils.py'
                          ]
                 )],
