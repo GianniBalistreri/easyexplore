@@ -1052,7 +1052,7 @@ class EasyExploreUtils:
             kwargs.update({'memory_limit': 'auto'})
         return Client(address=client_address,
                       loop=kwargs.get('loop'),
-                      timeout=kwargs.get('timeout'),
+                      timeout=1000 if kwargs.get('timeout') is None else kwargs.get('timeout'),
                       set_as_default=True,
                       scheduler_file=kwargs.get('scheduler_file'),
                       security=kwargs.get('security'),
@@ -1062,7 +1062,7 @@ class EasyExploreUtils:
                       serializers=kwargs.get('serializers'),
                       deserializers=kwargs.get('deserializers'),
                       direct_to_workers=kwargs.get('direct_to_workers'),
-                      connection_limit=kwargs.get('connection_limit'),
+                      #connection_limit=512 if kwargs.get('connection_limit') else kwargs.get('connection_limit'),
                       processes=False if kwargs.get('processes') is None else kwargs.get('processes'),
                       **kwargs
                       )
