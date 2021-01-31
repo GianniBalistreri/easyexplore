@@ -236,6 +236,7 @@ class DataVisualizer:
                     raise DataVisualizerException('Subplot type "{}" not supported'.format(sub))
         pd.options.display.max_rows = max_row if max_row > 0 else 50
         pd.options.display.max_columns = max_col if max_col > 0 else 20
+        self.subplots: dict = subplots
         self.title: str = title
         if self.df is None:
             self.features: List[str] = features
@@ -280,7 +281,6 @@ class DataVisualizer:
             self.feature_types: Dict[str, List[str]] = feature_types
         self.plot: dict = {}
         self.plot_type: str = plot_type
-        self.subplots: dict = subplots
         self.melt: bool = melt
         self.brushing: bool = brushing
         self.xaxis_label: List[str] = xaxis_label
@@ -421,13 +421,12 @@ class DataVisualizer:
                         if 'data' in self.subplots.get(plot).keys():
                             if not isinstance(self.subplots[plot].get('data'), pd.DataFrame):
                                 if isinstance(self.subplots[plot].get('data'), dd.DataFrame):
-                                    self.subplots[plot].update({'data': pd.DataFrame(data=self.subplots[plot].get('data').values.compute(),
+                                    self.subplots[plot].update({'data': pd.DataFrame(data=self.subplots[plot].get('data').values,
                                                                                      columns=self.subplots[plot].get('data').columns
                                                                                      )
                                                                 })
                                 else:
                                     self.subplots[plot].update({'data': None})
-                                    #raise DataVisualizerException('Key-word argument "data" should be a Pandas DataFrame not a {}'.format(type(self.subplots.get('data'))))
                         else:
                             if self.df is None:
                                 self.subplots[plot].update({'data': None})
@@ -555,6 +554,17 @@ class DataVisualizer:
                                             raise DataVisualizerException('No edge feature found in subplot config ({})'.format(plot))
                         else:
                             self.subplots[plot].update({'graph_features': self.graph_features})
+                        self.feature_types: Dict[str, List[str]] = EasyExploreUtils().get_feature_types(df=self.subplots[plot]['data'],
+                                                                                                        features=list(self.subplots[plot]['data'].columns),
+                                                                                                        dtypes=list(self.subplots[plot]['data'].dtypes),
+                                                                                                        continuous=None,
+                                                                                                        categorical=None,
+                                                                                                        ordinal=None,
+                                                                                                        date=None,
+                                                                                                        id_text=None,
+                                                                                                        date_edges=None,
+                                                                                                        print_msg=False
+                                                                                                        )
                         if 'brushing' in self.subplots.get(plot).keys():
                             if not isinstance(self.subplots[plot].get('brushing'), bool):
                                 self.subplots[plot].update({'brushing': self.brushing})
