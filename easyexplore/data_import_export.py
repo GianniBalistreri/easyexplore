@@ -561,8 +561,11 @@ class DataExporter(FileUtils):
         """
         super().__init__(file_path=file_path, create_dir=create_dir)
         self.obj = obj
+        self.google_cloud_file_name: str = None
         self.cloud: str = cloud
         self.bucket_name: str = bucket_name
+        if self.cloud == 'google':
+            self.google_cloud_file_name = '/'.join(self.full_path.split("//")[1].split("/")[1:])
         if self.create_dir:
             self.make_dir()
         if not overwrite:
@@ -629,6 +632,8 @@ class DataExporter(FileUtils):
             with open(self.full_path, 'wb') as _output:
                 pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
         elif self.cloud == 'google':
+            with open(self.google_cloud_file_name, 'wb') as _output:
+                pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
             self._google_cloud_storage()
         elif self.cloud == 'aws':
             raise FileUtilsException('AWS not supported')
@@ -646,8 +651,8 @@ class DataExporter(FileUtils):
         """
         _client = storage.Client()
         _bucket = _client.get_bucket(self.bucket_name)
-        _blob = _bucket.blob(self.file_path)
-        _blob.upload_from_filename(self.file_name)
+        _blob = _bucket.blob(self.google_cloud_file_name)
+        _blob.upload_from_filename(self.google_cloud_file_name)
 
     def _text(self):
         """
