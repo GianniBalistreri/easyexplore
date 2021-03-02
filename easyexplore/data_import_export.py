@@ -6,6 +6,7 @@ import sqlite3
 import zipfile
 
 from dask import dataframe as dd
+from google.cloud import storage
 from sqlalchemy import create_engine
 from typing import List
 
@@ -21,13 +22,13 @@ class FileUtils:
     """
     Class for handling files
     """
-    def __init__(self, file_path: str, create_dir: bool = True):
+    def __init__(self, file_path: str, create_dir: bool = False):
         """
         :param file_path: str
             File path
 
-        :param create_dir
-            Boolean indicating whether to create directories if they are not existed
+        :param create_dir: bool
+            Create directories if they are not existed
         """
         if len(file_path) == 0:
             raise FileUtilsException('No file path found')
@@ -530,6 +531,8 @@ class DataExporter(FileUtils):
                  file_path: str,
                  create_dir: bool = True,
                  overwrite: bool = False,
+                 cloud: str = None,
+                 bucket_name: str = None,
                  **kwargs
                  ):
         """
@@ -545,11 +548,21 @@ class DataExporter(FileUtils):
         :param overwrite: bool
             Whether to overwrite an existing file or not
 
+        :param cloud: str
+            Name of the cloud provider:
+                -> google: Google Cloud Storage
+                -> aws: AWS Cloud
+
+        :param bucket_name: str
+            Name of the bucket of the cloud provider
+
         :param kwargs: dict
             Additional key word arguments
         """
         super().__init__(file_path=file_path, create_dir=create_dir)
         self.obj = obj
+        self.cloud: str = cloud
+        self.bucket_name: str = bucket_name
         if self.create_dir:
             self.make_dir()
         if not overwrite:
@@ -612,8 +625,13 @@ class DataExporter(FileUtils):
         """
         Export data as pickle file
         """
-        with open(self.full_path, 'wb') as _output:
-            pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
+        if self.cloud is None:
+            with open(self.full_path, 'wb') as _output:
+                pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
+        elif self.cloud == 'google':
+            self._google_cloud_storage()
+        elif self.cloud == 'aws':
+            raise FileUtilsException('AWS not supported')
 
     def _py(self):
         """
@@ -621,6 +639,15 @@ class DataExporter(FileUtils):
         """
         with open(self.full_path, 'w') as file:
             file.write(self.obj)
+
+    def _google_cloud_storage(self):
+        """
+        Upload files from export path to Google Cloud Storage.
+        """
+        _client = storage.Client()
+        _bucket = _client.get_bucket(self.bucket_name)
+        _blob = _bucket.blob(self.file_path)
+        _blob.upload_from_filename(self.file_name)
 
     def _text(self):
         """

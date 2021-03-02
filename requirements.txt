@@ -1,6 +1,7 @@
 dask>=2.23.0
 fsspec>=0.8.0
 geojson>=2.5.0
+google-cloud-storage>=1.36.1
 ipywidgets>=0.5.1
 joblib>=0.14.1
 networkx>=2.2
