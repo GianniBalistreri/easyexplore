@@ -419,6 +419,8 @@ class DataImporter(FileUtils):
                 return pickle.load(file=file)
         elif self.cloud == 'google':
             self._google_cloud_storage()
+            with open(self.google_cloud_file_name.split('/')[-1], 'rb') as file:
+                return pickle.load(file=file)
         elif self.cloud == 'aws':
             raise NotImplementedError('AWS not supported yet')
 
