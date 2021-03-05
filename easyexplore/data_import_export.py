@@ -301,7 +301,7 @@ class DataImporter(FileUtils):
         _client = storage.Client()
         _bucket = _client.get_bucket(bucket_or_name=self.bucket_name)
         _blob = _bucket.blob(blob_name=self.google_cloud_file_name)
-        _blob.download_to_filename(filename=self.google_cloud_file_name)
+        _blob.download_to_filename(filename=self.google_cloud_file_name.split('/')[-1])
 
     def _html(self):
         """
