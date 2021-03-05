@@ -10,6 +10,8 @@ from google.cloud import storage
 from sqlalchemy import create_engine
 from typing import List
 
+CLOUD_PROVIDER: List[str] = ['aws', 'google']
+
 
 class FileUtilsException(Exception):
     """
@@ -20,15 +22,28 @@ class FileUtilsException(Exception):
 
 class FileUtils:
     """
-    Class for handling files
+    Class for handling file utilities
     """
-    def __init__(self, file_path: str, create_dir: bool = False):
+    def __init__(self,
+                 file_path: str,
+                 create_dir: bool = False,
+                 cloud: str = None,
+                 bucket_name: str = None,
+                 ):
         """
         :param file_path: str
             File path
 
         :param create_dir: bool
             Create directories if they are not existed
+
+        :param cloud: str
+            Name of the cloud provider:
+                -> google: Google Cloud Storage
+                -> aws: AWS Cloud
+
+        :param bucket_name: str
+            Name of the bucket of the cloud provider
         """
         if len(file_path) == 0:
             raise FileUtilsException('No file path found')
@@ -41,6 +56,16 @@ class FileUtils:
         else:
             self.file_type = None
         self.create_dir = create_dir
+        self.cloud: str = cloud
+        self.bucket_name: str = bucket_name
+        self.google_cloud_file_name: str = None
+        self.google_cloud_file_path: str = None
+        if self.cloud is not None:
+            if self.cloud not in CLOUD_PROVIDER:
+                raise FileUtilsException('Cloud provider ({}) not supported'.format(self.cloud))
+        if self.cloud == 'google':
+            self.google_cloud_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
+            self.google_cloud_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
         if self.create_dir:
             if self.full_path.find('/') >= 0:
                 self.make_dir()
@@ -79,8 +104,10 @@ class DataImporter(FileUtils):
                  file_path: str,
                  as_data_frame: bool = True,
                  use_dask: bool = True,
-                 create_dir: bool = True,
+                 create_dir: bool = False,
                  sep: str = ',',
+                 cloud: str = None,
+                 bucket_name: str = None,
                  **kwargs: dict
                  ):
         """
@@ -99,10 +126,22 @@ class DataImporter(FileUtils):
         :param sep: str
             File separator
 
+        :param cloud: str
+            Name of the cloud provider:
+                -> google: Google Cloud Storage
+                -> aws: AWS Cloud
+
+        :param bucket_name: str
+            Name of the bucket of the cloud provider
+
         :param kwargs: dict
             Additional key word arguments
         """
-        super().__init__(file_path=file_path, create_dir=create_dir)
+        super().__init__(file_path=file_path,
+                         create_dir=create_dir,
+                         cloud=cloud,
+                         bucket_name=bucket_name
+                         )
         self.as_df: bool = as_data_frame
         self.use_dask: bool = use_dask
         self.partitions: int = 4 if kwargs.get('npartitions') is None else kwargs.get('npartitions')
@@ -255,6 +294,15 @@ class DataImporter(FileUtils):
                   ) as file:
             return file.read()
 
+    def _google_cloud_storage(self):
+        """
+        Download files from Google Cloud Storage.
+        """
+        _client = storage.Client()
+        _bucket = _client.get_bucket(bucket_or_name=self.bucket_name)
+        _blob = _bucket.blob(blob_name=self.google_cloud_file_name)
+        _blob.download_to_filename(filename=self.google_cloud_file_name)
+
     def _html(self):
         """
         Import parsed text content from html file
@@ -366,8 +414,13 @@ class DataImporter(FileUtils):
         :return: pickle.load
             Content of pickle file
         """
-        with open(self.full_path, 'rb') as file:
-            return pickle.load(file=file)
+        if self.cloud is None:
+            with open(self.full_path, 'rb') as file:
+                return pickle.load(file=file)
+        elif self.cloud == 'google':
+            self._google_cloud_storage()
+        elif self.cloud == 'aws':
+            raise NotImplementedError('AWS not supported yet')
 
     def _pickle_as_df(self):
         """
@@ -529,7 +582,7 @@ class DataExporter(FileUtils):
     def __init__(self,
                  obj,
                  file_path: str,
-                 create_dir: bool = True,
+                 create_dir: bool = False,
                  overwrite: bool = False,
                  cloud: str = None,
                  bucket_name: str = None,
@@ -559,15 +612,12 @@ class DataExporter(FileUtils):
         :param kwargs: dict
             Additional key word arguments
         """
-        super().__init__(file_path=file_path, create_dir=create_dir)
+        super().__init__(file_path=file_path,
+                         create_dir=create_dir,
+                         cloud=cloud,
+                         bucket_name=bucket_name
+                         )
         self.obj = obj
-        self.cloud: str = cloud
-        self.bucket_name: str = bucket_name
-        self.google_cloud_file_name: str = None
-        self.google_cloud_file_path: str = None
-        if self.cloud == 'google':
-            self.google_cloud_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
-            self.google_cloud_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
         if self.create_dir:
             self.make_dir()
         if not overwrite:
@@ -640,7 +690,7 @@ class DataExporter(FileUtils):
                 pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
             self._google_cloud_storage()
         elif self.cloud == 'aws':
-            raise FileUtilsException('AWS not supported yet')
+            raise NotImplementedError('AWS not supported yet')
 
     def _py(self):
         """
@@ -651,12 +701,12 @@ class DataExporter(FileUtils):
 
     def _google_cloud_storage(self):
         """
-        Upload files from export path to Google Cloud Storage.
+        Upload files to Google Cloud Storage.
         """
         _client = storage.Client()
-        _bucket = _client.get_bucket(self.bucket_name)
-        _blob = _bucket.blob(self.google_cloud_file_name)
-        _blob.upload_from_filename(self.google_cloud_file_name)
+        _bucket = _client.get_bucket(bucket_or_name=self.bucket_name)
+        _blob = _bucket.blob(blob_name=self.google_cloud_file_name)
+        _blob.upload_from_filename(filename=self.google_cloud_file_name)
 
     def _text(self):
         """
