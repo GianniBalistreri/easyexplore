@@ -518,7 +518,9 @@ class DataImporter(FileUtils):
         :return: object
             File content
         """
-        if self.file_type in ['csv', 'tsv', 'txt']:
+        if self.file_type is None:
+            return self._parquet()
+        elif self.file_type in ['csv', 'tsv', 'txt']:
             return self._text_as_df() if self.as_df else self._file()
         elif self.file_type in ['p', 'pkl', 'pickle']:
             return self._pickle_as_df() if self.as_df else self._pickle()
@@ -745,7 +747,9 @@ class DataExporter(FileUtils):
         """
         Export data as file object
         """
-        if self.file_type in ['csv', 'tsv', 'txt']:
+        if self.file_type is None:
+            return self._parquet()
+        elif self.file_type in ['csv', 'tsv', 'txt']:
             if isinstance(self.obj, pd.DataFrame) or isinstance(self.obj, dd.DataFrame):
                 return self._text_from_df()
             else:
