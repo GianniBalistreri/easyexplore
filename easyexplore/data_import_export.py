@@ -51,7 +51,7 @@ class FileUtils:
         self.file_name: str = self.full_path.split('/')[-1]
         self.file_path: str = self.full_path.replace(self.file_name, '')
         _file_type = self.file_name.split('.')
-        if len(_file_type) > 0:
+        if len(_file_type) > 1:
             self.file_type = _file_type[len(_file_type) - 1]
         else:
             self.file_type = None
