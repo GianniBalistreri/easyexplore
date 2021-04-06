@@ -664,7 +664,7 @@ class EasyExploreUtils:
     Class for applying general utility methods
     """
     @staticmethod
-    def _get_analytical_type(df,
+    def _get_analytical_type(df: pd.DataFrame,
                              feature: str,
                              dtype: List[np.dtype],
                              continuous: List[str] = None,
@@ -672,7 +672,8 @@ class EasyExploreUtils:
                              ordinal: List[str] = None,
                              date: List[str] = None,
                              id_text: List[str] = None,
-                             date_edges: Tuple[str, str] = None
+                             date_edges: Tuple[str, str] = None,
+                             max_categories: int = 100
                              ) -> Dict[str, str]:
         """
         Get analytical data type of feature using dask for parallel computing
@@ -701,6 +702,9 @@ class EasyExploreUtils:
         :param id_text: List[str]
             Name of the identifier or text features
 
+        :param max_categories: int
+            Maximum number of categories for identifying feature as categorical
+
         :return Dict[str, str]:
             Analytical data type and feature name
         """
@@ -721,50 +725,63 @@ class EasyExploreUtils:
                 return {'id_text': feature}
         _feature_data = df.loc[~df[feature].isnull(), feature]
         if str(dtype).find('float') >= 0:
-            _unique = _feature_data.unique().values.compute()
-            if any(_feature_data.isnull().compute()):
+            _unique = _feature_data.unique()
+            if any(_feature_data.isnull()):
                 if any(_unique[~pd.isnull(_unique)] % 1) != 0:
                     return {'continuous': feature}
                 else:
-                    if len(str(_feature_data.min().compute()).split('.')[0]) > 4:
+                    if len(str(_feature_data.min()).split('.')[0]) > 4:
                         try:
                             assert pd.to_datetime(_feature_data)
                             if date_edges is None:
                                 return {'date': feature}
                             else:
-                                if (date_edges[0] < pd.to_datetime(_unique.min())) or (date_edges[1] > pd.to_datetime(_unique.max())):
+                                if (date_edges[0] < pd.to_datetime(_unique.min())) or (
+                                        date_edges[1] > pd.to_datetime(_unique.max())):
                                     return {'id_text': feature}
                                 else:
                                     return {'date': feature}
                         except (TypeError, ValueError):
                             return {'id_text': feature}
                     else:
-                        return {'categorical': feature}
+                        if len(_unique) > max_categories:
+                            return {'ordinal': feature}
+                        else:
+                            return {'categorical': feature}
             else:
                 if any(_unique % 1) != 0:
                     return {'continuous': feature}
                 else:
-                    if len(str(_feature_data.min().compute()).split('.')[0]) > 4:
+                    if len(str(_feature_data.min()).split('.')[0]) > 4:
                         try:
-                            assert pd.to_datetime(_feature_data.compute())
+                            assert pd.to_datetime(_feature_data)
                             if date_edges is None:
                                 return {'date': feature}
                             else:
-                                if (date_edges[0] < pd.to_datetime(_unique.min())) or (date_edges[1] > pd.to_datetime(_unique.max())):
+                                if (date_edges[0] < pd.to_datetime(_unique.min())) or (
+                                        date_edges[1] > pd.to_datetime(_unique.max())):
                                     return {'id_text': feature}
                                 else:
                                     return {'date': feature}
                         except (TypeError, ValueError):
                             return {'id_text': feature}
                     else:
-                        return {'categorical': feature}
+                        if len(_feature_data) == len(_feature_data.unique()):
+                            return {'id_text': feature}
+                        if len(_unique) > max_categories:
+                            return {'ordinal': feature}
+                        else:
+                            return {'categorical': feature}
         elif str(dtype).find('int') >= 0:
-            if len(_feature_data) == len(_feature_data.unique().values.compute()):
+            if len(_feature_data) == len(_feature_data.unique()):
                 return {'id_text': feature}
             else:
-                return {'categorical': feature}
+                if len(_feature_data.unique()) > max_categories:
+                    return {'ordinal': feature}
+                else:
+                    return {'categorical': feature}
         elif str(dtype).find('object') >= 0:
-            _unique: np.array = _feature_data.unique().values.compute()
+            _unique: np.array = _feature_data.unique()
             _digits: int = 0
             _dot: bool = False
             _max_dots: int = 0
@@ -772,7 +789,9 @@ class EasyExploreUtils:
                 if text_val == text_val:
                     if (str(text_val).find('.') >= 0) or (str(text_val).replace(',', '').isdigit()):
                         _dot = True
-                    if str(text_val).replace('.', '').replace('-', '').isdigit() or str(text_val).replace(',', '').replace('-', '').isdigit():
+                    if str(text_val).replace('.', '').replace('-', '').isdigit() or str(text_val).replace(',',
+                                                                                                          '').replace(
+                        '-', '').isdigit():
                         if (len(str(text_val).split('.')) == 2) or (len(str(text_val).split(',')) == 2):
                             _digits += 1
                     if len(str(text_val).split('.')) > _max_dots:
@@ -793,19 +812,22 @@ class EasyExploreUtils:
                         else:
                             return {'id_text': feature}
                 else:
-                    if len(_feature_data) == len(_feature_data.unique().values.compute()):
+                    if len(_feature_data) == len(_feature_data.unique()):
                         return {'id_text': feature}
                     _len_of_feature = pd.DataFrame()
-                    _len_of_feature[feature] = _feature_data[~_feature_data.isnull()].values.compute()
+                    _len_of_feature[feature] = _feature_data[~_feature_data.isnull()]
                     _len_of_feature['len'] = _len_of_feature[feature].str.len()
                     _unique_values: np.array = _len_of_feature['len'].unique()
-                    if len(_feature_data.unique().compute()) >= (len(_feature_data) * 0.5):
+                    if len(_feature_data.unique()) >= (len(_feature_data) * 0.5):
                         return {'id_text': feature}
                     else:
-                        return {'categorical': feature}
+                        if len(_feature_data.unique()) > max_categories:
+                            return {'ordinal': feature}
+                        else:
+                            return {'categorical': feature}
             else:
                 try:
-                    _potential_date = _feature_data[~_feature_data.isnull()].compute()
+                    _potential_date = _feature_data[~_feature_data.isnull()]
                     _unique_years = pd.to_datetime(_potential_date).dt.year.unique()
                     _unique_months = pd.to_datetime(_potential_date).dt.isocalendar().week.unique()
                     _unique_days = pd.to_datetime(_potential_date).dt.day.unique()
@@ -813,52 +835,58 @@ class EasyExploreUtils:
                     if _unique_cats > 4:
                         return {'date': feature}
                     else:
-                        if len(_feature_data) == len(_feature_data.unique().values.compute()):
+                        if len(_feature_data) == len(_feature_data.unique()):
                             return {'id_text': feature}
-                        if len(_feature_data.unique().values.compute()) <= 3:
+                        if len(_feature_data.unique().values) <= 3:
                             return {'categorical': feature}
                         else:
                             _len_of_feature = pd.DataFrame()
-                            _len_of_feature[feature] = _feature_data[~_feature_data.isnull()].values.compute()
+                            _len_of_feature[feature] = _feature_data[~_feature_data.isnull()]
                             _len_of_feature['len'] = _len_of_feature[feature].str.len()
                             _unique_values: np.array = _len_of_feature['len'].unique()
                             for val in _unique_values:
                                 if len(re.findall(pattern=r'[a-zA-Z]', string=str(val))) > 0:
-                                    if len(_feature_data.unique().compute()) >= (len(_feature_data) * 0.5):
+                                    if len(_feature_data.unique()) >= (len(_feature_data) * 0.5):
                                         return {'id_text': feature}
                                     else:
                                         return {'categorical': feature}
                             if np.min(_unique_values) > 3:
-                                if len(_feature_data.unique().compute()) >= (len(_feature_data) * 0.5):
+                                if len(_feature_data.unique()) >= (len(_feature_data) * 0.5):
                                     return {'id_text': feature}
                                 else:
-                                    return {'categorical': feature}
+                                    if len(_feature_data.unique().values) > max_categories:
+                                        return {'ordinal': feature}
+                                    else:
+                                        return {'categorical': feature}
                             else:
                                 return {'categorical': feature}
                 except (TypeError, ValueError):
                     if len(_feature_data) == len(_unique):
                         return {'id_text': feature}
-                    if len(_feature_data.unique().values.compute()) <= 3:
+                    if len(_feature_data.unique()) <= 3:
                         return {'categorical': feature}
                     else:
-                        _len_of_feature = _feature_data[~_feature_data.isnull()].compute()
+                        _len_of_feature = _feature_data[~_feature_data.isnull()]
                         _len_of_feature['len'] = _len_of_feature.str.len()
                         _unique_values: np.array = _len_of_feature['len'].unique()
-                        for val in _feature_data.unique().values.compute():
+                        for val in _feature_data.unique():
                             if len(re.findall(pattern=r'[a-zA-Z]', string=str(val))) > 0:
-                                if len(_feature_data.unique().compute()) >= (len(_feature_data) * 0.5):
+                                if len(_feature_data.unique()) >= (len(_feature_data) * 0.5):
                                     return {'id_text': feature}
                                 else:
-                                    return {'categorical': feature}
+                                    if len(_feature_data.unique()) > max_categories:
+                                        return {'ordinal': feature}
+                                    else:
+                                        return {'categorical': feature}
                         for ch in SPECIAL_CHARACTERS:
                             if any(_len_of_feature.str.find(ch) > 0):
-                                if len(_feature_data.unique().compute()) >= (len(_feature_data) * 0.5):
+                                if len(_feature_data.unique()) >= (len(_feature_data) * 0.5):
                                     return {'id_text': feature}
                                 else:
                                     return {'categorical': feature}
-                        #if np.mean(_unique_values) == np.median(_unique_values):
+                        # if np.mean(_unique_values) == np.median(_unique_values):
                         #    return {'id_text': feature}
-                        #else:
+                        # else:
                         return {'categorical': feature}
         elif str(dtype).find('date') >= 0:
             return {'date': feature}
@@ -1224,7 +1252,7 @@ class EasyExploreUtils:
         return _duplicates
 
     def get_feature_types(self,
-                          df,
+                          df: pd.DataFrame,
                           features: List[str],
                           dtypes: List[np.dtype],
                           continuous: List[str] = None,
@@ -1233,6 +1261,7 @@ class EasyExploreUtils:
                           date: List[str] = None,
                           id_text: List[str] = None,
                           date_edges: Tuple[str, str] = None,
+                          max_categories: int = 100,
                           multi_threading: bool = False,
                           print_msg: bool = False
                           ) -> Dict[str, List[str]]:
@@ -1266,6 +1295,9 @@ class EasyExploreUtils:
         :param date_edges:
             Minimum and maximum time for identifying date features
 
+        :param max_categories: int
+            Maximum number of categories for identifying feature as categorical
+
         :param multi_threading: bool
             Run feature type interpretation on multiple threads
 
@@ -1277,12 +1309,6 @@ class EasyExploreUtils:
         """
         if print_msg:
             Log(write=False, level='info').log(msg='Start feature type segmentation...')
-        if isinstance(df, pd.DataFrame):
-            _df: dd.DataFrame = dd.from_pandas(data=df, npartitions=4)
-        elif isinstance(df, dd.DataFrame):
-            _df: dd.DataFrame = df
-        else:
-            raise EasyExploreUtilsException('Format of data set ({}) not supported. Use Pandas DataFrame or dask dataframe instead'.format(type(df)))
         _feature_types: Dict[str, List[str]] = dict(id_text=[], categorical=[], ordinal=[], date=[], continuous=[])
         if date_edges is None:
             _date_edges = None
@@ -1297,7 +1323,7 @@ class EasyExploreUtils:
         _threads: dict = {}
         for i, feature in enumerate(features):
             if multi_threading:
-                _delayed_analytical_type: dask.delayed = dask.delayed(self._get_analytical_type(df=_df,
+                _delayed_analytical_type: dask.delayed = dask.delayed(self._get_analytical_type(df=df,
                                                                                                 feature=feature,
                                                                                                 dtype=dtypes[i],
                                                                                                 continuous=continuous,
@@ -1305,12 +1331,13 @@ class EasyExploreUtils:
                                                                                                 ordinal=ordinal,
                                                                                                 date=date,
                                                                                                 id_text=id_text,
-                                                                                                date_edges=_date_edges
+                                                                                                date_edges=_date_edges,
+                                                                                                max_categories=max_categories
                                                                                                 )
                                                                       )
                 _threads.update({i: _delayed_analytical_type})
             else:
-                _analytical_type: Dict[str, str] = self._get_analytical_type(df=_df,
+                _analytical_type: Dict[str, str] = self._get_analytical_type(df=df,
                                                                              feature=feature,
                                                                              dtype=dtypes[i],
                                                                              continuous=continuous,
@@ -1318,7 +1345,8 @@ class EasyExploreUtils:
                                                                              ordinal=ordinal,
                                                                              date=date,
                                                                              id_text=id_text,
-                                                                             date_edges=_date_edges
+                                                                             date_edges=_date_edges,
+                                                                             max_categories=max_categories
                                                                              )
                 _type: str = list(_analytical_type.keys())[0]
                 _feature: str = _analytical_type[list(_analytical_type.keys())[0]]
