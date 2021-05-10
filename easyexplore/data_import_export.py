@@ -1,4 +1,5 @@
 import boto3
+import io
 import json
 import os
 import pandas as pd
@@ -661,12 +662,15 @@ class DataExporter(FileUtils):
             else:
                 self.full_path = self.full_path.replace('({}).{}'.format(_i - 1, self.file_type), '({}).{}'.format(_i, self.file_type))
 
-    def _aws_s3(self):
+    def _aws_s3(self, buffer: io.BytesIO):
         """
         Upload files to AWS S3 bucket
+
+        :param buffer: io.BytesIO
+            Object bytes
         """
         _aws_s3_client = boto3.client('s3', region_name=self.region)
-        _aws_s3_client.put_object(Body=self.obj, Bucket=self.bucket_name, Key=self.file_name)
+        _aws_s3_client.put_object(Body=buffer.getvalue(), Bucket=self.bucket_name, Key=self.file_name)
 
     def _html(self):
         """
@@ -725,11 +729,13 @@ class DataExporter(FileUtils):
             with open(self.full_path, 'wb') as _output:
                 pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
         elif self.cloud == 'aws':
-            if not os.path.exists(self.aws_s3_file_path):
-                os.makedirs(name=self.aws_s3_file_path, exist_ok=True)
-            with open(self.aws_s3_file_name, 'wb') as _output:
-                pickle.dump(obj=self.obj, file=_output, protocol=pickle.HIGHEST_PROTOCOL)
-            self._aws_s3()
+            _buffer: io.BytesIO = io.BytesIO()
+            #if not os.path.exists(self.aws_s3_file_path):
+            #    os.makedirs(name=self.aws_s3_file_path, exist_ok=True)
+            #with open(self.aws_s3_file_name, 'wb') as _output:
+            #    pickle.dump(obj=self.obj, file=_output, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(obj=self.obj, file=_buffer, protocol=pickle.HIGHEST_PROTOCOL)
+            self._aws_s3(buffer=_buffer)
         elif self.cloud == 'google':
             if not os.path.exists(self.google_cloud_file_path):
                 os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
