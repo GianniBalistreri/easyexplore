@@ -23,7 +23,7 @@ from itertools import islice
 from scipy.stats import anderson, chi2, chi2_contingency, f_oneway, friedmanchisquare, mannwhitneyu, normaltest, kendalltau,\
                         kruskal, kstest, pearsonr, powerlaw, shapiro, spearmanr, stats, ttest_ind, ttest_rel, wilcoxon
 from statsmodels.stats.weightstats import ztest
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 INVALID_VALUES: list = ['nan', 'NaN', 'NaT', np.nan, 'none', 'None', 'inf', '-inf', np.inf, -np.inf] # None
 PERCENTILES: List[float] = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
@@ -893,7 +893,12 @@ class EasyExploreUtils:
         elif str(dtype).find('bool') >= 0:
             return {'categorical': feature}
 
-    def check_dtypes(self, df, feature_types: Dict[str, List[str]] = None, date_edges: Tuple[str, str] = None) -> dict:
+    def check_dtypes(self,
+                     df: Union[dd.DataFrame, pd.DataFrame],
+                     feature_types: Dict[str, List[str]] = None,
+                     date_edges: Tuple[str, str] = None,
+                     ignore_features: List[str] = None
+                     ) -> dict:
         """
         Check if data types of Pandas DataFrame match with the analytical measurement of data
 
@@ -909,6 +914,10 @@ class EasyExploreUtils:
                 -> date
 
         :param date_edges: Tuple[str, str]
+            Date edges for identifying feature as date feature
+
+        :param ignore_features: List[str]
+            Name of the features to ignore
 
         :return dict
             Data type conversion recommendation
@@ -927,13 +936,16 @@ class EasyExploreUtils:
         if isinstance(df, dd.DataFrame):
             _df: dd.DataFrame = df
         elif isinstance(df, pd.DataFrame):
-            _df: dd.DataFrame = dd.from_pandas(data=df, npartitions=1)
+            _df: dd.DataFrame = dd.from_pandas(data=df, npartitions=3)
         else:
             raise EasyExploreUtilsException('Format of data input ({}) not supported. Use Pandas or dask DataFrame instead'.format(type(df)))
+        if ignore_features is not None:
+            for ignore_feature in ignore_features:
+                del _features[_features.index(ignore_feature)]
         _table: Dict[str, List[str]] = {'feature_type': [], 'data_type': [], 'rec': []}
         for i in range(0, len(_features), 1):
-            if any(df[_features[i]].isnull().compute()):
-                if len(df[_features[i]].unique().values.compute()) == 1:
+            if any(_df[_features[i]].isnull().compute()):
+                if len(_df[_features[i]].unique().values.compute()) == 1:
                     _typing['meta'].update({_features[i]: dict(data_type='unknown',
                                                                feature_type='float',
                                                                rec='Drop feature (no valid data)'
@@ -963,7 +975,7 @@ class EasyExploreUtils:
                                             })
                     _typing['conversion'].update({_features[i]: 'int'})
                 elif _features[i] in _feature_types.get('continuous'):
-                    if any(df[_features[i]].isnull().compute()):
+                    if any(_df[_features[i]].isnull().compute()):
                         _typing['meta'].update({_features[i]: dict(data_type='continuous',
                                                                    feature_type='float',
                                                                    rec='Handle missing data'
@@ -976,13 +988,13 @@ class EasyExploreUtils:
                                             })
                     _typing['conversion'].update({_features[i]: 'int'})
                     if _features[i] in _feature_types.get('categorical'):
-                        if any(df[_features[i]].isnull().compute()):
+                        if any(_df[_features[i]].isnull().compute()):
                             _typing['meta'][_features[i]].update({'rec': 'Handle missing data and convert to integer'})
                         else:
                             _typing['meta'][_features[i]].update({'rec': 'Convert to integer'})
             elif str(_dtypes[i]).find('int') >= 0:
                 if _features[i] not in _feature_types.get('categorical'):
-                    _typing['meta'][_features[i]].update({_features[i]: dict(feature_type='int')})
+                    _typing['meta'].update({_features[i]: dict(feature_type='int')})
                     if _features[i] in _feature_types.get('ordinal'):
                         continue
                     elif _features[i] in _feature_types.get('date'):
@@ -990,7 +1002,7 @@ class EasyExploreUtils:
                                                                    rec='Convert to datetime'
                                                                    )})
                         _typing['conversion'].update({_features[i]: 'date'})
-                    elif _features[i] in _feature_types.get('text'):
+                    elif _features[i] in _feature_types.get('id_text'):
                         _typing['meta'].update({_features[i]: dict(data_type='text',
                                                                    rec='Convert to string'
                                                                    )})
@@ -1009,7 +1021,7 @@ class EasyExploreUtils:
                                                                )
                                             })
                     _typing['conversion'].update({_features[i]: 'float'})
-                    if any(df[_features[i]].isnull().compute()):
+                    if any(_df[_features[i]].isnull().compute()):
                         _typing['meta'][_features[i]].update({'rec': 'Handle missing data and convert to float'})
                     else:
                         _typing['meta'][_features[i]].update({'rec': 'Convert to float'})
@@ -1019,7 +1031,7 @@ class EasyExploreUtils:
                                                                )
                                             })
                     _typing['conversion'].update({_features[i]: 'int'})
-                    if any(df[_features[i]].isnull().compute()):
+                    if any(_df[_features[i]].isnull().compute()):
                         _typing['meta'][_features[i]].update({'rec': 'Handle missing data and convert to integer by label encoding'})
                     else:
                         _typing['meta'][_features[i]].update({'rec': 'Convert to integer by label encoding'})

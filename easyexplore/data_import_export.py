@@ -1,3 +1,5 @@
+import boto3
+import io
 import json
 import os
 import pandas as pd
@@ -29,6 +31,7 @@ class FileUtils:
                  create_dir: bool = False,
                  cloud: str = None,
                  bucket_name: str = None,
+                 region: str = None
                  ):
         """
         :param file_path: str
@@ -44,6 +47,9 @@ class FileUtils:
 
         :param bucket_name: str
             Name of the bucket of the cloud provider
+
+        :param region: str
+            Name of the region (AWS S3-Bucket)
         """
         if len(file_path) == 0:
             raise FileUtilsException('No file path found')
@@ -58,6 +64,9 @@ class FileUtils:
         self.create_dir = create_dir
         self.cloud: str = cloud
         self.bucket_name: str = bucket_name
+        self.region: str = region
+        self.aws_s3_file_name: str = None
+        self.aws_s3_file_path: str = None
         self.google_cloud_file_name: str = None
         self.google_cloud_file_path: str = None
         if self.cloud is not None:
@@ -66,6 +75,9 @@ class FileUtils:
         if self.cloud == 'google':
             self.google_cloud_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
             self.google_cloud_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
+        if self.cloud == 'aws':
+            self.aws_s3_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
+            self.aws_s3_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
         if self.create_dir:
             if self.full_path.find('/') >= 0:
                 self.make_dir()
@@ -108,6 +120,7 @@ class DataImporter(FileUtils):
                  sep: str = ',',
                  cloud: str = None,
                  bucket_name: str = None,
+                 region: str = None,
                  **kwargs: dict
                  ):
         """
@@ -134,13 +147,17 @@ class DataImporter(FileUtils):
         :param bucket_name: str
             Name of the bucket of the cloud provider
 
+        :param region: str
+            Name of the region (AWS S3-Bucket)
+
         :param kwargs: dict
             Additional key word arguments
         """
         super().__init__(file_path=file_path,
                          create_dir=create_dir,
                          cloud=cloud,
-                         bucket_name=bucket_name
+                         bucket_name=bucket_name,
+                         region=region
                          )
         self.as_df: bool = as_data_frame
         self.use_dask: bool = use_dask
@@ -590,6 +607,7 @@ class DataExporter(FileUtils):
                  overwrite: bool = False,
                  cloud: str = None,
                  bucket_name: str = None,
+                 region: str = None,
                  **kwargs
                  ):
         """
@@ -613,13 +631,17 @@ class DataExporter(FileUtils):
         :param bucket_name: str
             Name of the bucket of the cloud provider
 
+        :param region: str
+            Name of the region (AWS S3-Bucket)
+
         :param kwargs: dict
             Additional key word arguments
         """
         super().__init__(file_path=file_path,
                          create_dir=create_dir,
                          cloud=cloud,
-                         bucket_name=bucket_name
+                         bucket_name=bucket_name,
+                         region=region
                          )
         self.obj = obj
         if self.create_dir:
@@ -640,6 +662,16 @@ class DataExporter(FileUtils):
             else:
                 self.full_path = self.full_path.replace('({}).{}'.format(_i - 1, self.file_type), '({}).{}'.format(_i, self.file_type))
 
+    def _aws_s3(self, buffer: io.BytesIO):
+        """
+        Upload files to AWS S3 bucket
+
+        :param buffer: io.BytesIO
+            Object bytes
+        """
+        _aws_s3_client = boto3.client('s3', region_name=self.region)
+        _aws_s3_client.put_object(Body=buffer.getvalue(), Bucket=self.bucket_name, Key=self.file_name)
+
     def _html(self):
         """
         Export data as json file
@@ -654,12 +686,21 @@ class DataExporter(FileUtils):
         with open(self.full_path, 'w', encoding='utf-8') as file:
             file.write(self.obj)
 
+    def _google_cloud_storage(self):
+        """
+        Upload files to Google Cloud Storage.
+        """
+        _client = storage.Client()
+        _bucket = _client.get_bucket(bucket_or_name=self.bucket_name)
+        _blob = _bucket.blob(blob_name=self.google_cloud_file_name)
+        _blob.upload_from_filename(filename=self.google_cloud_file_name)
+
     def _json(self):
         """
         Export data as json file
         """
         with open(self.full_path, 'w', encoding='utf-8') as file:
-            json.dump(self.obj, file, ensure_ascii=False)
+            json.dump(obj=self.obj, fp=file, ensure_ascii=False)
 
     def _parquet(self):
         """
@@ -687,14 +728,20 @@ class DataExporter(FileUtils):
         if self.cloud is None:
             with open(self.full_path, 'wb') as _output:
                 pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
+        elif self.cloud == 'aws':
+            _buffer: io.BytesIO = io.BytesIO()
+            #if not os.path.exists(self.aws_s3_file_path):
+            #    os.makedirs(name=self.aws_s3_file_path, exist_ok=True)
+            #with open(self.aws_s3_file_name, 'wb') as _output:
+            #    pickle.dump(obj=self.obj, file=_output, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(obj=self.obj, file=_buffer, protocol=pickle.HIGHEST_PROTOCOL)
+            self._aws_s3(buffer=_buffer)
         elif self.cloud == 'google':
             if not os.path.exists(self.google_cloud_file_path):
                 os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
             with open(self.google_cloud_file_name, 'wb') as _output:
-                pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(obj=self.obj, file=_output, protocol=pickle.HIGHEST_PROTOCOL)
             self._google_cloud_storage()
-        elif self.cloud == 'aws':
-            raise NotImplementedError('AWS not supported yet')
 
     def _py(self):
         """
@@ -702,15 +749,6 @@ class DataExporter(FileUtils):
         """
         with open(self.full_path, 'w') as file:
             file.write(self.obj)
-
-    def _google_cloud_storage(self):
-        """
-        Upload files to Google Cloud Storage.
-        """
-        _client = storage.Client()
-        _bucket = _client.get_bucket(bucket_or_name=self.bucket_name)
-        _blob = _bucket.blob(blob_name=self.google_cloud_file_name)
-        _blob.upload_from_filename(filename=self.google_cloud_file_name)
 
     def _text(self):
         """
