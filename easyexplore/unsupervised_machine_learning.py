@@ -20,9 +20,14 @@ class Clustering:
     """
     def __init__(self, cl_params: dict = None, cpu_cores: int = 0, seed: int = 1234):
         """
-        :param cl_params:
-        :param cpu_cores:
-        :param seed:
+        :param cl_params: dict
+            Clustering hyperparameters
+
+        :param cpu_cores: int
+            Number of cpu cores
+
+        :param seed: int
+            Seed
         """
         self.cl_params: dict = {} if cl_params is None else cl_params
         self.seed: int = 1234 if seed <= 0 else seed
@@ -38,7 +43,8 @@ class Clustering:
         """
         Config affinity propagation
 
-        :return: Sklearn object containing the affinity propagation configuration
+        :return: AffinityPropagation
+            Sklearn object containing the affinity propagation configuration
         """
         return AffinityPropagation(damping=0.5 if self.cl_params.get('damping') is None else self.cl_params.get('damping'),
                                    max_iter=200 if self.cl_params.get('max_iter') is None else self.cl_params.get('max_iter'),
@@ -53,9 +59,10 @@ class Clustering:
         """
         Config agglomerative clustering
 
-        :return: AgglomerativeClustering: Sklearn object containing the agglomerative clustering configuration
+        :return: AgglomerativeClustering
+            Sklearn object containing the agglomerative clustering configuration
         """
-        return AgglomerativeClustering(n_clusters=self.n_cluster_components,
+        return AgglomerativeClustering(n_clusters=3 if self.cl_params.get('n_clusters') is None else self.cl_params.get('n_clusters'),
                                        affinity='euclidean' if self.cl_params.get('affinity') is None else self.cl_params.get('affinity'),
                                        compute_full_tree='auto' if self.cl_params.get('compute_full_tree') is None else self.cl_params.get('compute_full_tree'),
                                        connectivity=self.cl_params.get('connectivity'),
@@ -68,7 +75,8 @@ class Clustering:
         """
         Config birch clustering
 
-        :return: Birch: Sklearn object containing the birch clustering configuration
+        :return: Birch
+            Sklearn object containing the birch clustering configuration
         """
         return Birch(threshold=0.5 if self.cl_params.get('threshold') is None else self.cl_params.get('threshold'),
                      branching_factor=50 if self.cl_params.get('branching_factor') is None else self.cl_params.get('branching_factor'),
@@ -81,7 +89,8 @@ class Clustering:
         """
         Config density-based algorithm for discovering clusters in large spatial databases with noise
 
-        :return: DBSCAN: Sklearn object containing the dbscan clustering configuration
+        :return: DBSCAN
+            Sklearn object containing the dbscan clustering configuration
         """
         return DBSCAN(eps=0.5 if self.cl_params.get('eps') is None else self.cl_params.get('eps'),
                       min_samples=5 if self.cl_params.get('min_samples') is None else self.cl_params.get('min_samples'),
@@ -97,7 +106,8 @@ class Clustering:
         """
         Config factor analysis
 
-        :return: Sklearn object containing the factor analysis configuration
+        :return: FactorAnalysis
+            Sklearn object containing the factor analysis configuration
         """
         return FactorAnalysis(n_components=None if self.cl_params.get('n_components') else self.cl_params.get('n_components'),
                               tol=0.01 if self.cl_params.get('tol') else self.cl_params.get('tol'),
@@ -113,7 +123,8 @@ class Clustering:
         """
         Config feature agglomeration clustering
 
-        :return: Sklearn object containing the feature agglomeration configuration
+        :return: FeatureAgglomeration
+            Sklearn object containing the feature agglomeration configuration
         """
         return FeatureAgglomeration(n_clusters=2 if self.cl_params.get('n_clusters') else self.cl_params.get('n_clusters'),
                                     affinity='euclidean' if self.cl_params.get('affinity') else self.cl_params.get('affinity'),
@@ -129,7 +140,8 @@ class Clustering:
         """
         Config independent component analysis
 
-        :return: FastICA: Sklearn object containing the independent component analysis configuration
+        :return: FastICA
+            Sklearn object containing the independent component analysis configuration
         """
         return FastICA(n_components=2 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
                        algorithm='parallel' if self.cl_params.get('algorithm') is None else self.cl_params.get('algorithm'),
@@ -146,7 +158,8 @@ class Clustering:
         """
         Config isometric mapping
 
-        :return: Isomap: Sklearn object containing the isometric mapping configuration
+        :return: Isomap
+            Sklearn object containing the isometric mapping configuration
         """
         return Isomap(n_neighbors=5 if self.cl_params.get('n_neighbors') is None else self.cl_params.get('n_neighbors'),
                       n_components=2 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
@@ -162,7 +175,8 @@ class Clustering:
         """
         Config k-means clustering
 
-        :return KMeans: Sklearn object containing the k-means clustering configuration
+        :return KMeans
+            Sklearn object containing the k-means clustering configuration
         """
         return KMeans(n_clusters=2 if self.cl_params.get('n_clusters') is None else self.cl_params.get('n_clusters'),
                       init='random' if self.cl_params.get('init') is None else self.cl_params.get('init'),
@@ -176,7 +190,8 @@ class Clustering:
         """
         Config latent dirichlet allocation
 
-        :return: Sklearn object containing the latent dirichlet allocation configuration
+        :return: LatentDirichletAllocation
+            Sklearn object containing the latent dirichlet allocation configuration
         """
         return LatentDirichletAllocation(n_components=10 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
                                          doc_topic_prior=None if self.cl_params.get('doc_topic_prior') is None else self.cl_params.get('doc_topic_prior'),
@@ -200,7 +215,8 @@ class Clustering:
         """
         Config locally linear embedding
 
-        :return: LocallyLinearEmbedding: Sklearn object containing the locally linear embedding configuration
+        :return: LocallyLinearEmbedding
+            Sklearn object containing the locally linear embedding configuration
         """
         return LocallyLinearEmbedding(n_neighbors=5 if self.cl_params.get('n_neighbors') is None else self.cl_params.get('n_neighbors'),
                                       n_components=2 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
@@ -220,7 +236,8 @@ class Clustering:
         """
         Config multi dimensional scaling
 
-        :return: MDS: Sklearn object containing the multi dimensional scaling configuration
+        :return: MDS
+            Sklearn object containing the multi dimensional scaling configuration
         """
         return MDS(n_components=2 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
                    metric=True if self.cl_params.get('metric') is None else self.cl_params.get('metric'),
@@ -237,7 +254,8 @@ class Clustering:
         """
         Config non-negative matrix factorization
 
-        :return NMF: Sklearn object containing the non-negative matrix factorization clustering configuration
+        :return NMF
+            Sklearn object containing the non-negative matrix factorization clustering configuration
         """
         return NMF(n_components=10 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
                    init=None if self.cl_params.get('init') is None else self.cl_params.get('init'),
@@ -256,7 +274,8 @@ class Clustering:
         """
         Config ordering points to identify clustering structure
 
-        :return: OPTICS: Sklearn object containing the optics configuration
+        :return: OPTICS
+            Sklearn object containing the optics configuration
         """
         return OPTICS(min_samples=5 if self.cl_params.get('min_samples') is None else self.cl_params.get('min_samples'),
                       max_eps=np.inf if self.cl_params.get('max_eps') is None else self.cl_params.get('max_eps'),
@@ -277,7 +296,8 @@ class Clustering:
         """
         Config principal component analysis
 
-        :return: PCA: Sklearn object containing the principal component analysis configuration
+        :return: PCA
+            Sklearn object containing the principal component analysis configuration
         """
         return PCA(n_components=self.cl_params.get('n_components'),
                    copy=True if self.cl_params.get('copy') is None else self.cl_params.get('copy'),
@@ -292,7 +312,8 @@ class Clustering:
         """
         Config spectral clustering
 
-        :return: SpectralClustering: Sklearn object containing the spectral clustering configuration
+        :return: SpectralClustering
+            Sklearn object containing the spectral clustering configuration
         """
         return SpectralClustering(n_clusters=8 if self.cl_params.get('n_clusters') is None else self.cl_params.get('n_clusters'),
                                   eigen_solver=self.cl_params.get('eigen_solver'),
@@ -313,7 +334,8 @@ class Clustering:
         """
         Config spectral embedding
 
-        :return: SpectralEmbedding: Sklearn object containing the spectral embedding configuration
+        :return: SpectralEmbedding
+            Sklearn object containing the spectral embedding configuration
         """
         return SpectralEmbedding(n_components=2 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
                                  affinity='nearest_neighbors' if self.cl_params.get('affinity') is None else self.cl_params.get('affinity'),
@@ -328,7 +350,8 @@ class Clustering:
         """
         Config t-distributed stochastic neighbor embedding
 
-        :return: TSNE: Sklearn object containing the t-distributed stochastic neighbor embedding configuration
+        :return: TSNE
+            Sklearn object containing the t-distributed stochastic neighbor embedding configuration
         """
         return TSNE(n_components=2 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
                     perplexity=30.0 if self.cl_params.get('perplexity') is None else self.cl_params.get('perplexity'),
@@ -349,7 +372,8 @@ class Clustering:
         """
         Config latent semantic analysis using truncated single value decomposition
 
-        :return: TruncatedSVD: Sklearn object containing the latent truncated single value decomposition configuration
+        :return: TruncatedSVD
+            Sklearn object containing the latent truncated single value decomposition configuration
         """
         return TruncatedSVD(n_components=2 if self.cl_params.get('n_components') is None else self.cl_params.get('n_components'),
                             algorithm='randomized' if self.cl_params.get('algorithm') is None else self.cl_params.get('algorithm'),
@@ -390,21 +414,50 @@ class UnsupervisedML:
                  **kwargs
                  ):
         """
-        :param df: pd.DataFrame: Data set
-        :param features: List[str]: List of strings containing the features to cluster
-        :param target: str: Name of the target features
-        :param cluster_algorithms: List[str]: Names of the cluster algorithms
-        :param find_optimum: bool: Find optimum number of components or clusters or not
-        :param n_cluster_components: int: Amount of clusters for partitioning clustering
-        :param n_neighbors: int: Amount of neighbors
-        :param n_iter: int: Amount of iterations
-        :param metric: List[str]: Names of the metric for each clustering
-        :param affinity: List[str]: Names of the affinity metric for each clustering
-        :param connectivity: List[str]: Names of the connectivity structure for each clustering
-        :param linkage: List[str]: Names of the linkage function for each clustering
-        :param silhouette_analysis: bool: Run silhouette analysis to evaluate clustering or not
-        :param plot: bool: Plot clustering or not
-        :param kwargs: dict: Key-word arguments regarding the machine learning algorithms
+        :param df: pd.DataFrame
+            Data set
+
+        :param features: List[str]
+            List of strings containing the features to cluster
+
+        :param target: str
+            Name of the target features
+
+        :param cluster_algorithms: List[str]
+            Names of the cluster algorithms
+
+        :param find_optimum: bool
+            Find optimum number of components or clusters or not
+
+        :param n_cluster_components: int
+            Amount of clusters for partitioning clustering
+
+        :param n_neighbors: int
+            Amount of neighbors
+
+        :param n_iter: int
+            Amount of iterations
+
+        :param metric: List[str]
+            Names of the metric for each clustering
+
+        :param affinity: List[str]
+            Names of the affinity metric for each clustering
+
+        :param connectivity: List[str]
+            Names of the connectivity structure for each clustering
+
+        :param linkage: List[str]
+            Names of the linkage function for each clustering
+
+        :param silhouette_analysis: bool
+            Run silhouette analysis to evaluate clustering or not
+
+        :param plot: bool
+            Plot clustering or not
+
+        :param kwargs: dict
+            Key-word arguments regarding the machine learning algorithms
         """
         self.df: pd.DataFrame = df
         self.features: List[str] = list(self.df.keys()) if features is None else features
@@ -436,10 +489,10 @@ class UnsupervisedML:
 
     def _cummulative_explained_variance_ratio(self, explained_variance_ratio: np.ndarray) -> int:
         """
-
         Calculate optimal amount of components to be used in principal component analysis based on the explained variance ratio
 
-        :return: Integer indicating the optimal amount of components
+        :return: int
+            Optimal amount of components
         """
         _threshold: float = 0.75 if self.kwargs.get('cev') is None else self.kwargs.get('cev')
         for i, ratio in enumerate(np.cumsum(explained_variance_ratio)):
@@ -450,8 +503,11 @@ class UnsupervisedML:
         """
         Calculate optimal amount of factors to be used in factor analysis based on the eigenvalues
 
-        :param factors: Numpy array containing the factor loadings
-        :return: Integer indicating the optimal amount of factors
+        :param factors: np.array
+            Factor loadings
+
+        :return: int
+            Optimal amount of factors
         """
         _diff: List[float] = []
         self.eigen_value, self.eigen_vector = np.linalg.eig(factors)
@@ -463,7 +519,8 @@ class UnsupervisedML:
         """
         Calculate optimal number of clusters for partitioning clustering
 
-        :return: Integer indicating the optimal amount of clusters
+        :return: int
+            Optimal amount of clusters
         """
         _distortions: list = []
         _max_clusters: int = 10 if self.kwargs.get('max_clusters') is None else self.kwargs.get('max_clusters')
@@ -476,8 +533,11 @@ class UnsupervisedML:
         """
         Calculate silhouette scores to evaluate optimal amount of clusters for most cluster analysis algorithms
 
-        :param labels: List[int]: Predicted cluster labels by any cluster algorithm
-        :return: dict: Optimal clusters and the average silhouette score as well as silhouette score for each sample
+        :param labels: List[int]
+            Predicted cluster labels by any cluster algorithm
+
+        :return: dict
+            Optimal clusters and the average silhouette score as well as silhouette score for each sample
         """
         _lower: int = 10
         _silhouette: dict = {}
