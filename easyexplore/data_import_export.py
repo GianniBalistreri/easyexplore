@@ -670,7 +670,7 @@ class DataExporter(FileUtils):
             Object bytes
         """
         _aws_s3_client = boto3.client('s3', region_name=self.region)
-        _aws_s3_client.put_object(Body=buffer.getvalue(), Bucket=self.bucket_name, Key=self.file_name)
+        _aws_s3_client.put_object(Body=buffer.getvalue(), Bucket=self.bucket_name, Key=self.aws_s3_file_name)
 
     def _html(self):
         """
@@ -730,10 +730,6 @@ class DataExporter(FileUtils):
                 pickle.dump(self.obj, _output, pickle.HIGHEST_PROTOCOL)
         elif self.cloud == 'aws':
             _buffer: io.BytesIO = io.BytesIO()
-            #if not os.path.exists(self.aws_s3_file_path):
-            #    os.makedirs(name=self.aws_s3_file_path, exist_ok=True)
-            #with open(self.aws_s3_file_name, 'wb') as _output:
-            #    pickle.dump(obj=self.obj, file=_output, protocol=pickle.HIGHEST_PROTOCOL)
             pickle.dump(obj=self.obj, file=_buffer, protocol=pickle.HIGHEST_PROTOCOL)
             self._aws_s3(buffer=_buffer)
         elif self.cloud == 'google':
