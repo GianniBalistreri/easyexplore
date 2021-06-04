@@ -7,9 +7,10 @@ ipywidgets==7.5.1
 joblib==0.14.1
 networkx==2.5
 numpy==1.19.2
-pandas==1.1.4
+pandas==1.2.0
 plotly==4.11.0
 pyarrow==2.0.0
+pyLDAvis==3.3.1
 pyod==0.8.2
 scipy==1.5.2
 scikit-learn==0.23.2
