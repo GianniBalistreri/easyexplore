@@ -4,6 +4,7 @@ import json
 import os
 import pandas as pd
 import pickle
+import pyLDAvis
 import sqlite3
 import zipfile
 
@@ -662,12 +663,12 @@ class DataExporter(FileUtils):
             else:
                 self.full_path = self.full_path.replace('({}).{}'.format(_i - 1, self.file_type), '({}).{}'.format(_i, self.file_type))
 
-    def _aws_s3(self, buffer: io.BytesIO):
+    def _aws_s3(self, buffer: io):
         """
         Upload files to AWS S3 bucket
 
-        :param buffer: io.BytesIO
-            Object bytes
+        :param buffer: io
+            Object bytes or string
         """
         _aws_s3_client = boto3.client('s3', region_name=self.region)
         _aws_s3_client.put_object(Body=buffer.getvalue(), Bucket=self.bucket_name, Key=self.aws_s3_file_name)
@@ -676,8 +677,14 @@ class DataExporter(FileUtils):
         """
         Export data as json file
         """
-        with open(self.full_path, 'w', encoding='utf-8') as file:
-            file.write(self.obj)
+        if self.cloud is None:
+            with open(self.full_path, 'w', encoding='utf-8') as file:
+                file.write(self.obj)
+        elif self.cloud == 'aws':
+            _buffer: io.StringIO = io.StringIO()
+            if self.kwargs.get('topic_clustering') is not None:
+                pyLDAvis.save_html(self.obj, _buffer)
+            self._aws_s3(buffer=_buffer)
 
     def _gitignore(self):
         """
