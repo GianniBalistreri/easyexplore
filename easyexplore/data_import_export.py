@@ -1,3 +1,9 @@
+"""
+
+Import and export data sets
+
+"""
+
 import boto3
 import io
 import json
@@ -706,8 +712,15 @@ class DataExporter(FileUtils):
         """
         Export data as json file
         """
-        with open(self.full_path, 'w', encoding='utf-8') as file:
-            json.dump(obj=self.obj, fp=file, ensure_ascii=False)
+        if self.cloud is None:
+            with open(self.full_path, 'w', encoding='utf-8') as file:
+                json.dump(obj=self.obj, fp=file, ensure_ascii=False)
+        elif self.cloud == 'aws':
+            _buffer: io.StringIO = io.StringIO()
+            json.dump(obj=self.obj, fp=_buffer, ensure_ascii=False)
+            self._aws_s3(buffer=_buffer)
+        elif self.cloud == 'google':
+            pass
 
     def _parquet(self):
         """
