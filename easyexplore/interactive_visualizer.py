@@ -1,3 +1,9 @@
+"""
+
+Wrapper for generating interactive visualizations using Plot.ly
+
+"""
+
 import json
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
@@ -8,9 +14,6 @@ from plotly.offline import download_plotlyjs, init_notebook_mode, iplot, plot
 from plotly.subplots import make_subplots
 from plotly.utils import PlotlyJSONEncoder
 from typing import List
-
-# TODO:
-#  Add charts: a) Mesh3D  b) Funnel  c) Dendro-Heatmap
 
 # Supported visualization methods
 plots: List[str] = ['bar',

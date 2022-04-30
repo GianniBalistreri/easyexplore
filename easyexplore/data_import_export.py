@@ -1,3 +1,9 @@
+"""
+
+Import and export data sets
+
+"""
+
 import boto3
 import io
 import json
@@ -11,7 +17,7 @@ import zipfile
 from dask import dataframe as dd
 from google.cloud import storage
 from sqlalchemy import create_engine
-from typing import List
+from typing import List, Union
 
 CLOUD_PROVIDER: List[str] = ['aws', 'google']
 
@@ -73,12 +79,12 @@ class FileUtils:
         if self.cloud is not None:
             if self.cloud not in CLOUD_PROVIDER:
                 raise FileUtilsException('Cloud provider ({}) not supported'.format(self.cloud))
-        if self.cloud == 'google':
-            self.google_cloud_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
-            self.google_cloud_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
         if self.cloud == 'aws':
             self.aws_s3_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
             self.aws_s3_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
+        if self.cloud == 'google':
+            self.google_cloud_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
+            self.google_cloud_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
         if self.create_dir:
             if self.full_path.find('/') >= 0:
                 self.make_dir()
@@ -167,6 +173,16 @@ class DataImporter(FileUtils):
         self.kwargs: dict = kwargs
         self._config_args()
 
+    def _aws_s3(self) -> bytes:
+        """
+        Import file from AWS S3 bucket
+
+        return: bytes
+            File object as bytes
+        """
+        _s3_resource = boto3.resource('s3')
+        return _s3_resource.Bucket(self.bucket_name).Object(self.aws_s3_file_name).get()['Body'].read()
+
     def _config_args(self):
         """
         Set configuration setting for the data import as Pandas DataFrame
@@ -219,7 +235,7 @@ class DataImporter(FileUtils):
                             'memory_map': False if self.kwargs.get('memory_map') is None else self.kwargs.get('memory_map')
                             })
 
-    def _excel_as_df(self):
+    def _excel_as_df(self) -> Union[dd.DataFrame, pd.DataFrame]:
         """
         Import excel file as Pandas DataFrame
 
@@ -299,18 +315,25 @@ class DataImporter(FileUtils):
                              low_memory=self.kwargs.get('low_memory'),
                              )
 
-    def _file(self):
+    def _file(self) -> object:
         """
         Import file
 
         :return: object
             File content
         """
-        with open(file=self.full_path,
-                  mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
-                  encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
-                  ) as file:
-            return file.read()
+        if self.cloud is None:
+            with open(file=self.full_path,
+                      mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
+                      encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
+                      ) as file:
+                return file.read()
+        elif self.cloud == 'aws':
+            return self._aws_s3().decode('utf-8')
+        elif self.cloud == 'google':
+            self._google_cloud_storage()
+            with open(self.google_cloud_file_name.split('/')[-1], 'r') as file:
+                return file.read()
 
     def _google_cloud_storage(self):
         """
@@ -334,7 +357,7 @@ class DataImporter(FileUtils):
         :return: List[pd.DataFrame]
             Contents of the html file as pandas data frames
         """
-        return pd.read_html(io=None,
+        return pd.read_html(io=self.full_path,
                             flavor=self.kwargs.get('flavor'),
                             header=self.kwargs.get('header'),
                             index_col=self.kwargs.get('index_col'),
@@ -351,25 +374,32 @@ class DataImporter(FileUtils):
                             displayed_only=self.kwargs.get('displayed_only')
                             )
 
-    def _json(self) -> json.load:
+    def _json(self) -> dict:
         """
         Import json file
 
-        :return: json.load
+        :return: dict
             Content of the json file
         """
-        with open(file=self.full_path,
-                  mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
-                  encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
-                  ) as json_file:
-            return json.load(fp=json_file,
-                             cls=self.kwargs.get('cls'),
-                             object_hook=self.kwargs.get('object_hook'),
-                             parse_float=self.kwargs.get('parse_float'),
-                             parse_int=self.kwargs.get('parse_int'),
-                             parse_constant=self.kwargs.get('parse_constant'),
-                             object_pairs_hook=self.kwargs.get('object_pairs_hook')
-                             )
+        if self.cloud is None:
+            with open(file=self.full_path,
+                      mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
+                      encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
+                      ) as _file:
+                return json.load(fp=_file,
+                                 cls=self.kwargs.get('cls'),
+                                 object_hook=self.kwargs.get('object_hook'),
+                                 parse_float=self.kwargs.get('parse_float'),
+                                 parse_int=self.kwargs.get('parse_int'),
+                                 parse_constant=self.kwargs.get('parse_constant'),
+                                 object_pairs_hook=self.kwargs.get('object_pairs_hook')
+                                 )
+        elif self.cloud == 'aws':
+            return json.loads(s=self._aws_s3())
+        elif self.cloud == 'google':
+            self._google_cloud_storage()
+            with open(self.google_cloud_file_name.split('/')[-1], 'r') as _file:
+                return json.load(fp=_file)
 
     def _json_as_df(self):
         """
@@ -425,22 +455,22 @@ class DataImporter(FileUtils):
                                chunksize=self.kwargs.get('chunksize')
                                )
 
-    def _pickle(self) -> pickle.load:
+    def _pickle(self) -> object:
         """
         Import pickle file
 
-        :return: pickle.load
+        :return: object
             Content of pickle file
         """
         if self.cloud is None:
             with open(self.full_path, 'rb') as file:
                 return pickle.load(file=file)
+        elif self.cloud == 'aws':
+            return pickle.loads(self._aws_s3())
         elif self.cloud == 'google':
             self._google_cloud_storage()
             with open(self.google_cloud_file_name.split('/')[-1], 'rb') as file:
                 return pickle.load(file=file)
-        elif self.cloud == 'aws':
-            raise NotImplementedError('AWS not supported yet')
 
     def _pickle_as_df(self):
         """
@@ -675,23 +705,43 @@ class DataExporter(FileUtils):
 
     def _html(self):
         """
-        Export data as json file
+        Export data as html file
         """
-        if self.cloud is None:
-            with open(self.full_path, 'w', encoding='utf-8') as file:
-                file.write(self.obj)
-        elif self.cloud == 'aws':
-            _buffer: io.StringIO = io.StringIO()
-            if self.kwargs.get('topic_clustering') is not None:
+        if self.kwargs.get('topic_clustering') is None:
+            if self.cloud is None:
+                with open(self.full_path, 'w', encoding='utf-8') as _file:
+                    _file.write(self.obj)
+            elif self.cloud == 'aws':
+                _buffer: io.StringIO = io.StringIO()
+                _buffer.write(self.obj)
+                self._aws_s3(buffer=_buffer)
+            elif self.cloud == 'google':
+                if not os.path.exists(self.google_cloud_file_path):
+                    os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+                with open(self.google_cloud_file_name, 'w') as _output:
+                    _output.write(self.obj)
+                self._google_cloud_storage()
+        else:
+            if self.cloud is None:
+                with open(self.full_path, 'w', encoding='utf-8') as _file:
+                    pyLDAvis.save_html(self.obj, _file)
+            elif self.cloud == 'aws':
+                _buffer: io.StringIO = io.StringIO()
                 pyLDAvis.save_html(self.obj, _buffer)
-            self._aws_s3(buffer=_buffer)
+                self._aws_s3(buffer=_buffer)
+            elif self.cloud == 'google':
+                if not os.path.exists(self.google_cloud_file_path):
+                    os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+                with open(self.google_cloud_file_name, 'w') as _output:
+                    pyLDAvis.save_html(self.obj, _output)
+                self._google_cloud_storage()
 
     def _gitignore(self):
         """
         Export data as .gitignore file
         """
-        with open(self.full_path, 'w', encoding='utf-8') as file:
-            file.write(self.obj)
+        with open(self.full_path, 'w', encoding='utf-8') as _file:
+            _file.write(self.obj)
 
     def _google_cloud_storage(self):
         """
@@ -706,8 +756,19 @@ class DataExporter(FileUtils):
         """
         Export data as json file
         """
-        with open(self.full_path, 'w', encoding='utf-8') as file:
-            json.dump(obj=self.obj, fp=file, ensure_ascii=False)
+        if self.cloud is None:
+            with open(self.full_path, 'w', encoding='utf-8') as file:
+                json.dump(obj=self.obj, fp=file, ensure_ascii=False)
+        elif self.cloud == 'aws':
+            _buffer: io.StringIO = io.StringIO()
+            json.dump(obj=self.obj, fp=_buffer, ensure_ascii=False)
+            self._aws_s3(buffer=_buffer)
+        elif self.cloud == 'google':
+            if not os.path.exists(self.google_cloud_file_path):
+                os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+            with open(self.google_cloud_file_name, 'w') as _output:
+                json.dump(obj=self.obj, fp=_output, ensure_ascii=False)
+            self._google_cloud_storage()
 
     def _parquet(self):
         """
@@ -750,16 +811,37 @@ class DataExporter(FileUtils):
         """
         Export data as python file
         """
-        with open(self.full_path, 'w') as file:
-            file.write(self.obj)
+        if self.cloud is None:
+            with open(self.full_path, 'w') as _file:
+                _file.write(self.obj)
+        elif self.cloud == 'aws':
+            _buffer: io.StringIO = io.StringIO()
+            _buffer.write(self.obj)
+            self._aws_s3(buffer=_buffer)
+        elif self.cloud == 'google':
+            if not os.path.exists(self.google_cloud_file_path):
+                os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+            with open(self.google_cloud_file_name, 'w') as _output:
+                _output.write(self.obj)
+            self._google_cloud_storage()
 
     def _text(self):
         """
         Export data as text (txt, csv) file
         """
-        _txt = open(self.full_path, 'wb')
-        _txt.write(self.obj)
-        _txt.close()
+        if self.cloud is None:
+            with open(self.full_path, 'w') as _file:
+                _file.write(self.obj)
+        elif self.cloud == 'aws':
+            _buffer: io.StringIO = io.StringIO()
+            _buffer.write(self.obj)
+            self._aws_s3(buffer=_buffer)
+        elif self.cloud == 'google':
+            if not os.path.exists(self.google_cloud_file_path):
+                os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+            with open(self.google_cloud_file_name, 'w') as _output:
+                _output.write(self.obj)
+            self._google_cloud_storage()
 
     def _text_from_df(self):
         """

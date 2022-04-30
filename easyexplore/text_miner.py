@@ -1,3 +1,9 @@
+"""
+
+Generate categorical and semi-continuous features from text features
+
+"""
+
 import copy
 import dask.dataframe as dd
 import emoji
