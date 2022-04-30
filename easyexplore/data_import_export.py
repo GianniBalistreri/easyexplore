@@ -684,8 +684,8 @@ class DataExporter(FileUtils):
         Export data as json file
         """
         if self.cloud is None:
-            with open(self.full_path, 'w', encoding='utf-8') as file:
-                file.write(self.obj)
+            with open(self.full_path, 'w', encoding='utf-8') as _file:
+                _file.write(self.obj)
         elif self.cloud == 'aws':
             _buffer: io.StringIO = io.StringIO()
             if self.kwargs.get('topic_clustering') is not None:
@@ -696,8 +696,8 @@ class DataExporter(FileUtils):
         """
         Export data as .gitignore file
         """
-        with open(self.full_path, 'w', encoding='utf-8') as file:
-            file.write(self.obj)
+        with open(self.full_path, 'w', encoding='utf-8') as _file:
+            _file.write(self.obj)
 
     def _google_cloud_storage(self):
         """
@@ -722,7 +722,7 @@ class DataExporter(FileUtils):
         elif self.cloud == 'google':
             if not os.path.exists(self.google_cloud_file_path):
                 os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
-            with open(self.google_cloud_file_name, 'wb') as _output:
+            with open(self.google_cloud_file_name, 'w') as _output:
                 json.dump(obj=self.obj, fp=_output, ensure_ascii=False)
             self._google_cloud_storage()
 
@@ -768,7 +768,7 @@ class DataExporter(FileUtils):
         Export data as python file
         """
         if self.cloud is None:
-            with open(self.full_path, 'wb') as _file:
+            with open(self.full_path, 'w') as _file:
                 _file.write(self.obj)
         elif self.cloud == 'aws':
             _buffer: io.StringIO = io.StringIO()
@@ -777,7 +777,7 @@ class DataExporter(FileUtils):
         elif self.cloud == 'google':
             if not os.path.exists(self.google_cloud_file_path):
                 os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
-            with open(self.google_cloud_file_name, 'wb') as _output:
+            with open(self.google_cloud_file_name, 'w') as _output:
                 _output.write(self.obj)
             self._google_cloud_storage()
 
@@ -786,7 +786,7 @@ class DataExporter(FileUtils):
         Export data as text (txt, csv) file
         """
         if self.cloud is None:
-            with open(self.full_path, 'wb') as _file:
+            with open(self.full_path, 'w') as _file:
                 _file.write(self.obj)
         elif self.cloud == 'aws':
             _buffer: io.StringIO = io.StringIO()
@@ -795,7 +795,7 @@ class DataExporter(FileUtils):
         elif self.cloud == 'google':
             if not os.path.exists(self.google_cloud_file_path):
                 os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
-            with open(self.google_cloud_file_name, 'wb') as _output:
+            with open(self.google_cloud_file_name, 'w') as _output:
                 _output.write(self.obj)
             self._google_cloud_storage()
 
