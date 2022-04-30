@@ -79,12 +79,12 @@ class FileUtils:
         if self.cloud is not None:
             if self.cloud not in CLOUD_PROVIDER:
                 raise FileUtilsException('Cloud provider ({}) not supported'.format(self.cloud))
-        if self.cloud == 'google':
-            self.google_cloud_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
-            self.google_cloud_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
         if self.cloud == 'aws':
             self.aws_s3_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
             self.aws_s3_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
+        if self.cloud == 'google':
+            self.google_cloud_file_name = '/'.join(self.full_path.split('//')[1].split('/')[1:])
+            self.google_cloud_file_path = '/'.join(self.full_path.split('//')[1].split('/')[1:-1])
         if self.create_dir:
             if self.full_path.find('/') >= 0:
                 self.make_dir()
@@ -181,7 +181,7 @@ class DataImporter(FileUtils):
             File object as bytes
         """
         _s3_resource = boto3.resource('s3')
-        return _s3_resource.Bucket(self.aws_s3_file_path.split('//')[1]).Object(self.aws_s3_file_name).get()['Body'].read()
+        return _s3_resource.Bucket(self.bucket_name).Object(self.aws_s3_file_name).get()['Body'].read()
 
     def _config_args(self):
         """
