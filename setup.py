@@ -19,13 +19,13 @@ requires = [r.strip() for r in requires.split('\n') if ((r.strip()[0] != "#") an
 
 setuptools.setup(
     name='easyexplore',
-    version='0.7.1',
+    version='0.7.2',
     author='Gianni Francesco Balistreri',
     author_email='gbalistreri@gmx.de',
     description='Toolbox for easy and effective data exploration',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    keywords='data exploration interactive visualization machine learning plotly',
+    keywords='data-exploration interactive-visualization plotly machine-learning',
     license='GNU',
     url='https://github.com/GianniBalistreri/easyexplore',
     include_package_data=True,
