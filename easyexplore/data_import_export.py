@@ -17,7 +17,7 @@ import zipfile
 from dask import dataframe as dd
 from google.cloud import storage
 from sqlalchemy import create_engine
-from typing import List
+from typing import List, Union
 
 CLOUD_PROVIDER: List[str] = ['aws', 'google']
 
@@ -173,9 +173,12 @@ class DataImporter(FileUtils):
         self.kwargs: dict = kwargs
         self._config_args()
 
-    def _aws_s3(self):
+    def _aws_s3(self) -> bytes:
         """
         Import file from AWS S3 bucket
+
+        return: bytes
+            File object as bytes
         """
         _s3_resource = boto3.resource('s3')
         return _s3_resource.Bucket(self.aws_s3_file_path.split('//')[1]).Object(self.aws_s3_file_name).get()['Body'].read()
@@ -232,7 +235,7 @@ class DataImporter(FileUtils):
                             'memory_map': False if self.kwargs.get('memory_map') is None else self.kwargs.get('memory_map')
                             })
 
-    def _excel_as_df(self):
+    def _excel_as_df(self) -> Union[dd.DataFrame, pd.DataFrame]:
         """
         Import excel file as Pandas DataFrame
 
@@ -312,7 +315,7 @@ class DataImporter(FileUtils):
                              low_memory=self.kwargs.get('low_memory'),
                              )
 
-    def _file(self):
+    def _file(self) -> object:
         """
         Import file
 
@@ -354,7 +357,7 @@ class DataImporter(FileUtils):
         :return: List[pd.DataFrame]
             Contents of the html file as pandas data frames
         """
-        return pd.read_html(io=None,
+        return pd.read_html(io=self.full_path,
                             flavor=self.kwargs.get('flavor'),
                             header=self.kwargs.get('header'),
                             index_col=self.kwargs.get('index_col'),
@@ -371,25 +374,32 @@ class DataImporter(FileUtils):
                             displayed_only=self.kwargs.get('displayed_only')
                             )
 
-    def _json(self) -> json.load:
+    def _json(self) -> dict:
         """
         Import json file
 
-        :return: json.load
+        :return: dict
             Content of the json file
         """
-        with open(file=self.full_path,
-                  mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
-                  encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
-                  ) as json_file:
-            return json.load(fp=json_file,
-                             cls=self.kwargs.get('cls'),
-                             object_hook=self.kwargs.get('object_hook'),
-                             parse_float=self.kwargs.get('parse_float'),
-                             parse_int=self.kwargs.get('parse_int'),
-                             parse_constant=self.kwargs.get('parse_constant'),
-                             object_pairs_hook=self.kwargs.get('object_pairs_hook')
-                             )
+        if self.cloud is None:
+            with open(file=self.full_path,
+                      mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
+                      encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
+                      ) as _file:
+                return json.load(fp=_file,
+                                 cls=self.kwargs.get('cls'),
+                                 object_hook=self.kwargs.get('object_hook'),
+                                 parse_float=self.kwargs.get('parse_float'),
+                                 parse_int=self.kwargs.get('parse_int'),
+                                 parse_constant=self.kwargs.get('parse_constant'),
+                                 object_pairs_hook=self.kwargs.get('object_pairs_hook')
+                                 )
+        elif self.cloud == 'aws':
+            return json.loads(s=self._aws_s3())
+        elif self.cloud == 'google':
+            self._google_cloud_storage()
+            with open(self.google_cloud_file_name.split('/')[-1], 'r') as file:
+                return file.read()
 
     def _json_as_df(self):
         """
