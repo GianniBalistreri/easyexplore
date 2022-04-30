@@ -767,8 +767,15 @@ class DataExporter(FileUtils):
         """
         Export data as python file
         """
-        with open(self.full_path, 'w') as file:
-            file.write(self.obj)
+        if self.cloud is None:
+            with open(self.full_path, 'w') as file:
+                file.write(self.obj)
+        elif self.cloud == 'google':
+            if not os.path.exists(self.google_cloud_file_path):
+                os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+            with open(self.google_cloud_file_name, 'wb') as _output:
+                _output.write(self.obj)
+            self._google_cloud_storage()
 
     def _text(self):
         """
