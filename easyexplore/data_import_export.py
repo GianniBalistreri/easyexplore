@@ -785,9 +785,14 @@ class DataExporter(FileUtils):
         """
         Export data as text (txt, csv) file
         """
-        _txt = open(self.full_path, 'wb')
-        _txt.write(self.obj)
-        _txt.close()
+        if self.cloud is None:
+            _txt = open(self.full_path, 'wb')
+            _txt.write(self.obj)
+            _txt.close()
+        elif self.cloud == 'aws':
+            _buffer: io.StringIO = io.StringIO()
+            _buffer.write(self.obj)
+            self._aws_s3(buffer=_buffer)
 
     def _text_from_df(self):
         """
