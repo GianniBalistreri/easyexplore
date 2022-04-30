@@ -681,16 +681,24 @@ class DataExporter(FileUtils):
 
     def _html(self):
         """
-        Export data as json file
+        Export data as html file
         """
-        if self.cloud is None:
-            with open(self.full_path, 'w', encoding='utf-8') as _file:
-                _file.write(self.obj)
-        elif self.cloud == 'aws':
-            _buffer: io.StringIO = io.StringIO()
-            if self.kwargs.get('topic_clustering') is not None:
+        if self.kwargs.get('topic_clustering') is None:
+            if self.cloud is None:
+                with open(self.full_path, 'w', encoding='utf-8') as _file:
+                    _file.write(self.obj)
+            elif self.cloud == 'aws':
+                _buffer: io.StringIO = io.StringIO()
+                _buffer.write(self.obj)
+                self._aws_s3(buffer=_buffer)
+        else:
+            if self.cloud is None:
+                with open(self.full_path, 'w', encoding='utf-8') as _file:
+                    pyLDAvis.save_html(self.obj, _file)
+            elif self.cloud == 'aws':
+                _buffer: io.StringIO = io.StringIO()
                 pyLDAvis.save_html(self.obj, _buffer)
-            self._aws_s3(buffer=_buffer)
+                self._aws_s3(buffer=_buffer)
 
     def _gitignore(self):
         """
