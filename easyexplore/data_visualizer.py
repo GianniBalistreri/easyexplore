@@ -1,3 +1,9 @@
+"""
+
+Visualize data interactively
+
+"""
+
 import copy
 import dask.dataframe as dd
 import ipywidgets as widgets
@@ -57,12 +63,6 @@ plots: List[str] = ['bar',
                     #'tree',
                     'violin'
                     ]
-
-# TODO:
-#  Geo Stats Hovertemplate
-#  Chorolethmap: handle geojson input output
-#  Check Missings in each categorical distribution chart
-#  Fix bugs in Parcats brushing feature
 
 
 class DataVisualizerException(Exception):

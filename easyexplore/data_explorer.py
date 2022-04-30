@@ -1,3 +1,9 @@
+"""
+
+Data exploration
+
+"""
+
 import copy
 import dask.dataframe as dd
 import numpy as np
@@ -11,10 +17,6 @@ from .utils import Log, PERCENTILES, StatsUtils, EasyExploreUtils
 from dask.array import from_array
 from dask.distributed import Client
 from typing import Dict, List, Tuple
-
-# TODO:
-#  Correlation -> Partial + Final Heat Map
-#  Data Distribution: Color (overtime) + Annotations (continuous distribution parameter)
 
 
 class DataExplorerException(Exception):
