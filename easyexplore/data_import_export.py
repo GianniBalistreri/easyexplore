@@ -327,6 +327,10 @@ class DataImporter(FileUtils):
                 return file.read()
         elif self.cloud == 'aws':
             return self._aws_s3().decode('utf-8')
+        elif self.cloud == 'google':
+            self._google_cloud_storage()
+            with open(self.google_cloud_file_name.split('/')[-1], 'r') as file:
+                return file.read()
 
     def _google_cloud_storage(self):
         """
