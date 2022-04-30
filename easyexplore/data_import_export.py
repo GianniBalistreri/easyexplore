@@ -705,6 +705,12 @@ class DataExporter(FileUtils):
                 _buffer: io.StringIO = io.StringIO()
                 pyLDAvis.save_html(self.obj, _buffer)
                 self._aws_s3(buffer=_buffer)
+            elif self.cloud == 'google':
+                if not os.path.exists(self.google_cloud_file_path):
+                    os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+                with open(self.google_cloud_file_name, 'w') as _output:
+                    pyLDAvis.save_html(self.obj, _output)
+                self._google_cloud_storage()
 
     def _gitignore(self):
         """
