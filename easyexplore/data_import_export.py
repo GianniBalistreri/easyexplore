@@ -455,22 +455,22 @@ class DataImporter(FileUtils):
                                chunksize=self.kwargs.get('chunksize')
                                )
 
-    def _pickle(self) -> pickle.load:
+    def _pickle(self) -> object:
         """
         Import pickle file
 
-        :return: pickle.load
+        :return: object
             Content of pickle file
         """
         if self.cloud is None:
             with open(self.full_path, 'rb') as file:
                 return pickle.load(file=file)
+        elif self.cloud == 'aws':
+            return pickle.loads(self._aws_s3())
         elif self.cloud == 'google':
             self._google_cloud_storage()
             with open(self.google_cloud_file_name.split('/')[-1], 'rb') as file:
                 return pickle.load(file=file)
-        elif self.cloud == 'aws':
-            raise NotImplementedError('AWS not supported yet')
 
     def _pickle_as_df(self):
         """
