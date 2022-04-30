@@ -720,7 +720,11 @@ class DataExporter(FileUtils):
             json.dump(obj=self.obj, fp=_buffer, ensure_ascii=False)
             self._aws_s3(buffer=_buffer)
         elif self.cloud == 'google':
-            pass
+            if not os.path.exists(self.google_cloud_file_path):
+                os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+            with open(self.google_cloud_file_name, 'wb') as _output:
+                json.dump(obj=self.obj, fp=_output, ensure_ascii=False)
+            self._google_cloud_storage()
 
     def _parquet(self):
         """
