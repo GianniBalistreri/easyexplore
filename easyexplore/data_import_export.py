@@ -768,8 +768,8 @@ class DataExporter(FileUtils):
         Export data as python file
         """
         if self.cloud is None:
-            with open(self.full_path, 'w') as file:
-                file.write(self.obj)
+            with open(self.full_path, 'wb') as _file:
+                _file.write(self.obj)
         elif self.cloud == 'aws':
             _buffer: io.StringIO = io.StringIO()
             _buffer.write(self.obj)
@@ -786,9 +786,8 @@ class DataExporter(FileUtils):
         Export data as text (txt, csv) file
         """
         if self.cloud is None:
-            _txt = open(self.full_path, 'wb')
-            _txt.write(self.obj)
-            _txt.close()
+            with open(self.full_path, 'wb') as _file:
+                _file.write(self.obj)
         elif self.cloud == 'aws':
             _buffer: io.StringIO = io.StringIO()
             _buffer.write(self.obj)
