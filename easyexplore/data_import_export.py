@@ -173,6 +173,13 @@ class DataImporter(FileUtils):
         self.kwargs: dict = kwargs
         self._config_args()
 
+    def _aws_s3(self):
+        """
+        Import file from AWS S3 bucket
+        """
+        _s3_resource = boto3.resource('s3')
+        return _s3_resource.Bucket(self.aws_s3_file_path.split('//')[1]).Object(self.aws_s3_file_name).get()['Body'].read()
+
     def _config_args(self):
         """
         Set configuration setting for the data import as Pandas DataFrame
