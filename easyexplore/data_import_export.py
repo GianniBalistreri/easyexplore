@@ -691,6 +691,12 @@ class DataExporter(FileUtils):
                 _buffer: io.StringIO = io.StringIO()
                 _buffer.write(self.obj)
                 self._aws_s3(buffer=_buffer)
+            elif self.cloud == 'google':
+                if not os.path.exists(self.google_cloud_file_path):
+                    os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+                with open(self.google_cloud_file_name, 'w') as _output:
+                    _output.write(self.obj)
+                self._google_cloud_storage()
         else:
             if self.cloud is None:
                 with open(self.full_path, 'w', encoding='utf-8') as _file:
