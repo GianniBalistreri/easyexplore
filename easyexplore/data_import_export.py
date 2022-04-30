@@ -398,8 +398,8 @@ class DataImporter(FileUtils):
             return json.loads(s=self._aws_s3())
         elif self.cloud == 'google':
             self._google_cloud_storage()
-            with open(self.google_cloud_file_name.split('/')[-1], 'r') as file:
-                return file.read()
+            with open(self.google_cloud_file_name.split('/')[-1], 'r') as _file:
+                return json.load(fp=_file)
 
     def _json_as_df(self):
         """
