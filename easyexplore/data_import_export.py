@@ -319,11 +319,14 @@ class DataImporter(FileUtils):
         :return: object
             File content
         """
-        with open(file=self.full_path,
-                  mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
-                  encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
-                  ) as file:
-            return file.read()
+        if self.cloud is None:
+            with open(file=self.full_path,
+                      mode='r' if self.kwargs.get('mode') is None else self.kwargs.get('mode'),
+                      encoding='utf-8' if self.kwargs.get('encoding') is None else self.kwargs.get('encoding')
+                      ) as file:
+                return file.read()
+        elif self.cloud == 'aws':
+            return self._aws_s3().decode('utf-8')
 
     def _google_cloud_storage(self):
         """
