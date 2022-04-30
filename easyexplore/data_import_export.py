@@ -770,6 +770,10 @@ class DataExporter(FileUtils):
         if self.cloud is None:
             with open(self.full_path, 'w') as file:
                 file.write(self.obj)
+        elif self.cloud == 'aws':
+            _buffer: io.StringIO = io.StringIO()
+            _buffer.write(self.obj)
+            self._aws_s3(buffer=_buffer)
         elif self.cloud == 'google':
             if not os.path.exists(self.google_cloud_file_path):
                 os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
