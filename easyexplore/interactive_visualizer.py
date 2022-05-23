@@ -66,6 +66,7 @@ class PlotlyAdapter:
                  title: str = None,
                  width: int = 500,
                  height: int = 500,
+                 cloud: str = None,
                  **kwargs
                  ):
         """
@@ -74,6 +75,23 @@ class PlotlyAdapter:
 
         :param offline: bool
             Run plotly offline or online
+
+        :param fig: go.Figure
+            Plot.ly figure object
+
+        :param title: str
+            Title name of the chart
+
+        :param width: int
+            Width of the chart
+
+        :param height: int
+            Height of the chart
+
+        :param cloud: str
+            Abbreviated name of the cloud provider
+                -> aws: Amazon Web Services
+                -> google: Google Cloud Platform
 
         :param kwargs: dict
             Key word arguments for handling plotly
@@ -88,7 +106,21 @@ class PlotlyAdapter:
         self.width: int = width if width >= 50 else 500
         self.height: int = height if height >= 50 else 500
         self.title: str = '' if title is None else title
+        self.cloud: str = cloud
         self.kwargs: dict = kwargs
+
+    def _write_plotly_json(self):
+        """
+        Export plotly graph data by writing json file
+        """
+        _data: dict = json.loads(json.dumps(self.fig.data, cls=PlotlyJSONEncoder))
+        _layout: dict = json.loads(json.dumps(self.fig.layout, cls=PlotlyJSONEncoder))
+        DataExporter(obj=json.dumps(dict(data=_data, layout=_layout)),
+                     file_path=self.plot.get('file_path'),
+                     cloud=self.cloud,
+                     create_dir=False,
+                     overwrite=False
+                     ).file()
 
     def bar(self) -> go.Bar:
         """
@@ -1120,19 +1152,27 @@ class PlotlyAdapter:
         if self.plot.get('file_path').split('.')[-1] is 'json':
             self._write_plotly_json()
         elif self.plot.get('file_path').split('.')[-1] in ['html', 'png']:
-            plot(figure_or_data=go.FigureWidget(self.fig),
-                 show_link=False if self.plot['kwargs'].get('show_link') is None else self.plot['kwargs'].get('show_link'),
-                 link_text='Export to plot.ly' if self.plot['kwargs'].get('link_text') is None else self.plot['kwargs'].get('link_text'),
-                 validate=True if self.plot['kwargs'].get('validate') is None else self.plot['kwargs'].get('validate'),
-                 image=self.plot['kwargs'].get('image'),
-                 filename=self.plot.get('file_path'),
-                 auto_open=False if self.plot['kwargs'].get('auto_open') is None else self.plot['kwargs'].get('auto_open'),
-                 image_width=self.width,
-                 image_height=self.height,
-                 config=self.plot['kwargs'].get('config'),
-                 auto_play=True if self.plot['kwargs'].get('auto_play') is None else self.plot['kwargs'].get('auto_play'),
-                 animation_opts=self.plot['kwargs'].get('animation_opts')
-                 )
+            if self.cloud is None:
+                plot(figure_or_data=go.FigureWidget(self.fig),
+                     show_link=False if self.plot['kwargs'].get('show_link') is None else self.plot['kwargs'].get('show_link'),
+                     link_text='Export to plot.ly' if self.plot['kwargs'].get('link_text') is None else self.plot['kwargs'].get('link_text'),
+                     validate=True if self.plot['kwargs'].get('validate') is None else self.plot['kwargs'].get('validate'),
+                     image=self.plot['kwargs'].get('image'),
+                     filename=self.plot.get('file_path'),
+                     auto_open=False if self.plot['kwargs'].get('auto_open') is None else self.plot['kwargs'].get('auto_open'),
+                     image_width=self.width,
+                     image_height=self.height,
+                     config=self.plot['kwargs'].get('config'),
+                     auto_play=True if self.plot['kwargs'].get('auto_play') is None else self.plot['kwargs'].get('auto_play'),
+                     animation_opts=self.plot['kwargs'].get('animation_opts')
+                     )
+            else:
+                DataExporter(obj=self.fig,
+                             file_path=self.plot.get('file_path'),
+                             cloud=self.cloud,
+                             create_dir=False,
+                             overwrite=False
+                             ).file()
         else:
             Log(write=False, level='error').log('File format (.{}) not supported for saving plotly charts'.format(self.plot.get('file_path').split('.')[-1]))
 
@@ -1821,15 +1861,3 @@ class PlotlyAdapter:
                          #box_visible=self.plot['kwargs'].get('box_visible'),
                          #meanline_visible=self.plot['kwargs'].get('meanline_visible'),
                          )
-
-    def _write_plotly_json(self):
-        """
-        Export plotly graph data by writing json file
-        """
-        _data: dict = json.loads(json.dumps(self.fig.data, cls=PlotlyJSONEncoder))
-        _layout: dict = json.loads(json.dumps(self.fig.layout, cls=PlotlyJSONEncoder))
-        DataExporter(obj=json.dumps(dict(data=_data, layout=_layout)),
-                     file_path=self.plot.get('file_path'),
-                     create_dir=True,
-                     overwrite=False
-                     ).file()
