@@ -822,6 +822,26 @@ class DataExporter(FileUtils):
                 pickle.dump(obj=self.obj, file=_output, protocol=pickle.HIGHEST_PROTOCOL)
             self._google_cloud_storage()
 
+    def _png(self):
+        """
+        Export data as png file
+        """
+        if self.kwargs.get('plotly_offline') is None:
+            pass
+        else:
+            if self.cloud is None:
+                self.obj.write_image(self.full_path)
+            elif self.cloud == 'aws':
+                _buffer: io.BytesIO = io.BytesIO()
+                _buffer.write(self.obj.to_image())
+                self._aws_s3(buffer=_buffer)
+            elif self.cloud == 'google':
+                if not os.path.exists(self.google_cloud_file_path):
+                    os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+                with open(self.google_cloud_file_name, 'wb') as _output:
+                    _output.write(self.obj.to_image())
+                self._google_cloud_storage()
+
     def _py(self):
         """
         Export data as python file
