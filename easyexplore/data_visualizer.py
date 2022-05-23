@@ -770,7 +770,8 @@ class DataVisualizer:
                     self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
                 _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histogram_2d_contour())
                 self.fig = _fig
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
         else:
             for pair in _pairs:
                 _data: List[go] = []
@@ -809,7 +810,8 @@ class DataVisualizer:
                                                                   'showlegend': True
                                                                   })
                             self.fig = _fig
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
 
     def _plotly_bar_chart(self, color_scale: List[tuple], color_feature: np.array):
         """
@@ -848,7 +850,8 @@ class DataVisualizer:
                                         self.plot['kwargs'].get('marker')
                                         })
             self.fig = PlotlyAdapter(plot=self.plot, offline=True).bar()
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
         else:
             for i, ft in enumerate(self.plot.get('features'), start=1):
                 if self.plot.get('group_by') is None:
@@ -889,11 +892,13 @@ class DataVisualizer:
                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
                         if i == len(self.plot.get('features')):
                             self.fig = _data
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
                     else:
                         self.file_path_extension = self._trim(input_str=ft)
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).bar()
-                        self._show_plotly_offline()
+                        if not self.get_fig:
+                            self._show_plotly_offline()
                 else:
                     self.plot['kwargs']['layout'].update({'barmode': 'stack' if self.plot['kwargs'][
                                                                                     'layout'].get(
@@ -942,7 +947,8 @@ class DataVisualizer:
                                 if k == len(_unique) and i == len(self.plot.get('features')):
                                     self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                     self.fig = _data
-                                    self._show_plotly_offline()
+                                    if not self.get_fig:
+                                        self._show_plotly_offline()
                             else:
                                 self.grouping = False
                                 _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
@@ -952,7 +958,8 @@ class DataVisualizer:
                                                                                                   )
                                                                       )
                                 self.fig = _data
-                                self._show_plotly_offline()
+                                if not self.get_fig:
+                                    self._show_plotly_offline()
                                 _data = []
 
     def _plotly_box_whisker_violin_chart(self, color_feature: np.array):
@@ -1009,11 +1016,13 @@ class DataVisualizer:
                     _data.append(_sub_fig)
                     if i == len(self.plot.get('features')):
                         self.fig = _data
-                        self._show_plotly_offline()
+                        if not self.get_fig:
+                            self._show_plotly_offline()
                 else:
                     self.file_path_extension = self._trim(input_str=ft)
                     self.fig = _sub_fig
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
             else:
                 for j, group in enumerate(self.plot.get('group_by'), start=1):
                     if ft in self.feature_types.get('categorical') and group in self.feature_types.get('categorical'):
@@ -1092,12 +1101,14 @@ class DataVisualizer:
                                     self.fig = _data
                                     if k == len(_unique):
                                         self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
-                                        self._show_plotly_offline()
+                                        if not self.get_fig:
+                                            self._show_plotly_offline()
                             else:
                                 self.grouping = False
                                 self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, k))
                                 self.fig = _data
-                                self._show_plotly_offline()
+                                if not self.get_fig:
+                                    self._show_plotly_offline()
                                 _data = []
 
     def _plotly_candlestick_chart(self):
@@ -1154,7 +1165,8 @@ class DataVisualizer:
                                  })
                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
                 self.fig = _data
-                self._show_plotly_offline()
+                if not self.get_fig:
+                    self._show_plotly_offline()
         else:
             _data: List[go] = []
             for j, tft in enumerate(self.plot.get('time_features'), start=1):
@@ -1171,7 +1183,8 @@ class DataVisualizer:
                     self._show_plotly_offline()
             if len(_data) > 0:
                 self.fig = _data
-                self._show_plotly_offline()
+                if not self.get_fig:
+                    self._show_plotly_offline()
 
     def _plotly_choroleth_map_chart(self):
         """
@@ -1216,7 +1229,8 @@ class DataVisualizer:
         for ft in self.plot.get('features'):
             self.plot['kwargs'].update({'z': self.df[ft].values})
             self.fig = PlotlyAdapter(plot=self.plot, offline=True).choroplethmapbox()
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
 
     def _plotly_contour_chart(self, color_scale: List[tuple]):
         """
@@ -1234,7 +1248,8 @@ class DataVisualizer:
              'colorscale': 'Hot' if color_scale is None else color_scale
              })
         self.fig = PlotlyAdapter(plot=self.plot, offline=True).contour()
-        self._show_plotly_offline()
+        if not self.get_fig:
+            self._show_plotly_offline()
 
     def _plotly_dendrogram_chart(self, color_scale: List[tuple]):
         """
@@ -1259,7 +1274,8 @@ class DataVisualizer:
                                         'color_threshold')
                                     })
         self.fig = PlotlyAdapter(plot=self.plot, offline=True).dendrogram()
-        self._show_plotly_offline()
+        if not self.get_fig:
+            self._show_plotly_offline()
 
     def _plotly_density_map_chart(self):
         """
@@ -1290,7 +1306,8 @@ class DataVisualizer:
             })
             self.plot['kwargs'].update({'z': self.df[feature].values})
             self.fig = PlotlyAdapter(plot=self.plot, offline=True).densitymapbox()
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
 
     def _plotly_dist_chart(self, color_scale: List[tuple]):
         """
@@ -1333,7 +1350,8 @@ class DataVisualizer:
                                                         'kwargs'].get('group_labels'),
                                                     })
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
-                        self._show_plotly_offline()
+                        if not self.get_fig:
+                            self._show_plotly_offline()
                 else:
                     self.plot['kwargs'].update({'hist_data': [self.df.loc[~self.df[ft].isnull(), ft].values] if
                     self.plot['kwargs'].get('hist_data') is None or i > 1 else self.plot['kwargs'].get(
@@ -1344,7 +1362,8 @@ class DataVisualizer:
                                                 })
                     self.file_path_extension = self._trim(input_str=ft)
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
             else:
                 for j, group in enumerate(self.plot.get('group_by'), start=1):
                     if str(self.df[group].dtype).find('date') >= 0:
@@ -1395,7 +1414,8 @@ class DataVisualizer:
                                                             })
                                 self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                 self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
-                                self._show_plotly_offline()
+                                if not self.get_fig:
+                                    self._show_plotly_offline()
                         else:
                             if k == len(_unique):
                                 self.plot['kwargs'].update({'hist_data': [_x] if self.plot['kwargs'].get(
@@ -1406,7 +1426,8 @@ class DataVisualizer:
                                                             })
                                 self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, k))
                                 self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
-                                self._show_plotly_offline()
+                                if not self.get_fig:
+                                    self._show_plotly_offline()
 
     def _plotly_funnel_chart(self):
         """
@@ -1475,7 +1496,8 @@ class DataVisualizer:
                                             })
                 # self.plot['kwargs'].update({'hovertemplate': '<b>{}</b>'.format(ft) + '%{marker:.2f}' + '<br><b>Lon</b></br>' + '%{lon}' + '<b>Lat</b>' + '%{lat}' if self.plot['kwargs'].get('hovertemplate') is None else self.plot['kwargs'].get('hovertemplate')})
                 self.fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).scatter_mapbox())
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
         else:
             self.plot['kwargs'].update({'marker': dict(size=10,
                                                        color='blue' if color_feature is None else color_feature,
@@ -1485,7 +1507,8 @@ class DataVisualizer:
                 'kwargs'].get('marker')
                                         })
             self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatter_mapbox()
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
 
     def _plotly_heat_map_chart(self, color_scale: List[tuple]):
         """
@@ -1513,7 +1536,8 @@ class DataVisualizer:
                 self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map_annotated()
             else:
                 self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map()
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
         else:
             for group in self.plot.get('group_by'):
                 _group_val: List[str] = self.df[group].unique().tolist()
@@ -1540,7 +1564,8 @@ class DataVisualizer:
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map_annotated()
                     else:
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map()
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
 
     def _plotly_histogram_chart(self, color_scale: List[tuple], color_feature: np.array):
         """
@@ -1589,11 +1614,13 @@ class DataVisualizer:
                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
                     if i == len(self.plot.get('features')):
                         self.fig = _data
-                        self._show_plotly_offline()
+                        if not self.get_fig:
+                            self._show_plotly_offline()
                 else:
                     self.file_path_extension = self._trim(input_str=ft)
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).histo()
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
             else:
                 for j, group in enumerate(self.plot.get('group_by'), start=1):
                     if str(self.df[group].dtype).find('date') >= 0:
@@ -1632,7 +1659,8 @@ class DataVisualizer:
                             if k == len(_unique) and i == len(self.plot.get('features')):
                                 self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
                                 self.fig = _data
-                                self._show_plotly_offline()
+                                if not self.get_fig:
+                                    self._show_plotly_offline()
                         else:
                             self.grouping = False
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
@@ -1642,7 +1670,8 @@ class DataVisualizer:
                                                                                               )
                                                                   )
                             self.fig = _data
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
                             _data = []
 
     def _plotly_histogram_decile_chart(self, color_scale: List[tuple], color_feature: np.array):
@@ -1752,7 +1781,8 @@ class DataVisualizer:
                                                                 )
                                                   })
             self.fig = go.Figure(_multi)
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
 
     def _plotly_joint_distribution_chart(self):
         """
@@ -1818,7 +1848,8 @@ class DataVisualizer:
                                                                      )
                                                       })
                 self.fig = _fig
-                self._show_plotly_offline()
+                if not self.get_fig:
+                    self._show_plotly_offline()
         else:
             for pair in _pairs:
                 _data: List[go] = []
@@ -1890,7 +1921,8 @@ class DataVisualizer:
                                                                                  showgrid=False)
                                                                   })
                             self.fig = _fig
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
 
     def _plotly_line_chart(self):
         """
@@ -1912,7 +1944,8 @@ class DataVisualizer:
                                                     })
                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
                     self.fig = _data
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
                 else:
                     _pairs: List[tuple] = []
                     for ft in self.plot.get('features'):
@@ -1928,7 +1961,8 @@ class DataVisualizer:
                                                     })
                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
                     self.fig = _data
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
             else:
                 _data: List[go] = []
                 _sorted_df: pd.DataFrame = self.df.sort_values(by=[tft])
@@ -1962,12 +1996,14 @@ class DataVisualizer:
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
                             if k == len(_group_val) and j == len(self.plot.get('features')):
                                 self.fig = _data
-                                self._show_plotly_offline()
+                                if not self.get_fig:
+                                    self._show_plotly_offline()
                         else:
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
                             self.grouping = False
                             self.fig = _data
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
                             _data = []
 
     def _plotly_network_graph_chart(self, color_scale: List[tuple], color_feature: np.array):
@@ -2053,7 +2089,8 @@ class DataVisualizer:
                                     })
         _data.append(PlotlyAdapter(plot=self.plot).scatter_gl())
         self.fig = go.Figure(data=_data)
-        self._show_plotly_offline()
+        if not self.get_fig:
+            self._show_plotly_offline()
 
     def _plotly_multi_chart(self):
         """
@@ -2116,7 +2153,8 @@ class DataVisualizer:
                 else:
                     raise DataVisualizerException('Plot type ({}) not supported'.format(m))
                 self.plot['kwargs'] = dict(layout={})
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
         else:
             raise DataVisualizerException(
                 'Parameter "multi" has to be a dictionary not a "{}" containing the specific chart-based configuration'.format(
@@ -2431,7 +2469,8 @@ class DataVisualizer:
                             display(widgets.VBox([self.color_toggle, _fig]))
         else:
             self.fig = PlotlyAdapter(plot=self.plot, offline=True).parallel_category()
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
 
     def _plotly_parallel_coordinate_chart(self,
                                           color_scale: List[tuple],
@@ -2497,7 +2536,8 @@ class DataVisualizer:
                                         self.plot['kwargs'].get('line')
                                         })
             self.fig = PlotlyAdapter(plot=self.plot, offline=True).parallel_coordinates()
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
         else:
             for i, group in enumerate(self.plot.get('group_by'), start=1):
                 for val in self.df[group].unique():
@@ -2552,7 +2592,8 @@ class DataVisualizer:
                                                 self.plot['kwargs'].get('line')
                                                 })
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).parallel_coordinates()
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
 
     def _plotly_pie_chart(self, color_feature: np.array):
         """
@@ -2580,7 +2621,8 @@ class DataVisualizer:
                  self.plot['kwargs'].get('marker')
                  })
             self.fig = PlotlyAdapter(plot=self.plot, offline=True).pie()
-            self._show_plotly_offline()
+            if not self.get_fig:
+                self._show_plotly_offline()
         else:
             for i, ft in enumerate(self.plot.get('features'), start=1):
                 if self.plot.get('group_by') is None:
@@ -2599,7 +2641,8 @@ class DataVisualizer:
                              'marker') is None else self.plot['kwargs'].get('marker')
                          })
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).pie()
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
                 else:
                     for group in self.plot.get('group_by'):
                         if str(self.df[group].dtype).find('date') >= 0:
@@ -2631,7 +2674,8 @@ class DataVisualizer:
                                                             'marker')
                                                         })
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).pie()
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
 
     def _plotly_radar_chart(self, color_scale: List[tuple]):
         """
@@ -2692,11 +2736,13 @@ class DataVisualizer:
                         print('j', len(_nums))
                         if j == len(_nums):
                             self.fig = _data
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
                     else:
                         print('nothing')
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatterpolar()
-                        self._show_plotly_offline()
+                        if not self.get_fig:
+                            self._show_plotly_offline()
                 else:
                     for k, group in enumerate(self.plot.get('group_by'), start=1):
                         if cat == group:
@@ -2733,13 +2779,15 @@ class DataVisualizer:
                                 print('nums', len(_nums))
                                 if k == len(self.plot.get('group_by')) and j == len(_nums):
                                     self.fig = _data
-                                    self._show_plotly_offline()
+                                    if not self.get_fig:
+                                        self._show_plotly_offline()
                             else:
                                 print('k', k)
                                 print('group', len(self.plot.get('group_by')))
                                 if k == len(self.plot.get('group_by')):
                                     self.fig = _data
-                                    self._show_plotly_offline()
+                                    if not self.get_fig:
+                                        self._show_plotly_offline()
                                     _data = []
 
     def _plotly_ridgeline_chart(self):
@@ -2778,7 +2826,8 @@ class DataVisualizer:
                     self.fig.update_traces(
                         orientation='h' if self.plot['kwargs'].get('orientation') is None else self.plot[
                             'kwargs'].get('orientation'))
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
         else:
             for ft in self.plot.get('features'):
                 self.fig = go.Figure()
@@ -2821,7 +2870,8 @@ class DataVisualizer:
                             self.fig.update_traces(
                                 orientation='h' if self.plot['kwargs'].get('orientation') is None else
                                 self.plot['kwargs'].get('orientation'))
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
 
     def _plotly_scatter_chart(self, color_scale: List[tuple], color_feature: np.array):
         """
@@ -2862,7 +2912,8 @@ class DataVisualizer:
                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter_gl())
                     if i == len(_pairs):
                         self.fig = _data
-                        self._show_plotly_offline()
+                        if not self.get_fig:
+                            self._show_plotly_offline()
                 else:
                     self.grouping = False
                     if self.plot.get('xaxis_label') is None:
@@ -2871,7 +2922,8 @@ class DataVisualizer:
                         self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
                     self.file_path_extension = self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatter_gl()
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
         else:
             for i, pair in enumerate(_pairs, start=1):
                 for j, group in enumerate(self.plot.get('group_by'), start=1):
@@ -2917,7 +2969,8 @@ class DataVisualizer:
                                                                                                   )
                                                                       )
                                 self.fig = _data
-                                self._show_plotly_offline()
+                                if not self.get_fig:
+                                    self._show_plotly_offline()
                         else:
                             self.grouping = False
                             self.file_path_extension = self._trim(input_str='{}_{}_{}_{}'.format(pair[0],
@@ -2927,7 +2980,8 @@ class DataVisualizer:
                                                                                                  )
                                                                   )
                             self.fig = _data
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
                             _data = []
 
     def _plotly_scatter_3d_chart(self, color_scale: List[tuple], color_feature: np.array):
@@ -2975,7 +3029,8 @@ class DataVisualizer:
                     _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter3d())
                     if i == len(_pairs):
                         self.fig = _data
-                        self._show_plotly_offline()
+                        if not self.get_fig:
+                            self._show_plotly_offline()
                 else:
                     self.grouping = False
                     if self.plot.get('xaxis_label') is None:
@@ -2990,7 +3045,8 @@ class DataVisualizer:
                                                                                       )
                                                           )
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatter3d()
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
         else:
             for i, pair in enumerate(_pairs, start=1):
                 for j, group in enumerate(self.plot.get('group_by'), start=1):
@@ -3037,7 +3093,8 @@ class DataVisualizer:
                                                                                                  )
                                                                   )
                             self.fig = _data
-                            self._show_plotly_offline()
+                            if not self.get_fig:
+                                self._show_plotly_offline()
                     else:
                         self.grouping = False
                         self.file_path_extension = self._trim(input_str='{}_{}_{}_{}_{}'.format(pair[0],
@@ -3048,7 +3105,8 @@ class DataVisualizer:
                                                                                                 )
                                                               )
                         self.fig = _data
-                        self._show_plotly_offline()
+                        if not self.get_fig:
+                            self._show_plotly_offline()
                         _data = []
 
     def _plotly_silhouette_chart(self):
@@ -3083,7 +3141,8 @@ class DataVisualizer:
                                                                     )
                                                       })
                 self.fig = go.Figure(_data)
-                self._show_plotly_offline()
+                if not self.get_fig:
+                    self._show_plotly_offline()
                 _data = []
         else:
             raise DataVisualizerException('Results of silhouette analysis should be a dictionary')
@@ -3142,7 +3201,8 @@ class DataVisualizer:
                         'layout'].get('l')
                 )
                 })
-                self._show_plotly_offline()
+                if not self.get_fig:
+                    self._show_plotly_offline()
             else:
                 Log(write=False, level='warn').log('Parents and ids are not unique')
                 _pairs: List[tuple] = EasyExploreUtils().get_pairs(features=self.group_by, max_features_each_pair=2)
@@ -3190,7 +3250,8 @@ class DataVisualizer:
                             'layout'].get('l')
                     )
                     })
-                    self._show_plotly_offline()
+                    if not self.get_fig:
+                        self._show_plotly_offline()
 
     def _plotly_table_chart(self):
         """
@@ -3245,7 +3306,8 @@ class DataVisualizer:
                                     self.plot['kwargs'].get('visible')
                                     })
         self.fig = PlotlyAdapter(plot=self.plot, offline=True).table()
-        self._show_plotly_offline()
+        if not self.get_fig:
+            self._show_plotly_offline()
 
     def _run_plotly_offline(self):
         """
