@@ -10,8 +10,10 @@ import ipywidgets as widgets
 import networkx as nx
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objs as go
 import re
+import skimage.io as skio
 import string
 
 from .data_import_export import DataImporter, FileUtils
@@ -97,6 +99,8 @@ class DataVisualizer:
                  unit: str = 'px',
                  interactive: bool = True,
                  file_path: str = None,
+                 use_auto_extensions: bool = True,
+                 cloud: str = None,
                  render: bool = True,
                  color_scale: List[str] = None,
                  color_edges: List[str] = None,
@@ -177,6 +181,14 @@ class DataVisualizer:
 
         :param file_path: str
             File path of the plot to save
+
+        :param use_auto_extensions: bool
+            Use automatic file name extensions beyond group by functionality
+
+        :param cloud: str
+            Abbreviated name of the cloud provider
+                -> aws: Amazon Web Services
+                -> google: Google Cloud Platform
 
         :param render: bool
             Render plotly chart or not
@@ -306,6 +318,9 @@ class DataVisualizer:
         self.table_color: dict = dict(line='#7D7F80', fill='#a1c3d1')
         self.path: str = ''
         self.file_path: str = file_path
+        self.use_auto_extensions: bool = use_auto_extensions
+        self.cloud: str = cloud
+        self.get_fig: bool = False
         self.file_path_extension: str = ''
         self.max_str_length: int = 40
         self.seed: int = 1234
@@ -3237,7 +3252,6 @@ class DataVisualizer:
         Run visualization using plotly offline
         """
         for t, title in enumerate(self.subplots.keys()):
-            _data: List[go] = []
             self.title = title
             self.plot = self.subplots.get(title)
             self.df = self.plot.get('data')
@@ -3414,8 +3428,7 @@ class DataVisualizer:
             elif self.plot.get('plot_type') == 'multi':
                 self._plotly_multi_chart()
             else:
-                raise DataVisualizerException(
-                    'Plot type ({}) not supported using Plot.ly framework'.format(self.plot.get('plot_type')))
+                raise DataVisualizerException(f'Plot type ({self.plot.get("plot_type")}) not supported using Plot.ly framework')
 
     def _show_plotly_offline(self):
         """
@@ -3515,7 +3528,7 @@ class DataVisualizer:
                     self.file_path_extension = ''
                 if not self.grouping:
                     Log(write=False).log('Saving plotly chart locally at: {}'.format(self.plot.get('file_path')))
-                    PlotlyAdapter(plot=self.plot, offline=True, fig=_fig).save()
+                    PlotlyAdapter(plot=self.plot, offline=True, fig=_fig, cloud=self.cloud).save()
                 self.plot['file_path'] = copy.deepcopy(_original_file_path)
             else:
                 Log(write=False).log('Cannot save file locally because file path is empty')
@@ -3599,30 +3612,69 @@ class DataVisualizer:
             # Update parcats colors
             self.fig.data[1].line.color = new_color
 
+    def get_plotly_figure(self) -> go.Figure:
+        """
+        Get configured plotly figure
+
+        :return go.Figure
+            Plot.ly figure
+        """
+        self.get_fig = True
+        if self.subplots is None:
+            if self.df is None:
+                raise DataVisualizerException('No data set found')
+            if self.df.shape[0] == 0:
+                raise DataVisualizerException('No cases found')
+            if self.plot_type is None:
+                raise DataVisualizerException('Plot type not found')
+        if self.interactive:
+            self._unit_conversion(to_unit='pixel')
+            self._config_plotly_offline()
+            self._run_plotly_offline()
+            del self.df
+            del self.plot
+            del self.subplots
+        else:
+            raise NotImplementedError('Static visualization not supported')
+        return self.fig
+
     def load(self):
         """
-        Load serialized plotly figure from json file and visualize it
+        Load image and render it
         """
-        _fig: dict = DataImporter(file_path=self.plot.get('file_path'), as_data_frame=False).file()
-        if _fig.get('data') is None:
-            raise DataVisualizerException('JSON file does not contain data for plotly figure')
-        iplot(figure_or_data=go.FigureWidget(data=_fig.get('data'), layout=_fig.get('layout')),
-              show_link=False if self.plot['kwargs'].get('show_link') is None else self.plot['kwargs'].get('show_link'),
-              link_text='Export to plot.ly' if self.plot['kwargs'].get('link_text') is None else self.plot['kwargs'].get('link_text'),
-              validate=True if self.plot['kwargs'].get('validate') is None else self.plot['kwargs'].get('validate'),
-              image=self.plot['kwargs'].get('image'),
-              filename=None,
-              image_width=self.width,
-              image_height=self.height,
-              config=self.plot['kwargs'].get('config'),
-              auto_play=True if self.plot['kwargs'].get('auto_play') is None else self.plot['kwargs'].get('auto_play'),
-              animation_opts=self.plot['kwargs'].get('animation_opts')
-              )
+        if self.interactive:
+            # Load serialized plotly figure from json file:
+            _fig: dict = DataImporter(file_path=self.plot.get('file_path'),
+                                      as_data_frame=False,
+                                      cloud=self.cloud
+                                      ).file()
+            if _fig.get('data') is None:
+                raise DataVisualizerException('JSON file does not contain data for plotly figure')
+            iplot(figure_or_data=go.FigureWidget(data=_fig.get('data'), layout=_fig.get('layout')),
+                  show_link=False if self.plot['kwargs'].get('show_link') is None else self.plot['kwargs'].get('show_link'),
+                  link_text='Export to plot.ly' if self.plot['kwargs'].get('link_text') is None else self.plot['kwargs'].get('link_text'),
+                  validate=True if self.plot['kwargs'].get('validate') is None else self.plot['kwargs'].get('validate'),
+                  image=self.plot['kwargs'].get('image'),
+                  filename=None,
+                  image_width=self.width,
+                  image_height=self.height,
+                  config=self.plot['kwargs'].get('config'),
+                  auto_play=True if self.plot['kwargs'].get('auto_play') is None else self.plot['kwargs'].get('auto_play'),
+                  animation_opts=self.plot['kwargs'].get('animation_opts')
+                  )
+        else:
+            # Load static plot:
+            _image: np.ndarray = skio.imread(self.plot.get('file_path'))
+            (px.imshow(_image)
+             .update_xaxes(showticklabels=False)
+             .update_yaxes(showticklabels=False)
+             )
 
     def run(self):
         """
         Run visualization
         """
+        self.get_fig = False
         if self.subplots is None:
             if self.df is None:
                 raise DataVisualizerException('No data set found')
