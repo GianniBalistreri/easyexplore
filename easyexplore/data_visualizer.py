@@ -2978,16 +2978,11 @@ class DataVisualizer:
                                             'showlegend': True if self.plot['kwargs'].get(
                                                 'showlegend') is None else self.plot['kwargs'].get('showlegend')
                                             })
+                _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter3d())
                 if self.plot.get('melt'):
-                    self.file_path_extension = '{}_{}'.format(self.file_path_extension,
-                                                              self._trim(input_str='{}_{}_{}'.format(pair[0],
-                                                                                                     pair[1],
-                                                                                                     pair[2]
-                                                                                                     )
-                                                                         )
-                                                              )
-                    _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter3d())
                     if i == len(_pairs):
+                        if self.use_auto_extensions:
+                            self.file_path_extension = 'melt'
                         self.fig = _data
                         self._show_plotly_offline()
                 else:
@@ -2998,21 +2993,18 @@ class DataVisualizer:
                         self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
                     if self.plot.get('zaxis_label') is None:
                         self.plot['kwargs']['layout'].update({'zaxis': dict(title=dict(text=pair[2]))})
-                    self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(pair[0],
-                                                                                      pair[1],
-                                                                                      pair[2]
-                                                                                      )
-                                                          )
+                    if self.use_auto_extensions:
+                        self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{pair[2]}')
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatter3d()
                     self._show_plotly_offline()
         else:
             for i, pair in enumerate(_pairs, start=1):
                 for j, group in enumerate(self.plot.get('group_by'), start=1):
-                    _group_val: np.array = self.df[group].unique()
-                    for ext, val in enumerate(_group_val, start=1):
+                    _unique: np.array = self.df[group].unique()
+                    for ext, val in enumerate(_unique, start=1):
                         if ext == 0:
                             self.grouping = True
-                        elif ext == len(_group_val):
+                        elif ext == len(_unique):
                             self.grouping = False
                         self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                             'mode') is None else self.plot['kwargs'].get('mode'),
@@ -3042,28 +3034,18 @@ class DataVisualizer:
                                  'z': self.df.loc[self.df[group].isnull(), pair[2]].values
                                  })
                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter3d())
-                    if self.plot.get('melt'):
-                        if i == len(_pairs) and j == len(self.plot.get('group_by')):
-                            self.file_path_extension = self._trim(input_str='{}_{}_{}_{}'.format(pair[0],
-                                                                                                 pair[1],
-                                                                                                 pair[2],
-                                                                                                 group
-                                                                                                 )
-                                                                  )
+                        if self.plot.get('melt'):
+                            if ext == len(_unique):
+                                self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{pair[2]}_{group}')
+                                self.fig = _data
+                                self._show_plotly_offline()
+                                _data = []
+                        else:
+                            self.grouping = False
+                            self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{pair[2]}_{group}_{ext}')
                             self.fig = _data
                             self._show_plotly_offline()
-                    else:
-                        self.grouping = False
-                        self.file_path_extension = self._trim(input_str='{}_{}_{}_{}_{}'.format(pair[0],
-                                                                                                pair[1],
-                                                                                                pair[2],
-                                                                                                group,
-                                                                                                ext
-                                                                                                )
-                                                              )
-                        self.fig = _data
-                        self._show_plotly_offline()
-                        _data = []
+                            _data = []
 
     def _plotly_silhouette_chart(self):
         """
