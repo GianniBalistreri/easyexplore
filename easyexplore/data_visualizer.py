@@ -1785,7 +1785,6 @@ class DataVisualizer:
                     self.df[pair[0]] = self.df[pair[0]].astype(float)
                 if str(self.df[pair[1]].dtype).find('float') < 0:
                     self.df[pair[1]] = self.df[pair[1]].astype(float)
-                self.file_path_extension = self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
                 self.plot['kwargs'].update({'x': self.df[pair[0]].values,
                                             'y': self.df[pair[1]].values,
                                             'mode': 'markers' if self.plot['kwargs'].get('mode') is None else
@@ -1832,17 +1831,18 @@ class DataVisualizer:
                                                                      showgrid=False
                                                                      )
                                                       })
+                if self.use_auto_extensions:
+                    self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}')
                 self.fig = _fig
                 self._show_plotly_offline()
         else:
             for pair in _pairs:
                 _data: List[go] = []
                 for group in self.plot.get('group_by'):
-                    _group_val: List[str] = self.df[group].unique().tolist()
+                    _unique: List[str] = self.df[group].unique().tolist()
                     for ft in self.plot.get('features'):
-                        for ext, val in enumerate(_group_val):
+                        for ext, val in enumerate(_unique, start=1):
                             _fig: go.Figure = go.Figure()
-                            self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, ext))
                             self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
                                 'mode') is None else self.plot['kwargs'].get('mode'),
                                                         'name': self._trim(
@@ -1904,6 +1904,8 @@ class DataVisualizer:
                                                                                  domain=[0.65, 1],
                                                                                  showgrid=False)
                                                                   })
+                            self.title_extension = f'({ft} - {group}={val})'
+                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{ext}')
                             self.fig = _fig
                             self._show_plotly_offline()
 
