@@ -958,7 +958,7 @@ class DataVisualizer:
                                     _data = []
                             else:
                                 self.grouping = False
-                                self.title_extension = f'({group}={val})'
+                                self.title_extension = f'({ft} - {group}={val})'
                                 self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{k}')
                                 self.fig = _data
                                 self._show_plotly_offline()
@@ -1595,19 +1595,23 @@ class DataVisualizer:
                                                            ) if self.plot['kwargs'].get('marker') is None else
                                             self.plot['kwargs'].get('marker')
                                             })
+                _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
                 if self.plot.get('melt'):
-                    self.file_path_extension = '{}_{}'.format(self.file_path_extension, self._trim(input_str=ft))
                     self.plot['kwargs'].update({'barmode': 'overlay',
                                                 'share_yaxis': True
                                                 })
-                    _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
                     if i == len(self.plot.get('features')):
+                        if self.use_auto_extensions:
+                            self.file_path_extension = 'melt'
                         self.fig = _data
                         self._show_plotly_offline()
+                        _data = []
                 else:
-                    self.file_path_extension = self._trim(input_str=ft)
-                    self.fig = PlotlyAdapter(plot=self.plot, offline=True).histo()
+                    if self.use_auto_extensions:
+                        self.file_path_extension = self._trim(input_str=ft)
+                    self.fig = _data
                     self._show_plotly_offline()
+                    _data = []
             else:
                 for j, group in enumerate(self.plot.get('group_by'), start=1):
                     if str(self.df[group].dtype).find('date') >= 0:
@@ -1638,23 +1642,20 @@ class DataVisualizer:
                                                                    ) if self.plot['kwargs'].get(
                                                         'marker') is None else self.plot['kwargs'].get('marker')
                                                     })
+                        _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
                         if self.plot.get('melt'):
                             self.plot['kwargs'].update({'barmode': 'overlay',
                                                         'share_yaxis': True
                                                         })
-                            _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
-                            if k == len(_unique) and i == len(self.plot.get('features')):
-                                self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
+                            if k == len(_unique):
+                                self.file_path_extension = self._trim(input_str=f'{ft}_{group}')
                                 self.fig = _data
                                 self._show_plotly_offline()
+                                _data = []
                         else:
                             self.grouping = False
-                            _data.append(PlotlyAdapter(plot=self.plot, offline=True).histo())
-                            self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft,
-                                                                                              group,
-                                                                                              k
-                                                                                              )
-                                                                  )
+                            self.title_extension = f'({ft} - {group}={val})'
+                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{k}')
                             self.fig = _data
                             self._show_plotly_offline()
                             _data = []
@@ -2884,7 +2885,7 @@ class DataVisualizer:
                     if self.plot.get('yaxis_label') is None:
                         self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
                     if self.use_auto_extensions:
-                        self.file_path_extension = self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
+                        self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}')
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).scatter_gl()
                     self._show_plotly_offline()
         else:
@@ -2926,23 +2927,14 @@ class DataVisualizer:
                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter_gl())
                         if self.plot.get('melt'):
                             if ext == len(_group_val):
-                                self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(pair[0],
-                                                                                                  pair[1],
-                                                                                                  group
-                                                                                                  )
-                                                                      )
+                                self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}')
                                 self.fig = _data
                                 self._show_plotly_offline()
                                 _data = []
                         else:
                             self.grouping = False
-                            self.title_extension = f'({group}={val})'
-                            self.file_path_extension = self._trim(input_str='{}_{}_{}_{}'.format(pair[0],
-                                                                                                 pair[1],
-                                                                                                 group,
-                                                                                                 ext
-                                                                                                 )
-                                                                  )
+                            self.title_extension = f'({pair[0]}_{pair[1]} - {group}={val})'
+                            self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}_{ext}')
                             self.fig = _data
                             self._show_plotly_offline()
                             _data = []
