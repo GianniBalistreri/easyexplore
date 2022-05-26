@@ -2603,7 +2603,6 @@ class DataVisualizer:
             for i, ft in enumerate(self.plot.get('features'), start=1):
                 if self.plot.get('group_by') is None:
                     _freq: pd.DataFrame = self.df[ft].value_counts()
-                    self.file_path_extension = self._trim(input_str=ft)
                     self.plot['kwargs'].update(
                         {'hole': 0.2 if self.plot['kwargs'].get('hole') is None else self.plot['kwargs'].get('hole'),
                          'labels': _freq.index.values.tolist(),
@@ -2616,6 +2615,8 @@ class DataVisualizer:
                                                                       'kwargs'].get(
                              'marker') is None else self.plot['kwargs'].get('marker')
                          })
+                    if self.use_auto_extensions:
+                        self.file_path_extension = self._trim(input_str=ft)
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).pie()
                     self._show_plotly_offline()
                 else:
@@ -2632,8 +2633,6 @@ class DataVisualizer:
                                 _freq: pd.DataFrame = self.df.loc[self.df[group].isnull(), ft].value_counts()
                             else:
                                 _freq: pd.DataFrame = self.df.loc[self.df[group] == val, ft].value_counts()
-                            self.title = '{}<br></br>{}'.format(self.title, self._trim(
-                                input_str='{} ({}={})'.format(ft, group, val)))
                             self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, j))
                             self.plot['kwargs'].update({'hole': 0.2 if self.plot['kwargs'].get('hole') is None else
                             self.plot['kwargs'].get('hole'),
@@ -2648,6 +2647,10 @@ class DataVisualizer:
                                                             'marker') is None else self.plot['kwargs'].get(
                                                             'marker')
                                                         })
+                            # self.title = '{}<br></br>{}'.format(self.title, self._trim(
+                            #    input_str='{} ({}={})'.format(ft, group, val)))
+                            self.title_extension = f'({ft} - {group}={val})'
+                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).pie()
                             self._show_plotly_offline()
 
