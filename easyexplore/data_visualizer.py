@@ -2518,7 +2518,8 @@ class DataVisualizer:
             self._show_plotly_offline()
         else:
             for i, group in enumerate(self.plot.get('group_by'), start=1):
-                for val in self.df[group].unique():
+                _unique: np.array = self.df[group].unique()
+                for j, val in enumerate(_unique, start=1):
                     if val in INVALID_VALUES:
                         _val: np.array = self.df.loc[self.df[group].isnull(), self.plot.get('features')].values
                         _desc: dict = self.df.loc[self.df[group].isnull(), self.plot.get('features')].describe(
@@ -2527,7 +2528,6 @@ class DataVisualizer:
                         _val: np.array = self.df.loc[self.df[group] == val, self.plot.get('features')].values
                         _desc: dict = self.df.loc[self.df[group] == val, self.plot.get('features')].describe(
                             percentiles=_perc).to_dict()
-                    # print(_val, '\n\n', _desc)
                     for j, ft in enumerate(self.plot.get('features')):
                         if _desc.get(ft) is None:
                             self.plot['kwargs'].update({'ticktext': self.df[ft].unique()})
@@ -2569,6 +2569,7 @@ class DataVisualizer:
                                                              ) if self.plot['kwargs'].get('line') is None else
                                                 self.plot['kwargs'].get('line')
                                                 })
+                    self.file_path_extension = self._trim(input_str=f'parcoords_{val}')
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).parallel_coordinates()
                     self._show_plotly_offline()
 
