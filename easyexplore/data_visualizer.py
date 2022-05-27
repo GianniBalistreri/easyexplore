@@ -2528,10 +2528,10 @@ class DataVisualizer:
                         _val: np.array = self.df.loc[self.df[group] == val, self.plot.get('features')].values
                         _desc: dict = self.df.loc[self.df[group] == val, self.plot.get('features')].describe(
                             percentiles=_perc).to_dict()
-                    for j, ft in enumerate(self.plot.get('features')):
+                    for k, ft in enumerate(self.plot.get('features')):
                         if _desc.get(ft) is None:
                             self.plot['kwargs'].update({'ticktext': self.df[ft].unique()})
-                            # self.df[ft] = EasyExploreUtils().label_encoder(values=self.df[ft].values)
+                            self.df[ft] = EasyExploreUtils().label_encoder(values=self.df[ft].values)
                             self.plot['kwargs'].update({'tickvals': sorted(self.df[ft].unique())})
                             _range: list = [self.df[ft].min(), self.df[ft].max()]
                         else:
@@ -2540,22 +2540,22 @@ class DataVisualizer:
                             _range: list = [_desc[ft].get('min'), _desc[ft].get('max')]
                         _dimensions.append(dict(
                             label=ft if self.plot['kwargs'].get('dimensions_label') is None else
-                            self.plot['kwargs'].get('dimensions_label')[j],
+                            self.plot['kwargs'].get('dimensions_label')[k],
                             values=_val if self.plot['kwargs'].get('dimensions_values') is None else
-                            self.plot['kwargs'].get('dimensions_values')[j],
+                            self.plot['kwargs'].get('dimensions_values')[k],
                             range=_range if self.plot['kwargs'].get('dimensions_range') is None else
-                            self.plot['kwargs'].get('dimensions_range')[j],
+                            self.plot['kwargs'].get('dimensions_range')[k],
                             visible=True if self.plot['kwargs'].get('dimensions_visible') is None else
-                            self.plot['kwargs'].get('dimensions_visible')[j]
+                            self.plot['kwargs'].get('dimensions_visible')[k]
                         )
                         )
                         if self.plot['kwargs'].get('constraintrange') is not None:
-                            _dimensions[i].update(
+                            _dimensions[k].update(
                                 {'constraintrange': self.plot['kwargs'].get('constraintrange')})
                         if self.plot['kwargs'].get('tickvals') is not None:
-                            _dimensions[i].update({'tickvals': self.plot['kwargs'].get('tickvals')})
+                            _dimensions[k].update({'tickvals': self.plot['kwargs'].get('tickvals')})
                         if self.plot['kwargs'].get('ticktext') is not None:
-                            _dimensions[i].update({'ticktext': self.plot['kwargs'].get('ticktext')})
+                            _dimensions[k].update({'ticktext': self.plot['kwargs'].get('ticktext')})
                     if len(_dimensions) == 0:
                         raise DataVisualizerException('No continuous or semi-continuous feature found')
                     self.plot['kwargs'].update({'dimensions': _dimensions,
@@ -2572,6 +2572,7 @@ class DataVisualizer:
                     self.file_path_extension = self._trim(input_str=f'parcoords_{val}')
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).parallel_coordinates()
                     self._show_plotly_offline()
+                    _dimensions = []
 
     def _plotly_pie_chart(self, color_feature: np.array):
         """
