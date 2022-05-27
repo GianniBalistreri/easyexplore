@@ -85,7 +85,7 @@ class DataVisualizer:
     Class for visualizing data in jupyter notebooks
     """
     def __init__(self,
-                 df=None,
+                 df: pd.DataFrame = None,
                  title: str = '',
                  features: List[str] = None,
                  time_features: List[str] = None,
