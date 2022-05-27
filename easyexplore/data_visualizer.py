@@ -373,7 +373,9 @@ class DataVisualizer:
                                                'xaxis_label': self.xaxis_label,
                                                'yaxis_label': self.yaxis_label,
                                                'annotations': self.annotations,
+                                               'render': self.render,
                                                'file_path': self.file_path,
+                                               'use_auto_extensions': self.use_auto_extensions,
                                                'kwargs': {} if self.kwargs is None or not isinstance(self.kwargs, dict) else self.kwargs
                                                }
                                   })
@@ -702,6 +704,11 @@ class DataVisualizer:
                                 self.subplots[plot].update({'file_path': self.file_path})
                         else:
                             self.subplots[plot].update({'file_path': self.file_path})
+                        if 'use_auto_extensions' in self.subplots.get(plot).keys():
+                            if not isinstance(self.subplots[plot].get('use_auto_extensions'), bool):
+                                self.subplots[plot].update({'use_auto_extensions': self.use_auto_extensions})
+                        else:
+                            self.subplots[plot].update({'use_auto_extensions': self.use_auto_extensions})
                         if 'kwargs' in self.subplots.get(plot).keys():
                             if isinstance(self.subplots[plot]['kwargs'], dict):
                                 if 'layout' in self.subplots[plot].get('kwargs'):
