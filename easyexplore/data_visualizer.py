@@ -27,7 +27,7 @@ from plotly.offline import init_notebook_mode, iplot
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import pdist, squareform
 from sklearn.preprocessing import LabelEncoder
-from typing import Dict, List
+from typing import Dict, List, Union
 
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -85,7 +85,7 @@ class DataVisualizer:
     Class for visualizing data in jupyter notebooks
     """
     def __init__(self,
-                 df: pd.DataFrame = None,
+                 df: Union[pd.DataFrame, dd.DataFrame] = None,
                  title: str = '',
                  features: List[str] = None,
                  time_features: List[str] = None,
