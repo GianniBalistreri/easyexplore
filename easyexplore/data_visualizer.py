@@ -716,11 +716,10 @@ class DataVisualizer:
                                         self.subplots[plot]['kwargs'].update({'layout': {}})
                                 else:
                                     self.subplots[plot]['kwargs'].update({'layout': {}})
-                                    #self.subplots[plot].update({'kwargs': dict(layout={})})
                             else:
                                 self.subplots[plot]['kwargs'].update({'layout': {}})
                         else:
-                            self.subplots[plot].update({'kwargs': dict(layout={})})
+                            self.subplots[plot]['kwargs'].update({'layout': {}})
                     else:
                         raise DataVisualizerException('Subplots dictionary should contain dictionaries'.format(self.subplots))
             else:
@@ -1116,68 +1115,100 @@ class DataVisualizer:
         Config plotly candlestick chart
         """
         _data: List[go] = []
-        _features: List[str] = self.plot.get('features')
-        if len(_features) == 0:
-            raise DataVisualizerException('No feature found')
+        _open_features: List[str] = []
+        _low_features: List[str] = []
+        _high_features: List[str] = []
+        _close_features: List[str] = []
         if self.plot['kwargs'].get('open') is None:
-            if len(_features) > 1:
-                self.plot['kwargs'].update({'open': _features[1]})
+            raise DataVisualizerException('No "open" feature found')
+        else:
+            if isinstance(self.plot['kwargs'].get('open'), list):
+                _open_features = self.plot['kwargs'].get('open')
+            elif isinstance(self.plot['kwargs'].get('open'), str):
+                _open_features.append(self.plot['kwargs'].get('open'))
             else:
-                raise DataVisualizerException('No "open" value found')
+                raise DataVisualizerException(f'Given data type {type(self.plot["kwargs"].get("open"))} for "open" feature not supported. Use string or list instead')
         if self.plot['kwargs'].get('low') is None:
-            if len(_features) > 2:
-                self.plot['kwargs'].update({'low': _features[2]})
+            raise DataVisualizerException('No "low" feature found')
+        else:
+            if isinstance(self.plot['kwargs'].get('low'), list):
+                _low_features = self.plot['kwargs'].get('low')
+            elif isinstance(self.plot['kwargs'].get('low'), str):
+                _low_features.append(self.plot['kwargs'].get('low'))
             else:
-                raise DataVisualizerException('No "low" value found')
+                raise DataVisualizerException(f'Given data type {type(self.plot["kwargs"].get("low"))} for "low" feature not supported. Use string or list instead')
         if self.plot['kwargs'].get('high') is None:
-            if len(_features) > 3:
-                self.plot['kwargs'].update({'high': _features[3]})
+            raise DataVisualizerException('No "high" feature found')
+        else:
+            if isinstance(self.plot['kwargs'].get('high'), list):
+                _high_features = self.plot['kwargs'].get('high')
+            elif isinstance(self.plot['kwargs'].get('high'), str):
+                _high_features.append(self.plot['kwargs'].get('high'))
             else:
-                raise DataVisualizerException('No "high" value found')
+                raise DataVisualizerException(f'Given data type {type(self.plot["kwargs"].get("high"))} for "high" feature not supported. Use string or list instead')
         if self.plot['kwargs'].get('close') is None:
-            if len(_features) > 4:
-                self.plot['kwargs'].update({'close': _features[4]})
+            raise DataVisualizerException('No "close" feature found')
+        else:
+            if isinstance(self.plot['kwargs'].get('close'), list):
+                _close_features = self.plot['kwargs'].get('close')
+            elif isinstance(self.plot['kwargs'].get('close'), str):
+                _close_features.append(self.plot['kwargs'].get('close'))
             else:
-                raise DataVisualizerException('No "close" value found')
+                raise DataVisualizerException(f'Given data type {type(self.plot["kwargs"].get("close"))} for "close" feature not supported. Use string or list instead')
         if self.plot.get('group_by') is None:
             for j, tft in enumerate(self.plot.get('time_features'), start=1):
                 _sorted_df: pd.DataFrame = self.df.sort_values(by=[tft])
-                self.plot['kwargs'].update({'x': _sorted_df[tft].values,
-                                            'y': _sorted_df[_features[0]].values,
-                                            'name': self._trim(input_str=_features[0])
-                                            })
-                if self.plot.get('melt'):
-                    _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
-                else:
-                    self.fig = PlotlyAdapter(plot=self.plot, offline=True).line()
-                    self._show_plotly_offline()
-            if len(_data) > 0:
-                self.fig = _data
-                self._show_plotly_offline()
+                for k in range(0, len(_open_features), 1):
+                    _feature_name: str = _open_features[k].lower().replace('open', '')
+                    self.plot['kwargs'].update({'x': _sorted_df[tft].values,
+                                                'open': _sorted_df[_open_features[k]].values,
+                                                'low': _sorted_df[_low_features[k]].values,
+                                                'high': _sorted_df[_high_features[k]].values,
+                                                'close': _sorted_df[_close_features[k]].values
+                                                })
+                    self.plot['kwargs']['layout'].update({'xaxis_rangeslider_visible': True})
+                    if self.plot.get('melt'):
+                        _data.append(PlotlyAdapter(plot=self.plot, offline=True).candlestick())
+                        if k + 1 == len(_open_features):
+                            if self.use_auto_extensions:
+                                self.file_path_extension = 'melt'
+                            self.fig = _data
+                            self._show_plotly_offline()
+                            _data = []
+                    else:
+                        if len(_open_features) > 1:
+                            self.title_extension = f'({tft} - {_feature_name})'
+                        if self.use_auto_extensions:
+                            self.file_path_extension = self._trim(input_str=f'{tft}_{_feature_name}')
+                        self.fig = PlotlyAdapter(plot=self.plot, offline=True).candlestick()
+                        self._show_plotly_offline()
         else:
             for tft in self.plot.get('time_features'):
-                _data: List[go] = []
                 _sorted_df: pd.DataFrame = self.df.sort_values(by=[tft])
                 for group in self.plot.get('group_by'):
-                    _group_val: np.array = _sorted_df[group].unique()
-                    for ext, val in enumerate(_group_val, start=1):
-                        self.plot['kwargs'].update(
-                            {'name': self._trim(input_str='{} ({}={})'.format(_features[0], group, val))})
-                        if val in INVALID_VALUES:
-                            _sorted_df[group] = _sorted_df[group].replace(INVALID_VALUES, np.nan)
-                            self.plot['kwargs'].update(
-                                {'x': _sorted_df.loc[_sorted_df[group].isnull(), tft].values,
-                                 'y': _sorted_df.loc[_sorted_df[group].isnull(), _features[0]].values
-                                 })
-                        else:
-                            self.plot['kwargs'].update(
-                                {'x': _sorted_df.loc[_sorted_df[group] == val, tft].values,
-                                 'y': _sorted_df.loc[_sorted_df[group] == val, _features[0]].values
-                                 })
-                        _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
-                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(tft, group, ext))
-                        self.fig = _data
-                        self._show_plotly_offline()
+                    _unique: np.array = _sorted_df[group].unique()
+                    for k in range(0, len(_open_features), 1):
+                        _feature_name: str = _open_features[k].lower().replace('open', '')
+                        for ext, val in enumerate(_unique, start=1):
+                            if val in INVALID_VALUES:
+                                self.plot['kwargs'].update({'x': _sorted_df.loc[_sorted_df[group].isnull(), tft].values,
+                                                            'open': _sorted_df.loc[_sorted_df[group].isnull(), _open_features[k]].values,
+                                                            'low': _sorted_df.loc[_sorted_df[group].isnull(), _low_features[k]].values,
+                                                            'high': _sorted_df.loc[_sorted_df[group].isnull(), _high_features[k]].values,
+                                                            'close': _sorted_df.loc[_sorted_df[group].isnull(), _close_features[k]].values
+                                                            })
+                            else:
+                                self.plot['kwargs'].update({'x': _sorted_df.loc[_sorted_df[group] == val, tft].values,
+                                                            'open': _sorted_df.loc[_sorted_df[group] == val, _open_features[k]].values,
+                                                            'low': _sorted_df.loc[_sorted_df[group] == val, _low_features[k]].values,
+                                                            'high': _sorted_df.loc[_sorted_df[group] == val, _high_features[k]].values,
+                                                            'close': _sorted_df.loc[_sorted_df[group] == val, _close_features[k]].values
+                                                            })
+                            self.plot['kwargs']['layout'].update({'xaxis_rangeslider_visible': True})
+                            self.title_extension = f'({tft} - {_feature_name} - {group}={val})'
+                            self.file_path_extension = self._trim(input_str=f'{tft}_{_feature_name}_{group}_{val}')
+                            self.fig = PlotlyAdapter(plot=self.plot, offline=True).candlestick()
+                            self._show_plotly_offline()
 
     def _plotly_choroleth_map_chart(self):
         """
@@ -3536,6 +3567,7 @@ class DataVisualizer:
                                #width=self.plot['kwargs']['layout'].get('width'),
                                xaxis=self.plot['kwargs']['layout'].get('xaxis'),
                                xaxis2=self.plot['kwargs']['layout'].get('xaxis2'),
+                               xaxis_rangeslider_visible=self.plot['kwargs']['layout'].get('xaxis_rangeslider_visible'),
                                yaxis=self.plot['kwargs']['layout'].get('yaxis'),
                                yaxis2=self.plot['kwargs']['layout'].get('yaxis2')
                                )
