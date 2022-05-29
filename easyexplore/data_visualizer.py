@@ -960,7 +960,7 @@ class DataVisualizer:
                                     _data = []
                             else:
                                 self.title_extension = f'({ft} - {group}={val})'
-                                self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{k}')
+                                self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                                 self.fig = _data
                                 self._show_plotly_offline()
                                 _data = []
@@ -1105,7 +1105,7 @@ class DataVisualizer:
                                     _data = []
                             else:
                                 #self.title_extension = f'({group}={val})'
-                                self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{k}')
+                                self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                                 self.fig = _data
                                 self._show_plotly_offline()
                                 _data = []
@@ -1538,20 +1538,20 @@ class DataVisualizer:
                  'y': self.df.index.values.tolist() if self.plot['kwargs'].get('y') is None else self.plot[
                      'kwargs'].get('y'),
                  'colorbar': self.plot['kwargs'].get('colorbar'),
-                 'colorscale': color_scale
+                 'colorscale': color_scale,
+                 'text': self.df.astype(str).values,
                  })
-            if self.plot.get('annotation') is not None:
+            if self.plot.get('annotations') is not None:
                 self.plot['kwargs'].update({'annotation_text': self.df.value.tolist() if self.plot.get(
-                    'annotation') == '' else self.plot.get('annotation')})
+                    'annotations') == '' else self.plot.get('annotations')})
                 self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map_annotated()
             else:
                 self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map()
             self._show_plotly_offline()
         else:
             for group in self.plot.get('group_by'):
-                _group_val: List[str] = self.df[group].unique().tolist()
-                for ext, val in enumerate(_group_val):
-                    self.file_path_extension = self._trim(input_str='{}_{}'.format(group, ext))
+                _unique: List[str] = self.df[group].unique().tolist()
+                for ext, val in enumerate(_unique):
                     self.plot['kwargs'].update({'colorbar': self.plot['kwargs'].get('colorbar'),
                                                 'colorscale': color_scale,
                                                 'name': self._trim(input_str='{}={}'.format(group, val))
@@ -1567,12 +1567,14 @@ class DataVisualizer:
                                                     'y': self.df.index.values,
                                                     'z': self.df.loc[self.df[group] == val, :].values
                                                     })
-                    if self.plot.get('annotation') is not None:
+                    if self.plot.get('annotations') is not None:
                         self.plot['kwargs'].update({'annotation_text': self.df.value.tolist() if self.plot.get(
-                            'annotation') == '' else self.plot.get('annotation')})
+                            'annotations') == '' else self.plot.get('annotations')})
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map_annotated()
                     else:
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map()
+                    self.title_extension = f'({group}={val})'
+                    self.file_path_extension = self._trim(input_str=f'{group}_{val}')
                     self._show_plotly_offline()
 
     def _plotly_histogram_chart(self, color_scale: List[tuple], color_feature: np.array):
@@ -1669,7 +1671,7 @@ class DataVisualizer:
                                 _data = []
                         else:
                             self.title_extension = f'({ft} - {group}={val})'
-                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{k}')
+                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                             self.fig = _data
                             self._show_plotly_offline()
                             _data = []
@@ -1919,7 +1921,7 @@ class DataVisualizer:
                                                                                  showgrid=False)
                                                                   })
                             self.title_extension = f'({ft} - {group}={val})'
-                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{ext}')
+                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                             self.fig = _fig
                             self._show_plotly_offline()
 
@@ -3002,7 +3004,7 @@ class DataVisualizer:
                                 _data = []
                         else:
                             self.title_extension = f'({pair[0]}_{pair[1]} - {group}={val})'
-                            self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}_{ext}')
+                            self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}_{val}')
                             self.fig = _data
                             self._show_plotly_offline()
                             _data = []
