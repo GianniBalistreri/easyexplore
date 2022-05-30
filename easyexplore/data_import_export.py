@@ -767,6 +767,40 @@ class DataExporter(FileUtils):
         _blob = _bucket.blob(blob_name=self.google_cloud_file_name)
         _blob.upload_from_filename(filename=self.google_cloud_file_name)
 
+    def _jpg_png(self):
+        """
+        Export data as jpg or jpeg or png file
+        """
+        if self.kwargs.get('plotly_offline') is None:
+            if self.cloud is None:
+                with open(self.full_path, 'wb') as _file:
+                    _file.write(self.obj)
+            elif self.cloud == 'aws':
+                _buffer: io.BytesIO = io.BytesIO()
+                _buffer.write(self.obj)
+                self._aws_s3(buffer=_buffer)
+            elif self.cloud == 'google':
+                if not os.path.exists(self.google_cloud_file_path):
+                    os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+                with open(self.google_cloud_file_name, 'wb') as _output:
+                    _output.write(self.obj)
+                self._google_cloud_storage()
+        else:
+            if self.cloud is None:
+                with open(self.full_path, 'wb') as _file:
+                    _file.write(self.obj.to_image())
+                #self.obj.write_image(self.full_path)
+            elif self.cloud == 'aws':
+                _buffer: io.BytesIO = io.BytesIO()
+                _buffer.write(self.obj.to_image())
+                self._aws_s3(buffer=_buffer)
+            elif self.cloud == 'google':
+                if not os.path.exists(self.google_cloud_file_path):
+                    os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
+                with open(self.google_cloud_file_name, 'wb') as _output:
+                    _output.write(self.obj.to_image())
+                self._google_cloud_storage()
+
     def _json(self):
         """
         Export data as json file
@@ -821,26 +855,6 @@ class DataExporter(FileUtils):
             with open(self.google_cloud_file_name, 'wb') as _output:
                 pickle.dump(obj=self.obj, file=_output, protocol=pickle.HIGHEST_PROTOCOL)
             self._google_cloud_storage()
-
-    def _png(self):
-        """
-        Export data as png file
-        """
-        if self.kwargs.get('plotly_offline') is None:
-            pass
-        else:
-            if self.cloud is None:
-                self.obj.write_image(self.full_path)
-            elif self.cloud == 'aws':
-                _buffer: io.BytesIO = io.BytesIO()
-                _buffer.write(self.obj.to_image())
-                self._aws_s3(buffer=_buffer)
-            elif self.cloud == 'google':
-                if not os.path.exists(self.google_cloud_file_path):
-                    os.makedirs(name=self.google_cloud_file_path, exist_ok=True)
-                with open(self.google_cloud_file_name, 'wb') as _output:
-                    _output.write(self.obj.to_image())
-                self._google_cloud_storage()
 
     def _py(self):
         """
@@ -922,6 +936,8 @@ class DataExporter(FileUtils):
             return self._gitignore()
         elif self.file_type == 'parquet':
             return self._parquet()
+        elif self.file_type in ['jpg', 'jpeg', 'png']:
+            return self._jpg_png()
         else:
             return self._text()
 

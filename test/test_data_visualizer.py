@@ -4,10 +4,45 @@ import pandas as pd
 import plotly.graph_objs as go
 import unittest
 
-from easyexplore.data_visualizer import DataVisualizer
+from easyexplore.data_visualizer import DataVisualizer, load_plotly_from_json, load_static_plot
 from typing import List
 
 DATA_SET: pd.DataFrame = pd.read_csv(filepath_or_buffer='test_data.csv', sep=',')
+
+
+class DataVisualizerUtilsTest(unittest.TestCase):
+    """
+    Unit test for utility functions for class DataVisualizer
+    """
+    def test_load_plotly_from_json(self):
+        _file_path_json: str = 'test_contour_hist.json'
+        DataVisualizer(title='Load from json Test',
+                       df=DATA_SET,
+                       features=['C', 'H'],
+                       group_by=None,
+                       melt=False,
+                       plot_type='contour_hist',
+                       render=False,
+                       file_path=_file_path_json,
+                       use_auto_extensions=False
+                       ).run()
+        load_plotly_from_json(file_path=_file_path_json)
+
+    def test_load_static_plot(self):
+        _file_path: str = 'test_contour_hist.png'
+        DataVisualizer(title='Load Static Plot Test',
+                       df=DATA_SET,
+                       features=['C', 'H'],
+                       group_by=None,
+                       melt=False,
+                       plot_type='contour_hist',
+                       render=False,
+                       file_path=_file_path,
+                       use_auto_extensions=False,
+                       interactive=False
+                       ).run()
+        _static_plot: go.Figure = load_static_plot(file_path=_file_path)
+        self.assertTrue(expr=isinstance(_static_plot, go.Figure))
 
 
 class DataVisualizerTest(unittest.TestCase):
@@ -22,12 +57,6 @@ class DataVisualizerTest(unittest.TestCase):
                               plot_type='bar'
                               ).get_plotly_figure()
         self.assertTrue(expr=isinstance(_fig, list) and isinstance(_fig[0], go.Bar))
-
-    def test_load_interactive(self):
-        pass
-
-    def test_load_static(self):
-        pass
 
     def test_run_2d_histogram_contour_chart(self):
         _features: List[str] = ['C', 'H']
