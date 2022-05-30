@@ -1149,9 +1149,17 @@ class PlotlyAdapter:
         """
         Save plotly chart as local file
         """
-        if self.plot.get('file_path').split('.')[-1] is 'json':
+        if self.plot.get('file_path').split('.')[-1] == 'json':
             self._write_plotly_json()
-        elif self.plot.get('file_path').split('.')[-1] in ['html', 'png']:
+        elif self.plot.get('file_path').split('.')[-1] == 'png':
+            DataExporter(obj=self.fig,
+                         file_path=self.plot.get('file_path'),
+                         cloud=self.cloud,
+                         create_dir=False,
+                         overwrite=False,
+                         **dict(plotly_offline=True)
+                         ).file()
+        elif self.plot.get('file_path').split('.')[-1] == 'html':
             if self.cloud is None:
                 plot(figure_or_data=go.FigureWidget(self.fig),
                      show_link=False if self.plot['kwargs'].get('show_link') is None else self.plot['kwargs'].get('show_link'),
@@ -1171,7 +1179,8 @@ class PlotlyAdapter:
                              file_path=self.plot.get('file_path'),
                              cloud=self.cloud,
                              create_dir=False,
-                             overwrite=False
+                             overwrite=False,
+                             **dict(plotly_offline=True)
                              ).file()
         else:
             Log(write=False, level='error').log('File format (.{}) not supported for saving plotly charts'.format(self.plot.get('file_path').split('.')[-1]))
