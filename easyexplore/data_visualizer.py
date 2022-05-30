@@ -6,6 +6,7 @@ Visualize data interactively
 
 import dask.dataframe as dd
 import ipywidgets as widgets
+import json
 import networkx as nx
 import numpy as np
 import os
@@ -72,6 +73,50 @@ plots: List[str] = ['bar',
                     #'tree',
                     'violin'
                     ]
+
+
+def load_plotly_from_json(file_path: str, cloud: str = None, **kwargs):
+    """
+    Load plotly chart from json file
+
+    :param file_path: str
+        Complete file path to json file
+
+    :param cloud: str
+        Name of the cloud provider
+            -> aws: Amazon Web Service
+            -> google: Google Cloud Platform
+    """
+    _fig_json: str = DataImporter(file_path=file_path, as_data_frame=False, cloud=cloud).file()
+    _fig: dict = json.loads(_fig_json)
+    if _fig.get('data') is None:
+        raise DataVisualizerException('JSON file does not contain data for plotly figure')
+    iplot(figure_or_data=go.FigureWidget(data=_fig.get('data'), layout=_fig.get('layout')),
+          show_link=False if kwargs.get('show_link') is None else kwargs.get('show_link'),
+          link_text='Export to plot.ly' if kwargs.get('link_text') is None else kwargs.get('link_text'),
+          validate=True if kwargs.get('validate') is None else kwargs.get('validate'),
+          image=kwargs.get('image'),
+          filename=None,
+          image_width=kwargs.get('width'),
+          image_height=kwargs.get('height'),
+          config=kwargs.get('config'),
+          auto_play=True if kwargs.get('auto_play') is None else kwargs.get('auto_play'),
+          animation_opts=kwargs.get('animation_opts')
+          )
+
+
+def load_static_plot(file_path: str) -> go.Figure:
+    """
+    Load static plot
+
+    :param file_path: str
+        Complete file path to static plot
+    """
+    _image: np.ndarray = skio.imread(file_path)
+    return (px.imshow(_image)
+            .update_xaxes(showticklabels=False)
+            .update_yaxes(showticklabels=False)
+            )
 
 
 class DataVisualizerException(Exception):
@@ -3589,7 +3634,7 @@ class DataVisualizer:
             if self.plot.get('file_path') is not None:
                 _original_file_path: str = self.plot.get('file_path')
                 if len(self.plot.get('file_path')) > 0:
-                    if self.plot.get('file_path').find('.') > 0:
+                    if self.plot.get('file_path').find('.') >= 0:
                         _file_type: str = _original_file_path.split('.')[-1]
                     else:
                         _file_type: str = 'html' if self.interactive else 'png'
@@ -3713,38 +3758,6 @@ class DataVisualizer:
         else:
             raise NotImplementedError('Static visualization not supported')
         return self.fig
-
-    def load(self):
-        """
-        Load image and render it
-        """
-        if self.interactive:
-            # Load serialized plotly figure from json file:
-            _fig: dict = DataImporter(file_path=self.plot.get('file_path'),
-                                      as_data_frame=False,
-                                      cloud=self.cloud
-                                      ).file()
-            if _fig.get('data') is None:
-                raise DataVisualizerException('JSON file does not contain data for plotly figure')
-            iplot(figure_or_data=go.FigureWidget(data=_fig.get('data'), layout=_fig.get('layout')),
-                  show_link=False if self.plot['kwargs'].get('show_link') is None else self.plot['kwargs'].get('show_link'),
-                  link_text='Export to plot.ly' if self.plot['kwargs'].get('link_text') is None else self.plot['kwargs'].get('link_text'),
-                  validate=True if self.plot['kwargs'].get('validate') is None else self.plot['kwargs'].get('validate'),
-                  image=self.plot['kwargs'].get('image'),
-                  filename=None,
-                  image_width=self.width,
-                  image_height=self.height,
-                  config=self.plot['kwargs'].get('config'),
-                  auto_play=True if self.plot['kwargs'].get('auto_play') is None else self.plot['kwargs'].get('auto_play'),
-                  animation_opts=self.plot['kwargs'].get('animation_opts')
-                  )
-        else:
-            # Load static plot:
-            _image: np.ndarray = skio.imread(self.plot.get('file_path'))
-            (px.imshow(_image)
-             .update_xaxes(showticklabels=False)
-             .update_yaxes(showticklabels=False)
-             )
 
     def run(self):
         """
