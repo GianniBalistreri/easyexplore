@@ -769,8 +769,6 @@ class DataVisualizer:
         if self.plot.get('group_by') is None:
             for j, pair in enumerate(_pairs, start=1):
                 _fig: go.Figure = go.Figure()
-                if self.plot.get('use_auto_extensions'):
-                    self.file_path_extension = self._trim(input_str='{}_{}'.format(pair[0], pair[1]))
                 self.plot['kwargs'].update({'x': self.df[pair[0]].values,
                                             'y': self.df[pair[1]].values,
                                             'mode': 'markers' if self.plot['kwargs'].get('mode') is None else self.plot[
@@ -783,47 +781,48 @@ class DataVisualizer:
                 if self.plot.get('yaxis_label') is None:
                     self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
                 _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histogram_2d_contour())
+                if self.plot.get('use_auto_extensions'):
+                    self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}')
                 self.fig = _fig
                 self._show_plotly_offline()
         else:
             for pair in _pairs:
-                _data: List[go] = []
                 for group in self.plot.get('group_by'):
-                    _group_val: List[str] = self.df[group].unique().tolist()
-                    for ft in self.plot.get('features'):
-                        for ext, val in enumerate(_group_val):
-                            _fig: go.Figure = go.Figure()
-                            self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, ext))
-                            self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
-                                'mode') is None else self.plot['kwargs'].get('mode'),
-                                                        'name': self._trim(
-                                                            input_str='{} ({}={})'.format(ft, group, val)),
-                                                        'xaxis': 'x',
-                                                        'yaxis': 'y',
-                                                        'reversescale': True
-                                                        })
-                            if val in INVALID_VALUES:
-                                self.plot['kwargs'].update(
-                                    {'x': self.df.loc[self.df[group].isnull(), pair[0]].values,
-                                     'y': self.df.loc[self.df[group].isnull(), pair[1]].values
-                                     })
-                            else:
-                                self.plot['kwargs'].update(
-                                    {'x': self.df.loc[self.df[group] == val, pair[0]].values,
-                                     'y': self.df.loc[self.df[group] == val, pair[1]].values
-                                     })
-                            _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histogram_2d_contour())
-                            if self.plot.get('xaxis_label') is None:
-                                self.plot['kwargs']['layout'].update({'xaxis': dict(title=dict(text=pair[0]))})
-                            if self.plot.get('yaxis_label') is None:
-                                self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
-                            self.plot['kwargs']['layout'].update({'autosize': False,
-                                                                  'bargap': 0,
-                                                                  'hovermode': 'closest',
-                                                                  'showlegend': True
-                                                                  })
-                            self.fig = _fig
-                            self._show_plotly_offline()
+                    _unique: List[str] = self.df[group].unique().tolist()
+                    for ext, val in enumerate(_unique, start=1):
+                        _fig: go.Figure = go.Figure()
+                        self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
+                            'mode') is None else self.plot['kwargs'].get('mode'),
+                                                    'name': self._trim(
+                                                        input_str=f'{pair[0]} - {pair[1]} ({group}={val})'),
+                                                    'xaxis': 'x',
+                                                    'yaxis': 'y',
+                                                    'reversescale': True
+                                                    })
+                        if val in INVALID_VALUES:
+                            self.plot['kwargs'].update(
+                                {'x': self.df.loc[self.df[group].isnull(), pair[0]].values,
+                                 'y': self.df.loc[self.df[group].isnull(), pair[1]].values
+                                 })
+                        else:
+                            self.plot['kwargs'].update(
+                                {'x': self.df.loc[self.df[group] == val, pair[0]].values,
+                                 'y': self.df.loc[self.df[group] == val, pair[1]].values
+                                 })
+                        _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histogram_2d_contour())
+                        if self.plot.get('xaxis_label') is None:
+                            self.plot['kwargs']['layout'].update({'xaxis': dict(title=dict(text=pair[0]))})
+                        if self.plot.get('yaxis_label') is None:
+                            self.plot['kwargs']['layout'].update({'yaxis': dict(title=dict(text=pair[1]))})
+                        self.plot['kwargs']['layout'].update({'autosize': False,
+                                                              'bargap': 0,
+                                                              'hovermode': 'closest',
+                                                              'showlegend': True
+                                                              })
+                        self.title_extension = f'({group}={val})'
+                        self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}_{val}')
+                        self.fig = _fig
+                        self._show_plotly_offline()
 
     def _plotly_bar_chart(self, color_scale: List[tuple], color_feature: np.array):
         """
@@ -1159,7 +1158,14 @@ class DataVisualizer:
             for j, tft in enumerate(self.plot.get('time_features'), start=1):
                 _sorted_df: pd.DataFrame = self.df.sort_values(by=[tft])
                 for k in range(0, len(_open_features), 1):
-                    _feature_name: str = _open_features[k].lower().replace('open', '')
+                    if _open_features[k].find('open') >= 0:
+                        _feature_name: str = _open_features[k].replace('open', '')
+                    elif _open_features[k].find('OPEN') >= 0:
+                        _feature_name: str = _open_features[k].replace('OPEN', '')
+                    elif _open_features[k].find('Open') >= 0:
+                        _feature_name: str = _open_features[k].replace('Open', '')
+                    else:
+                        _feature_name: str = _open_features[k]
                     self.plot['kwargs'].update({'x': _sorted_df[tft].values,
                                                 'open': _sorted_df[_open_features[k]].values,
                                                 'low': _sorted_df[_low_features[k]].values,
@@ -1188,7 +1194,14 @@ class DataVisualizer:
                 for group in self.plot.get('group_by'):
                     _unique: np.array = _sorted_df[group].unique()
                     for k in range(0, len(_open_features), 1):
-                        _feature_name: str = _open_features[k].lower().replace('open', '')
+                        if _open_features[k].find('open') >= 0:
+                            _feature_name: str = _open_features[k].replace('open', '')
+                        elif _open_features[k].find('OPEN') >= 0:
+                            _feature_name: str = _open_features[k].replace('OPEN', '')
+                        elif _open_features[k].find('Open') >= 0:
+                            _feature_name: str = _open_features[k].replace('Open', '')
+                        else:
+                            _feature_name: str = _open_features[k]
                         for ext, val in enumerate(_unique, start=1):
                             if val in INVALID_VALUES:
                                 self.plot['kwargs'].update({'x': _sorted_df.loc[_sorted_df[group].isnull(), tft].values,
@@ -1856,74 +1869,73 @@ class DataVisualizer:
                 _data: List[go] = []
                 for group in self.plot.get('group_by'):
                     _unique: List[str] = self.df[group].unique().tolist()
-                    for ft in self.plot.get('features'):
-                        for ext, val in enumerate(_unique, start=1):
-                            _fig: go.Figure = go.Figure()
-                            self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
-                                'mode') is None else self.plot['kwargs'].get('mode'),
-                                                        'name': self._trim(
-                                                            input_str='{} ({}={})'.format(ft, group, val)),
-                                                        'xaxis': 'x',
-                                                        'yaxis': 'y',
-                                                        'reversescale': True
-                                                        })
-                            if val in INVALID_VALUES:
-                                self.plot['kwargs'].update(
-                                    {'x': self.df.loc[self.df[group].isnull(), pair[1]].values,
-                                     'y': self.df.loc[self.df[group].isnull(), pair[0]].values
-                                     })
-                            else:
-                                self.plot['kwargs'].update(
-                                    {'x': self.df.loc[self.df[group] == val, pair[1]].values,
-                                     'y': self.df.loc[self.df[group] == val, pair[0]].values
-                                     })
-                            _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histogram_2d_contour())
-                            _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).scatter_gl())
-                            self.plot['kwargs'].update({'x': None,
-                                                        'y': self.df[pair[1]].values,
-                                                        'xaxis': 'x2',
-                                                        'yaxis': None
-                                                        })
-                            _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histo())
+                    for ext, val in enumerate(_unique, start=1):
+                        _fig: go.Figure = go.Figure()
+                        self.plot['kwargs'].update({'mode': 'markers' if self.plot['kwargs'].get(
+                            'mode') is None else self.plot['kwargs'].get('mode'),
+                                                    'name': self._trim(
+                                                        input_str=f'{pair[0]} - {pair[1]} ({group}={val})'),
+                                                    'xaxis': 'x',
+                                                    'yaxis': 'y',
+                                                    'reversescale': True
+                                                    })
+                        if val in INVALID_VALUES:
+                            self.plot['kwargs'].update(
+                                {'x': self.df.loc[self.df[group].isnull(), pair[1]].values,
+                                 'y': self.df.loc[self.df[group].isnull(), pair[0]].values
+                                 })
+                        else:
+                            self.plot['kwargs'].update(
+                                {'x': self.df.loc[self.df[group] == val, pair[1]].values,
+                                 'y': self.df.loc[self.df[group] == val, pair[0]].values
+                                 })
+                        _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histogram_2d_contour())
+                        _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).scatter_gl())
+                        self.plot['kwargs'].update({'x': None,
+                                                    'y': self.df[pair[1]].values,
+                                                    'xaxis': 'x2',
+                                                    'yaxis': None
+                                                    })
+                        _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histo())
+                        self.plot['kwargs'].update({'x': self.df[pair[0]].values,
+                                                    'y': None,
+                                                    'xaxis': None,
+                                                    'yaxis': 'y2'
+                                                    })
+                        if val in INVALID_VALUES:
                             self.plot['kwargs'].update({'x': self.df[pair[0]].values,
                                                         'y': None,
                                                         'xaxis': None,
                                                         'yaxis': 'y2'
                                                         })
-                            if val in INVALID_VALUES:
-                                self.plot['kwargs'].update({'x': self.df[pair[0]].values,
-                                                            'y': None,
-                                                            'xaxis': None,
-                                                            'yaxis': 'y2'
-                                                            })
-                            else:
-                                self.plot['kwargs'].update({'x': self.df[pair[0]].values,
-                                                            'y': None,
-                                                            'xaxis': None,
-                                                            'yaxis': 'y2'
-                                                            })
-                            _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histo())
-                            self.plot['kwargs']['layout'].update({'autosize': False,
-                                                                  'bargap': 0,
-                                                                  'hovermode': 'closest',
-                                                                  'showlegend': False,
-                                                                  'xaxis': dict(zeroline=False,
-                                                                                domain=[0, 0.65],
-                                                                                showgrid=False),
-                                                                  'yaxis': dict(zeroline=False,
-                                                                                domain=[0, 0.65],
-                                                                                showgrid=False),
-                                                                  'xaxis2': dict(zeroline=False,
-                                                                                 domain=[0.65, 1],
-                                                                                 showgrid=False),
-                                                                  'yaxis2': dict(zeroline=False,
-                                                                                 domain=[0.65, 1],
-                                                                                 showgrid=False)
-                                                                  })
-                            self.title_extension = f'({ft} - {group}={val})'
-                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
-                            self.fig = _fig
-                            self._show_plotly_offline()
+                        else:
+                            self.plot['kwargs'].update({'x': self.df[pair[0]].values,
+                                                        'y': None,
+                                                        'xaxis': None,
+                                                        'yaxis': 'y2'
+                                                        })
+                        _fig.add_trace(PlotlyAdapter(plot=self.plot, offline=True).histo())
+                        self.plot['kwargs']['layout'].update({'autosize': False,
+                                                              'bargap': 0,
+                                                              'hovermode': 'closest',
+                                                              'showlegend': False,
+                                                              'xaxis': dict(zeroline=False,
+                                                                            domain=[0, 0.65],
+                                                                            showgrid=False),
+                                                              'yaxis': dict(zeroline=False,
+                                                                            domain=[0, 0.65],
+                                                                            showgrid=False),
+                                                              'xaxis2': dict(zeroline=False,
+                                                                             domain=[0.65, 1],
+                                                                             showgrid=False),
+                                                              'yaxis2': dict(zeroline=False,
+                                                                             domain=[0.65, 1],
+                                                                             showgrid=False)
+                                                              })
+                        self.title_extension = f'({group}={val})'
+                        self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}_{val}')
+                        self.fig = _fig
+                        self._show_plotly_offline()
 
     def _plotly_line_chart(self):
         """
@@ -3101,7 +3113,8 @@ class DataVisualizer:
                                 self._show_plotly_offline()
                                 _data = []
                         else:
-                            self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{pair[2]}_{group}_{ext}')
+                            self.title_extension = f'({pair[0]}_{pair[1]}_{pair[2]} - {group}={val})'
+                            self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{pair[2]}_{group}_{val}')
                             self.fig = _data
                             self._show_plotly_offline()
                             _data = []
