@@ -759,6 +759,21 @@ class UnsupervisedML:
                                                                           )
                                   })
 
+    def _latent_dirichlet_allocation(self):
+        """
+        Latent Dirichlet Allocation
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.latent_dirichlet_allocation().fit(X=self.df)
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'components': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df),
+                                                'em_iter': self.cluster[self.ml_algorithm].get('fit').n_batch_iter_,
+                                                'passes_iter': self.cluster[self.ml_algorithm].get('fit').n_iter_,
+                                                'perplexity_score': self.cluster[self.ml_algorithm].get('fit').bound_,
+                                                'doc_topic_prior': self.cluster[self.ml_algorithm].get('fit').doc_topic_prior_,
+                                                'topic_word_prior': self.cluster[self.ml_algorithm].get('fit').topic_word_prior_,
+                                                })
+
     def _locally_linear_embedding(self):
         """
         Locally linear embedding
@@ -1321,14 +1336,7 @@ class UnsupervisedML:
             # Latent Dirichlet Allocation #
             ###############################
             elif cl == 'lda':
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).latent_dirichlet_allocation().fit(X=self.df)})
-                _cluster[cl].update({'components': _cluster[cl].get('fit').transform(X=self.df),
-                                     'em_iter': _cluster[cl].get('fit').n_batch_iter_,
-                                     'passes_iter': _cluster[cl].get('fit').n_iter_,
-                                     'perplexity_score': _cluster[cl].get('fit').bound_,
-                                     'doc_topic_prior': _cluster[cl].get('fit').doc_topic_prior_,
-                                     'topic_word_prior': _cluster[cl].get('fit').topic_word_prior_,
-                                     })
+                self._latent_dirichlet_allocation()
             ##################################
             # Latent Single Value Allocation #
             ##################################
