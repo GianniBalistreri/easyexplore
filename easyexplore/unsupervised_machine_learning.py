@@ -929,6 +929,47 @@ class UnsupervisedML:
                                                 'n_iter': self.cluster[self.ml_algorithm].get('fit').n_iter_
                                                 })
 
+    def _ordering_points_to_identify_clustering_structure(self):
+        """
+        Ordering points to identify the clustering structure (OPTICS)
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.optics().fit(X=self.df)
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'reachability': self.cluster[self.ml_algorithm].get('fit').reachability_,
+                                                'ordering': self.cluster[self.ml_algorithm].get('fit').ordering_,
+                                                'core_distances': self.cluster[self.ml_algorithm].get('fit').core_distances_,
+                                                'predecessor': self.cluster[self.ml_algorithm].get('fit').predecessor_,
+                                                'cluster': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+                                                'cluster_hierarchy': self.cluster[self.ml_algorithm].get('fit').cluster_hierarchy_,
+                                                'labels': self.cluster[self.ml_algorithm].get('fit').labels_
+                                                })
+        _reachability: pd.DataFrame = pd.DataFrame(
+            data={'reachability': self.cluster[self.ml_algorithm].get('reachability')[self.cluster[self.ml_algorithm].get('ordering')],
+                  'labels': self.cluster[self.ml_algorithm].get('labels')[self.cluster[self.ml_algorithm].get('ordering')]
+                  }
+            )
+        self.cluster_plot.update({'OPTICS': dict(data=self.df,
+                                                 features=self.features,
+                                                 plot_type='scatter',
+                                                 melt=True,
+                                                 kwargs=dict(layout={},
+                                                             marker=dict(
+                                                                 color=self.cluster[self.ml_algorithm].get('fit').labels_.astype(float))
+                                                             )
+                                                 ),
+                                  'Reachability': dict(data=_reachability,
+                                                       features=['reachability'],
+                                                       group_by=['labels'],
+                                                       plot_type='scatter',
+                                                       melt=True,
+                                                       kwargs=dict(layout={},
+                                                                   marker=dict(
+                                                                       color=self.cluster[self.ml_algorithm].get('fit').labels_.astype(float))
+                                                                   )
+                                                       )
+                                  })
+
     def _principal_component_analysis(self):
         """
         Principal component analysis (PCA)
@@ -1341,37 +1382,7 @@ class UnsupervisedML:
             # Ordering Points To Identify the Clustering Structure #
             ########################################################
             elif cl == 'optics':
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).optics().fit(X=self.df)})
-                _cluster[cl].update({'reachability': _cluster[cl].get('fit').reachability_,
-                                     'ordering': _cluster[cl].get('fit').ordering_,
-                                     'core_distances': _cluster[cl].get('fit').core_distances_,
-                                     'predecessor': _cluster[cl].get('fit').predecessor_,
-                                     'cluster': _cluster[cl].get('fit').transform(X=self.df[self.features]),
-                                     'cluster_hierarchy': _cluster[cl].get('fit').cluster_hierarchy_,
-                                     'labels': _cluster[cl].get('fit').labels_
-                                     })
-                _reachability: pd.DataFrame = pd.DataFrame(data={'reachability': _cluster[cl].get('reachability')[_cluster[cl].get('ordering')],
-                                                                 'labels': _cluster[cl].get('labels')[_cluster[cl].get('ordering')]
-                                                                 }
-                                                           )
-                _cluster_plot.update({'OPTICS': dict(data=self.df,
-                                                     features=self.features,
-                                                     plot_type='scatter',
-                                                     melt=True,
-                                                     kwargs=dict(layout={},
-                                                                 marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                 )
-                                                     ),
-                                      'Reachability': dict(data=_reachability,
-                                                           features=['reachability'],
-                                                           group_by=['labels'],
-                                                           plot_type='scatter',
-                                                           melt=True,
-                                                           kwargs=dict(layout={},
-                                                                       marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                       )
-                                                           )
-                                      })
+                self._ordering_points_to_identify_clustering_structure()
             ###############################################################
             # Density-Based Spatial Clustering of Applications with Noise #
             ###############################################################
