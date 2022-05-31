@@ -508,6 +508,28 @@ class UnsupervisedML:
             if ratio >= _threshold:
                 return i + 1
 
+    def _density_based_spatial_clustering_applications_with_noise(self):
+        """
+        Density-based spatial clustering applications with noise (DBSCAN)
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.optics().fit(X=self.df)
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'core_samples': self.cluster[self.ml_algorithm].get('fit').core_samples_,
+                                                'cluster': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+                                                'lables': self.cluster[self.ml_algorithm].get('fit').labels_
+                                                })
+        self.cluster_plot.update({'DBSCAN': dict(data=self.df,
+                                                 features=self.features,
+                                                 plot_type='scatter',
+                                                 melt=True,
+                                                 kwargs=dict(layout={},
+                                                             marker=dict(
+                                                                 color=self.cluster[self.ml_algorithm].get('fit').labels_.astype(float))
+                                                             )
+                                                 )
+                                  })
+
     def _factor_analysis(self):
         """
         Factor analysis
@@ -1387,20 +1409,7 @@ class UnsupervisedML:
             # Density-Based Spatial Clustering of Applications with Noise #
             ###############################################################
             elif cl == 'dbscan':
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).dbscan().fit(X=self.df)})
-                _cluster[cl].update({'core_samples': _cluster[cl].get('fit').core_samples_,
-                                     'cluster': _cluster[cl].get('fit').transform(X=self.df[self.features]),
-                                     'lables': _cluster[cl].get('fit').labels_
-                                     })
-                _cluster_plot.update({'DBSCAN': dict(data=self.df,
-                                                     features=self.features,
-                                                     plot_type='scatter',
-                                                     melt=True,
-                                                     kwargs=dict(layout={},
-                                                                 marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                 )
-                                                     )
-                                      })
+                self._density_based_spatial_clustering_applications_with_noise()
             #######################
             # Spectral Clustering #
             #######################
