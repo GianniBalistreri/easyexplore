@@ -508,6 +508,105 @@ class UnsupervisedML:
             if ratio >= _threshold:
                 return i + 1
 
+    def _factor_analysis(self):
+        """
+        Factor analysis
+        """
+        _kmo: dict = StatsUtils(data=self.df, features=self.features).factoriability_test(meth='kmo')
+        self.cluster[self.ml_algorithm].update({'kmo': _kmo})
+        if _kmo.get('kmo') < 0.6:
+            Log(write=False, level='info').log(
+                msg='Data set not suitable for running factor analysis since KMO coefficient ({}) is lower than 0.6'.format(
+                    _kmo.get('kmo')))
+        else:
+            if self.n_cluster_components is None:
+                self.kwargs.update({'n_factors': 2})
+            else:
+                if self.n_cluster_components >= len(self.features):
+                    self.kwargs.update({'n_components': 2})
+                    Log(write=False, level='info').log(
+                        msg='Number of factors are greater then or equal to number of features. Number of factors set to 2')
+                else:
+                    self.kwargs.update({'n_components': self.n_cluster_components})
+            _clustering: Clustering = Clustering(cl_params=self.kwargs)
+            _clustering.factor_analysis().fit(X=self.df[self.features])
+            self.cluster[self.ml_algorithm].update({'fit': _clustering})
+            self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+            if self.find_optimum:
+                if self.silhouette:
+                    _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                    self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
+                    self.cluster_plot.update({'Silhouette Analysis (FA)': dict(data=None,
+                                                                               features=None,
+                                                                               plot_type='silhouette',
+                                                                               kwargs=dict(layout={},
+                                                                                           n_clusters=self.kwargs.get(
+                                                                                               'n_clusters'),
+                                                                                           silhouette=_silhouette
+                                                                                           )
+                                                                               )
+                                              })
+                else:
+                    self.kwargs.update({'n_factors': self._estimate_optimal_factors(factors=_clustering.transform(X=self.df[self.features]))})
+                    self.cluster[self.ml_algorithm].update({'n_factors': self.kwargs.get('n_factors')})
+                    self.cluster_plot.update({'Optimal Number of Factors': dict(data=self.eigen_value,
+                                                                                features=None,
+                                                                                plot_type='line',
+                                                                                kwargs=dict(layout={})
+                                                                                )
+                                              })
+            _factors: np.array = self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features])
+            self.cluster[self.ml_algorithm].update({'factors': self.cluster[self.ml_algorithm].get('fit').components_,
+                                                    'explained_variance': self.cluster[self.ml_algorithm].get('fit').explained_variance_,
+                                                    'fa': _factors
+                                                    })
+            _components: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').components_),
+                                                     columns=self.features,
+                                                     index=['fa{}'.format(fa) for fa in
+                                                            range(0, self.kwargs.get('n_factors'), 1)]
+                                                     ).transpose()
+            _feature_importance: pd.DataFrame = abs(_components)
+            for fa in range(0, self.kwargs.get('n_factors'), 1):
+                self.cluster_plot.update({'Feature Importance FA{}'.format(fa): dict(data=_feature_importance,
+                                                                                     features=None,
+                                                                                     plot_type='bar',
+                                                                                     kwargs=dict(layout={},
+                                                                                                 x=self.features,
+                                                                                                 y=_feature_importance[
+                                                                                                     'fa{}'.format(fa)],
+                                                                                                 marker=dict(color=
+                                                                                                             _feature_importance[
+                                                                                                                 'fa{}'.format(
+                                                                                                                     fa)],
+                                                                                                             colorscale='rdylgn',
+                                                                                                             autocolorscale=True
+                                                                                                             )
+                                                                                                 )
+                                                                                     )
+                                          })
+            self.cluster_plot.update({'Explained Variance': dict(data=pd.DataFrame(),
+                                                                 features=None,
+                                                                 plot_type='bar',
+                                                                 kwargs=dict(layout={},
+                                                                             x=list(_feature_importance.keys()),
+                                                                             y=self.cluster[self.ml_algorithm].get('explained_variance_ratio')
+                                                                             )
+                                                                 ),
+                                      'Factor Loadings': dict(data=pd.DataFrame(data=self.cluster[self.ml_algorithm].get('fa'),
+                                                                                columns=list(_feature_importance.keys())
+                                                                                ),
+                                                              features=list(_feature_importance.keys()),
+                                                              plot_type='scatter',
+                                                              melt=True,
+                                                              kwargs=dict(layout={},
+                                                                          marker=dict(color=self.cluster[self.ml_algorithm].get('fa'),
+                                                                                      colorscale='rdylgn',
+                                                                                      autocolorscale=True
+                                                                                      )
+                                                                          )
+                                                              )
+                                      })
+
     def _estimate_optimal_factors(self, factors: np.array) -> int:
         """
         Calculate optimal amount of factors to be used in factor analysis based on the eigenvalues
@@ -647,7 +746,7 @@ class UnsupervisedML:
             ################################
             # Principal Component Analysis #
             ################################
-            if cl is 'pca':
+            if cl == 'pca':
                 #if self.df.loc[self.df.isnull(), self.features].shape[0] > 0:
                 #    Log(write=False, level='info').log(msg='Clean cases containing missing values...')
                 #    self.df = self.df[~self.df.isnull()]
@@ -658,88 +757,7 @@ class UnsupervisedML:
             # Factor Analysis #
             ###################
             elif cl in ['fa', 'factor']:
-                _kmo: dict = StatsUtils(data=self.df, features=self.features).factoriability_test(meth='kmo')
-                if _kmo.get('kmo') < 0.6:
-                    Log(write=False, level='info').log(msg='Data set not suitable for running factor analysis since KMO coefficient ({}) is lower than 0.6'.format(_kmo.get('kmo')))
-                else:
-                    if self.n_cluster_components is None:
-                        self.kwargs.update({'n_factors': 2})
-                    else:
-                        if self.n_cluster_components >= len(self.features):
-                            self.kwargs.update({'n_components': 2})
-                            Log(write=False, level='info').log(msg='Number of factors are greater then or equal to number of features. Number of factors set to 2')
-                        else:
-                            self.kwargs.update({'n_components': self.n_cluster_components})
-                    if self.find_optimum:
-                        if self.silhouette:
-                            _try_run = Clustering(cl_params=self.kwargs).factor_analysis().fit(X=self.df[self.features])
-                            _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
-                            _cluster[cl].update({'silhouette': _silhouette})
-                            _cluster_plot.update({'Silhouette Analysis (FA)': dict(data=None,
-                                                                                   features=None,
-                                                                                   plot_type='silhouette',
-                                                                                   kwargs=dict(layout={},
-                                                                                               n_clusters=self.kwargs.get('n_clusters'),
-                                                                                               silhouette=_silhouette
-                                                                                               )
-                                                                                   )
-                                                  })
-                        else:
-                            _try_run = Clustering(cl_params=self.kwargs).factor_analysis().fit(X=self.df[self.features])
-                            self.kwargs.update({'n_factors': self._estimate_optimal_factors(factors=_try_run.transform(X=self.df[self.features]))})
-                            _cluster_plot.update({'Optimal Number of Factors': dict(data=self.eigen_value,
-                                                                                    features=None,
-                                                                                    plot_type='line',
-                                                                                    kwargs=dict(layout={})
-                                                                                    )
-                                                  })
-                    _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).factor_analysis().fit(X=self.df[self.features], y=self.target)})
-                    _factors: np.array = _cluster[cl].get('fit').transform(X=self.df[self.features])
-                    _cluster[cl].update({'factors': _cluster[cl].get('fit').components_,
-                                         'explained_variance': _cluster[cl].get('fit').explained_variance_,
-                                         'fa': _factors
-                                         })
-                    _components: pd.DataFrame = pd.DataFrame(data=np.array(_cluster[cl].get('fit').components_),
-                                                             columns=self.features,
-                                                             index=['fa{}'.format(fa) for fa in range(0, self.kwargs.get('n_factors'), 1)]
-                                                             ).transpose()
-                    _feature_importance: pd.DataFrame = abs(_components)
-                    for fa in range(0, self.kwargs.get('n_factors'), 1):
-                        _cluster_plot.update({'Feature Importance FA{}'.format(fa): dict(data=_feature_importance,
-                                                                                         features=None,
-                                                                                         plot_type='bar',
-                                                                                         kwargs=dict(layout={},
-                                                                                                     x=self.features,
-                                                                                                     y=_feature_importance['fa{}'.format(fa)],
-                                                                                                     marker=dict(color=_feature_importance['fa{}'.format(fa)],
-                                                                                                                 colorscale='rdylgn',
-                                                                                                                 autocolorscale=True
-                                                                                                                 )
-                                                                                                     )
-                                                                                         )
-                                              })
-                    _cluster_plot.update({'Explained Variance': dict(data=pd.DataFrame(),
-                                                                     features=None,
-                                                                     plot_type='bar',
-                                                                     kwargs=dict(layout={},
-                                                                                 x=list(_feature_importance.keys()),
-                                                                                 y=_cluster[cl].get('explained_variance_ratio')
-                                                                                 )
-                                                                     ),
-                                          'Factor Loadings': dict(data=pd.DataFrame(data=_cluster[cl].get('fa'),
-                                                                                    columns=list(_feature_importance.keys())
-                                                                                    ),
-                                                                  features=list(_feature_importance.keys()),
-                                                                  plot_type='scatter',
-                                                                  melt=True,
-                                                                  kwargs=dict(layout={},
-                                                                              marker=dict(color=_cluster[cl].get('fa'),
-                                                                                          colorscale='rdylgn',
-                                                                                          autocolorscale=True
-                                                                                          )
-                                                                              )
-                                                                  )
-                                          })
+                self._factor_analysis()
             ########################################
             # Truncated Single Value Decomposition #
             ########################################
@@ -829,7 +847,7 @@ class UnsupervisedML:
             ###############################################
             # t-Distributed Stochastic Neighbor Embedding #
             ###############################################
-            elif cl is 'tsne':
+            elif cl == 'tsne':
                 if self.kwargs.get('n_components') is None:
                     self.kwargs.update({'n_components': 2})
                 if self.find_optimum:
@@ -887,7 +905,7 @@ class UnsupervisedML:
             #############################
             # Multi Dimensional Scaling #
             #############################
-            elif cl is 'mds':
+            elif cl == 'mds':
                 if self.kwargs.get('n_components') is None:
                     self.kwargs.update({'n_components': 2})
                 if self.find_optimum:
@@ -947,7 +965,7 @@ class UnsupervisedML:
             #####################
             # Isometric Mapping #
             #####################
-            elif cl is 'isomap':
+            elif cl == 'isomap':
                 if self.kwargs.get('n_components') is None:
                     self.kwargs.update({'n_components': 2})
                 if self.find_optimum:
@@ -1135,7 +1153,7 @@ class UnsupervisedML:
             ###########
             # K-Means #
             ###########
-            elif cl is 'kmeans':
+            elif cl == 'kmeans':
                 if self.n_cluster_components is None:
                     self.kwargs.update({'n_clusters': 7})
                 else:
@@ -1180,7 +1198,7 @@ class UnsupervisedML:
             #####################################
             # Non-Negative Matrix Factorization #
             #####################################
-            elif cl is 'nmf':
+            elif cl == 'nmf':
                 _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).non_negative_matrix_factorization().fit(X=self.df)})
                 _cluster[cl].update({'factorization_matrix_w': _cluster[cl].get('fit').transform(X=self.df),
                                      'factorization_matrix_h': _cluster[cl].get('fit').components_,
@@ -1190,7 +1208,7 @@ class UnsupervisedML:
             ###############################
             # Latent Dirichlet Allocation #
             ###############################
-            elif cl is 'lda':
+            elif cl == 'lda':
                 _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).latent_dirichlet_allocation().fit(X=self.df)})
                 _cluster[cl].update({'components': _cluster[cl].get('fit').transform(X=self.df),
                                      'em_iter': _cluster[cl].get('fit').n_batch_iter_,
@@ -1202,7 +1220,7 @@ class UnsupervisedML:
             ##################################
             # Latent Single Value Allocation #
             ##################################
-            elif cl is 'lsa':
+            elif cl == 'lsa':
                 _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).truncated_single_value_decomp().fit(X=self.df)})
                 _cluster[cl].update({'components': _cluster[cl].get('fit').transform(X=self.df),
                                      'explained_variance': _cluster[cl].get('fit').explained_variance_,
@@ -1212,7 +1230,7 @@ class UnsupervisedML:
             ########################################################
             # Ordering Points To Identify the Clustering Structure #
             ########################################################
-            elif cl is 'optics':
+            elif cl == 'optics':
                 _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).optics().fit(X=self.df)})
                 _cluster[cl].update({'reachability': _cluster[cl].get('fit').reachability_,
                                      'ordering': _cluster[cl].get('fit').ordering_,
@@ -1247,7 +1265,7 @@ class UnsupervisedML:
             ###############################################################
             # Density-Based Spatial Clustering of Applications with Noise #
             ###############################################################
-            elif cl is 'dbscan':
+            elif cl == 'dbscan':
                 _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).dbscan().fit(X=self.df)})
                 _cluster[cl].update({'core_samples': _cluster[cl].get('fit').core_samples_,
                                      'cluster': _cluster[cl].get('fit').transform(X=self.df[self.features]),
@@ -1331,7 +1349,7 @@ class UnsupervisedML:
             ####################
             # Birch Clustering #
             ####################
-            elif cl is 'birch':
+            elif cl == 'birch':
                 _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).birch().fit(X=self.df[self.features])})
                 _cluster[cl].update({'partial_fit': _cluster[cl].get('fit').partial_fit_,
                                      'root': _cluster[cl].get('fit').root_,
