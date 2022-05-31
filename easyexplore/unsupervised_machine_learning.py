@@ -496,6 +496,29 @@ class UnsupervisedML:
                 self.cpu_cores: int = os.cpu_count() - 1 if os.cpu_count() > 1 else os.cpu_count()
         self.kwargs: dict = {} if kwargs is None else kwargs
 
+    def _agglomerative_clustering(self):
+        """
+        Agglomerative clustering
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.agglomerative_clustering().fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'clusters': _clustering.clusters_,
+                                                'cluster': _clustering.transform(X=self.df[self.features]),
+                                                'components': _clustering.n_components_,
+                                                'labels': _clustering.labels_
+                                                })
+        self.cluster_plot.update({'Agglomerative Clustering': dict(data=self.df,
+                                                                   features=self.features,
+                                                                   plot_type='scatter',
+                                                                   melt=True,
+                                                                   kwargs=dict(layout={},
+                                                                               marker=dict(color=self.cluster[self.ml_algorithm].get(
+                                                                                   'fit').labels_.astype(float))
+                                                                               )
+                                                                   )
+                                  })
+
     def _cumulative_explained_variance_ratio(self, explained_variance_ratio: np.ndarray) -> int:
         """
         Calculate optimal amount of components to be used for principal component analysis based on the explained variance ratio
@@ -1480,21 +1503,7 @@ class UnsupervisedML:
                                                                              include_self=False if self.kwargs.get('include_self') is None else self.kwargs.get('include_self'),
                                                                              n_jobs=self.cpu_cores
                                                                              )})
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).agglomerative_clustering().fit(X=self.df[self.features], y=self.target)})
-                _cluster[cl].update({'clusters': _cluster[cl].get('fit').clusters_,
-                                     'cluster': _cluster[cl].get('fit').transform(X=self.df[self.features]),
-                                     'components': _cluster[cl].get('fit').n_components_,
-                                     'labels': _cluster[cl].get('fit').labels_
-                                     })
-                _cluster_plot.update({'Agglomerative Clustering': dict(data=self.df,
-                                                                       features=self.features,
-                                                                       plot_type='scatter',
-                                                                       melt=True,
-                                                                       kwargs=dict(layout={},
-                                                                                   marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                                   )
-                                                                       )
-                                      })
+                self._agglomerative_clustering()
             ####################
             # Birch Clustering #
             ####################
