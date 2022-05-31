@@ -901,6 +901,19 @@ class UnsupervisedML:
                                                          )
                                   })
 
+    def _non_negative_matrix_factorization(self):
+        """
+        Non-Negative Matrix Factorization
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.non_negative_matrix_factorization().fit(X=self.df)
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'factorization_matrix_w': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df),
+                                                'factorization_matrix_h': self.cluster[self.ml_algorithm].get('fit').components_,
+                                                'reconstruction_error': self.cluster[self.ml_algorithm].get('fit').reconstruction_err_,
+                                                'n_iter': self.cluster[self.ml_algorithm].get('fit').n_iter_
+                                                })
+
     def _principal_component_analysis(self):
         """
         Principal component analysis (PCA)
@@ -1303,12 +1316,7 @@ class UnsupervisedML:
             # Non-Negative Matrix Factorization #
             #####################################
             elif cl == 'nmf':
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).non_negative_matrix_factorization().fit(X=self.df)})
-                _cluster[cl].update({'factorization_matrix_w': _cluster[cl].get('fit').transform(X=self.df),
-                                     'factorization_matrix_h': _cluster[cl].get('fit').components_,
-                                     'reconstruction_error': _cluster[cl].get('fit').reconstruction_err_,
-                                     'n_iter': _cluster[cl].get('fit').n_iter_
-                                     })
+                self._non_negative_matrix_factorization()
             ###############################
             # Latent Dirichlet Allocation #
             ###############################
