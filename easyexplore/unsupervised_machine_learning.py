@@ -878,6 +878,77 @@ class UnsupervisedML:
                                                                )
                                   })
 
+    def _spectral_embedding(self):
+        """
+        Spectral embedding
+        """
+        if self.kwargs.get('n_components') is None:
+            self.kwargs.update({'n_components': 2})
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.spectral_embedding().fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+        if self.find_optimum:
+            if self.silhouette:
+                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
+                self.cluster_plot.update({'Silhouette Analysis (SPE)': dict(data=None,
+                                                                            features=None,
+                                                                            plot_type='silhouette',
+                                                                            kwargs=dict(layout={},
+                                                                                        n_clusters=self.kwargs.get(
+                                                                                            'n_clusters'),
+                                                                                        silhouette=_silhouette
+                                                                                        )
+                                                                            )
+                                          })
+        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').embedding_),
+                                                 columns=self.features,
+                                                 index=['emb{}'.format(emb) for emb in
+                                                        range(0, self.kwargs.get('n_components'), 1)]
+                                                 ).transpose()
+        _feature_importance: pd.DataFrame = abs(_embeddings)
+        self.cluster[self.ml_algorithm].update({'embeddings': self.cluster[self.ml_algorithm].get('fit').embedding_,
+                                                'transformed_embeddings': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+                                                'affinity_matrix': self.cluster[self.ml_algorithm].get('fit').affinity_matrix_,
+                                                'feature_importance': dict(names={
+                                                    c: _feature_importance[c].sort_values(axis=0, ascending=False).index.values[0]
+                                                    for c in _feature_importance.keys()}, scores=_feature_importance)
+                                                })
+        for spe in range(0, self.kwargs.get('n_components'), 1):
+            self.cluster_plot.update({'Feature Importance SPE{}'.format(spe): dict(data=_feature_importance,
+                                                                                   features=None,
+                                                                                   plot_type='bar',
+                                                                                   kwargs=dict(layout={},
+                                                                                               x=self.features,
+                                                                                               y=_feature_importance[
+                                                                                                   'spe{}'.format(spe)],
+                                                                                               marker=dict(color=
+                                                                                                           _feature_importance[
+                                                                                                               'spe{}'.format(
+                                                                                                                   spe)],
+                                                                                                           colorscale='rdylgn',
+                                                                                                           autocolorscale=True
+                                                                                                           )
+                                                                                               )
+                                                                                   )
+                                      })
+        self.cluster_plot.update(
+            {'Spectral Embeddings': dict(data=pd.DataFrame(data=self.cluster[self.ml_algorithm].get('transformed_embeddings'),
+                                                           columns=list(_feature_importance.keys())
+                                                           ),
+                                         features=list(_feature_importance.keys()),
+                                         plot_type='scatter',
+                                         melt=True,
+                                         kwargs=dict(layout={},
+                                                     marker=dict(color=self.cluster[self.ml_algorithm].get('transformed_embeddings'),
+                                                                 colorscale='rdylgn',
+                                                                 autocolorscale=True
+                                                                 )
+                                                     )
+                                         )
+             })
+
     def _t_distributed_stochastic_neighbor_embedding(self):
         """
         T-distributed stochastic neighbor embedding (TSNE)
@@ -1097,64 +1168,7 @@ class UnsupervisedML:
             # Spectral Embedding #
             ######################
             elif cl in ['spectral_emb', 'spectral_embedding']:
-                if self.kwargs.get('n_components') is None:
-                    self.kwargs.update({'n_components': 2})
-                if self.find_optimum:
-                    if self.silhouette:
-                        _try_run = Clustering(cl_params=self.kwargs).spectral_embedding().fit(X=self.df[self.features], y=self.target)
-                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
-                        _cluster[cl].update({'silhouette': _silhouette})
-                        _cluster_plot.update({'Silhouette Analysis (SPE)': dict(data=None,
-                                                                                features=None,
-                                                                                plot_type='silhouette',
-                                                                                kwargs=dict(layout={},
-                                                                                            n_clusters=self.kwargs.get('n_clusters'),
-                                                                                            silhouette=_silhouette
-                                                                                            )
-                                                                                )
-                                              })
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).spectral_embedding().fit(X=self.df[self.features], y=self.target)})
-                _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(_cluster[cl].get('fit').embedding_),
-                                                         columns=self.features,
-                                                         index=['emb{}'.format(emb) for emb in
-                                                                range(0, self.kwargs.get('n_components'), 1)]
-                                                         ).transpose()
-                _feature_importance: pd.DataFrame = abs(_embeddings)
-                _cluster[cl].update({'embeddings': _cluster[cl].get('fit').embedding_,
-                                     'transformed_embeddings': _cluster[cl].get('fit').transform(X=self.df[self.features]),
-                                     'affinity_matrix': _cluster[cl].get('fit').affinity_matrix_,
-                                     'feature_importance': dict(names={
-                                         c: _feature_importance[c].sort_values(axis=0, ascending=False).index.values[0]
-                                         for c in _feature_importance.keys()}, scores=_feature_importance)
-                                     })
-                for spe in range(0, self.kwargs.get('n_components'), 1):
-                    _cluster_plot.update({'Feature Importance SPE{}'.format(spe): dict(data=_feature_importance,
-                                                                                       features=None,
-                                                                                       plot_type='bar',
-                                                                                       kwargs=dict(layout={},
-                                                                                                   x=self.features,
-                                                                                                   y=_feature_importance['spe{}'.format(spe)],
-                                                                                                   marker=dict(color=_feature_importance['spe{}'.format(spe)],
-                                                                                                               colorscale='rdylgn',
-                                                                                                               autocolorscale=True
-                                                                                                               )
-                                                                                                   )
-                                                                                       )
-                                          })
-                _cluster_plot.update({'Spectral Embeddings': dict(data=pd.DataFrame(data=_cluster[cl].get('transformed_embeddings'),
-                                                                                    columns=list(_feature_importance.keys())
-                                                                                    ),
-                                                                  features=list(_feature_importance.keys()),
-                                                                  plot_type='scatter',
-                                                                  melt=True,
-                                                                  kwargs=dict(layout={},
-                                                                              marker=dict(color=_cluster[cl].get('transformed_embeddings'),
-                                                                                          colorscale='rdylgn',
-                                                                                          autocolorscale=True
-                                                                                          )
-                                                                              )
-                                                                  )
-                                      })
+                self._spectral_embedding()
             ############################
             # Locally Linear Embedding #
             ############################
