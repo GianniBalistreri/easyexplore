@@ -471,6 +471,9 @@ class UnsupervisedML:
             self.features = list(self.df.keys())
         self.target: str = target
         self.cluster_algorithms = cluster_algorithms
+        self.cluster: dict = {}
+        self.cluster_plot: dict = {}
+        self.ml_algorithm: str = None
         self.find_optimum: bool = find_optimum
         self.n_cluster_components: int = n_cluster_components
         self.n_neighbors: int = n_neighbors
@@ -493,9 +496,9 @@ class UnsupervisedML:
                 self.cpu_cores: int = os.cpu_count() - 1 if os.cpu_count() > 1 else os.cpu_count()
         self.kwargs: dict = {} if kwargs is None else kwargs
 
-    def _cummulative_explained_variance_ratio(self, explained_variance_ratio: np.ndarray) -> int:
+    def _cumulative_explained_variance_ratio(self, explained_variance_ratio: np.ndarray) -> int:
         """
-        Calculate optimal amount of components to be used in principal component analysis based on the explained variance ratio
+        Calculate optimal amount of components to be used for principal component analysis based on the explained variance ratio
 
         :return: int
             Optimal amount of components
@@ -535,42 +538,102 @@ class UnsupervisedML:
             _distortions.append(Clustering(cl_params=self.kwargs).kmeans().fit(self.df[self.features]).inertia_)
         return 1
 
-    def _silhoutte_analysis(self, labels: List[int]) -> dict:
+    def _principal_component_analysis(self):
         """
-        Calculate silhouette scores to evaluate optimal amount of clusters for most cluster analysis algorithms
-
-        :param labels: List[int]
-            Predicted cluster labels by any cluster algorithm
-
-        :return: dict
-            Optimal clusters and the average silhouette score as well as silhouette score for each sample
+        Principal component analysis (PCA)
         """
-        _lower: int = 10
-        _silhouette: dict = {}
-        _avg_silhoutte_score: List[float] = []
-        _clusters: List[int] = [n for n in range(0, self.kwargs.get('n_clusters'), 1)]
-        for cl in _clusters:
-            _avg_silhoutte_score.append(silhouette_score(X=self.df[self.features],
-                                                         labels=labels,
-                                                         metric='euclidean' if self.metric is None else self.metric,
-                                                         sample_size=self.kwargs.get('sample_size'),
-                                                         random_state=self.seed
-                                                         )
-                                        )
-            _silhouette.update({'cluster_{}_avg'.format(cl): _avg_silhoutte_score[-1]})
-            _silhouette_samples: np.array = silhouette_samples(X=self.df[self.features],
-                                                               labels=labels,
-                                                               metric='euclidean' if self.metric is None else self.metric,
+        if self.n_cluster_components is None:
+            self.kwargs.update({'n_components': 2})
+        else:
+            if self.n_cluster_components >= len(self.features):
+                self.kwargs.update({'n_components': 2})
+                Log(write=False, level='info').log(
+                    msg='Number of components are greater then or equal to number of features. Number of components set to 2')
+            else:
+                self.kwargs.update({'n_components': self.n_cluster_components})
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.principal_component_analysis().fit(X=self.df[self.features])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        if self.find_optimum:
+            if self.silhouette:
+                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
+                self.cluster_plot.update({'Silhouette Analysis (PCA)': dict(data=None,
+                                                                            features=None,
+                                                                            plot_type='silhouette',
+                                                                            kwargs=dict(layout={},
+                                                                                        n_clusters=self.kwargs.get(
+                                                                                            'n_clusters'),
+                                                                                        silhouette=_silhouette
+                                                                                        )
+                                                                            )
+                                          })
+            else:
+                _cumulative_explained_variance_ratio: np.ndarray = np.cumsum(_clustering.explained_variance_ratio_)
+                self.cluster[self.ml_algorithm].update({'explained_variance_ratio': _clustering.explained_variance_ratio_})
+                self.cluster[self.ml_algorithm].update({'cumulative_explained_variance_ratio': _cumulative_explained_variance_ratio})
+                self.kwargs.update({'n_components': self._cumulative_explained_variance_ratio(
+                    explained_variance_ratio=_cumulative_explained_variance_ratio)})
+                self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+                self.cluster_plot.update({'Optimal Number of Components': dict(data=_cumulative_explained_variance_ratio,
+                                                                               features=None,
+                                                                               plot_type='line',
+                                                                               kwargs=dict(layout={})
+                                                                               )
+                                          })
+        _components: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').components_),
+                                                 columns=self.features,
+                                                 index=['pc{}'.format(pc) for pc in
+                                                        range(0, self.kwargs.get('n_components'), 1)]
+                                                 ).transpose()
+        _feature_importance: pd.DataFrame = abs(_components)
+        self.cluster[self.ml_algorithm].update({'components': self.cluster[self.ml_algorithm].get('fit').components_,
+                                                'explained_variance': list(self.cluster[self.ml_algorithm].get('fit').explained_variance_),
+                                                'explained_variance_ratio': list(self.cluster[self.ml_algorithm].get('fit').explained_variance_ratio_),
+                                                'pc': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+                                                'feature_importance': dict(names={pca: _feature_importance[pca].sort_values(axis=0, ascending=False).index.values[0] for pca in _feature_importance.keys()},
+                                                                           scores=_feature_importance
+                                                                           )
+                                                })
+        for pca in range(0, self.kwargs.get('n_components'), 1):
+            self.cluster_plot.update({'Feature Importance PC{}'.format(pca): dict(data=_feature_importance,
+                                                                                  features=None,
+                                                                                  plot_type='bar',
+                                                                                  kwargs=dict(layout={},
+                                                                                              x=self.features,
+                                                                                              y=_feature_importance[
+                                                                                                  'pc{}'.format(pca)],
+                                                                                              marker=dict(
+                                                                                                  color=_feature_importance[
+                                                                                                      'pc{}'.format(pca)],
+                                                                                                  colorscale='rdylgn',
+                                                                                                  autocolorscale=True
+                                                                                              )
+                                                                                              )
+                                                                                  )
+                                      })
+        self.cluster_plot.update({'Explained Variance': dict(data=pd.DataFrame(),
+                                                             features=None,
+                                                             plot_type='bar',
+                                                             kwargs=dict(layout={},
+                                                                         x=list(_feature_importance.keys()),
+                                                                         y=self.cluster[self.ml_algorithm].get('explained_variance_ratio')
+                                                                         )
+                                                             ),
+                                  'Principal Components': dict(data=pd.DataFrame(data=self.cluster[self.ml_algorithm].get('pc'),
+                                                                                 columns=list(_feature_importance.keys())
+                                                                                 ),
+                                                               features=list(_feature_importance.keys()),
+                                                               plot_type='scatter',
+                                                               melt=True,
+                                                               kwargs=dict(layout={},
+                                                                           marker=dict(color=self.cluster[self.ml_algorithm].get('pc'),
+                                                                                       colorscale='rdylgn',
+                                                                                       autocolorscale=True
+                                                                                       )
+                                                                           )
                                                                )
-            for s in range(0, cl + 1, 1):
-                _s: np.array = _silhouette_samples[labels == s]
-                _s.sort()
-                _upper: int = _lower + _s.shape[0]
-                _silhouette.update({'cluster_{}_samples'.format(cl): dict(y=np.arange(_lower, _upper), scores=_s)})
-                _lower = _upper + 10
-        _max_avg_score: float = max(_avg_silhoutte_score)
-        _silhouette.update({'best': dict(cluster=_avg_silhoutte_score.index(_max_avg_score) + 1, avg_score=_max_avg_score)})
-        return _silhouette
+                                  })
 
     def ml_pipeline(self) -> dict:
         """
@@ -579,7 +642,8 @@ class UnsupervisedML:
         _cluster: dict = {}
         _cluster_plot: dict = {}
         for cl in self.cluster_algorithms:
-            _cluster.update({cl: {}})
+            self.ml_algorithm = cl
+            self.cluster.update({cl: {}})
             ################################
             # Principal Component Analysis #
             ################################
@@ -589,88 +653,7 @@ class UnsupervisedML:
                 #    self.df = self.df[~self.df.isnull()]
                 #    if self.df.shape[0] == 0:
                 #        raise UnsupervisedMLException('No cases containing valid observations left')
-                if self.n_cluster_components is None:
-                    self.kwargs.update({'n_components': 2})
-                else:
-                    if self.n_cluster_components >= len(self.features):
-                        self.kwargs.update({'n_components': 2})
-                        Log(write=False, level='info').log(msg='Number of components are greater then or equal to number of features. Number of components set to 2')
-                    else:
-                        self.kwargs.update({'n_components': self.n_cluster_components})
-                if self.find_optimum:
-                    if self.silhouette:
-                        _try_run = Clustering(cl_params=self.kwargs).principal_component_analysis().fit(X=self.df[self.features])
-                        _silhouette: dict = self._silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
-                        _cluster[cl].update({'silhouette': _silhouette})
-                        _cluster_plot.update({'Silhouette Analysis (PCA)': dict(data=None,
-                                                                                features=None,
-                                                                                plot_type='silhouette',
-                                                                                kwargs=dict(layout={},
-                                                                                            n_clusters=self.kwargs.get('n_clusters'),
-                                                                                            silhouette=_silhouette
-                                                                                            )
-                                                                                )
-                                              })
-                    else:
-                        _try_run = Clustering(cl_params=self.kwargs).principal_component_analysis().fit(X=self.df[self.features])
-                        _cummulative_explained_variance_ratio: np.ndarray = np.cumsum(_try_run.explained_variance_ratio_)
-                        self.kwargs.update({'n_components': self._cummulative_explained_variance_ratio(explained_variance_ratio=_cummulative_explained_variance_ratio)})
-                        _cluster_plot.update({'Optimal Number of Components': dict(data=_cummulative_explained_variance_ratio,
-                                                                                   features=None,
-                                                                                   plot_type='line',
-                                                                                   kwargs=dict(layout={})
-                                                                                   )
-                                              })
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).principal_component_analysis().fit(X=self.df[self.features])})
-                _components: pd.DataFrame = pd.DataFrame(data=np.array(_cluster[cl].get('fit').components_),
-                                                         columns=self.features,
-                                                         index=['pc{}'.format(pc) for pc in range(0, self.kwargs.get('n_components'), 1)]
-                                                         ).transpose()
-                _feature_importance: pd.DataFrame = abs(_components)
-                _cluster[cl].update({'components': _cluster[cl].get('fit').components_,
-                                     'explained_variance': list(_cluster[cl].get('fit').explained_variance_),
-                                     'explained_variance_ratio': list(_cluster[cl].get('fit').explained_variance_ratio_),
-                                     'pc': _cluster[cl].get('fit').transform(X=self.df[self.features]),
-                                     'feature_importance': dict(names={pca: _feature_importance[pca].sort_values(axis=0, ascending=False).index.values[0] for pca in _feature_importance.keys()},
-                                                                scores=_feature_importance
-                                                                )
-                                     })
-                for pca in range(0, self.kwargs.get('n_components'), 1):
-                    _cluster_plot.update({'Feature Importance PC{}'.format(pca): dict(data=_feature_importance,
-                                                                                      features=None,
-                                                                                      plot_type='bar',
-                                                                                      kwargs=dict(layout={},
-                                                                                                  x=self.features,
-                                                                                                  y=_feature_importance['pc{}'.format(pca)],
-                                                                                                  marker=dict(color=_feature_importance['pc{}'.format(pca)],
-                                                                                                              colorscale='rdylgn',
-                                                                                                              autocolorscale=True
-                                                                                                              )
-                                                                                                  )
-                                                                                      )
-                                          })
-                _cluster_plot.update({'Explained Variance': dict(data=pd.DataFrame(),
-                                                                 features=None,
-                                                                 plot_type='bar',
-                                                                 kwargs=dict(layout={},
-                                                                             x=list(_feature_importance.keys()),
-                                                                             y=_cluster[cl].get('explained_variance_ratio')
-                                                                             )
-                                                                 ),
-                                      'Principal Components': dict(data=pd.DataFrame(data=_cluster[cl].get('pc'),
-                                                                                     columns=list(_feature_importance.keys())
-                                                                                     ),
-                                                                   features=list(_feature_importance.keys()),
-                                                                   plot_type='scatter',
-                                                                   melt=True,
-                                                                   kwargs=dict(layout={},
-                                                                               marker=dict(color=_cluster[cl].get('pc'),
-                                                                                           colorscale='rdylgn',
-                                                                                           autocolorscale=True
-                                                                                           )
-                                                                               )
-                                                                   )
-                                      })
+                self._principal_component_analysis()
             ###################
             # Factor Analysis #
             ###################
@@ -690,7 +673,7 @@ class UnsupervisedML:
                     if self.find_optimum:
                         if self.silhouette:
                             _try_run = Clustering(cl_params=self.kwargs).factor_analysis().fit(X=self.df[self.features])
-                            _silhouette: dict = self._silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
+                            _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
                             _cluster[cl].update({'silhouette': _silhouette})
                             _cluster_plot.update({'Silhouette Analysis (FA)': dict(data=None,
                                                                                    features=None,
@@ -772,7 +755,7 @@ class UnsupervisedML:
                 if self.find_optimum:
                     if self.silhouette:
                         _try_run = Clustering(cl_params=self.kwargs).truncated_single_value_decomp().fit(X=self.df[self.features], y=None)
-                        _silhouette: dict = self._silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
+                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
                         _cluster[cl].update({'silhouette': _silhouette})
                         _cluster_plot.update({'Silhouette Analysis (SVD)': dict(data=None,
                                                                                 features=None,
@@ -814,7 +797,7 @@ class UnsupervisedML:
                                                                                       kwargs=dict(layout={},
                                                                                                   x=self.features,
                                                                                                   y=_feature_importance['svd{}'.format(svd)],
-                                                                                                  marker=dict(color=_feature_importance['svd{}'.format(pca)],
+                                                                                                  marker=dict(color=_feature_importance['svd{}'.format(svd)],
                                                                                                               colorscale='rdylgn',
                                                                                                               autocolorscale=True
                                                                                                               )
@@ -852,7 +835,7 @@ class UnsupervisedML:
                 if self.find_optimum:
                     if self.silhouette:
                         _try_run = Clustering(cl_params=self.kwargs).t_distributed_stochastic_neighbor_embedding().fit(X=self.df[self.features], y=self.target)
-                        _silhouette: dict = self._silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
+                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
                         _cluster[cl].update({'silhouette': _silhouette})
                         _cluster_plot.update({'Silhouette Analysis (TSNE)': dict(data=None,
                                                                                  features=None,
@@ -879,8 +862,8 @@ class UnsupervisedML:
                                                                                          plot_type='bar',
                                                                                          kwargs=dict(layout={},
                                                                                                      x=self.features,
-                                                                                                     y=_feature_importance['tsne{}'.format(pca)],
-                                                                                                     marker=dict(color=_feature_importance['tsne{}'.format(pca)],
+                                                                                                     y=_feature_importance['tsne{}'.format(tsne)],
+                                                                                                     marker=dict(color=_feature_importance['tsne{}'.format(tsne)],
                                                                                                                  colorscale='rdylgn',
                                                                                                                  autocolorscale=True
                                                                                                                  )
@@ -910,7 +893,7 @@ class UnsupervisedML:
                 if self.find_optimum:
                     if self.silhouette:
                         _try_run = Clustering(cl_params=self.kwargs).multi_dimensional_scaling().fit(X=self.df[self.features], y=self.target)
-                        _silhouette: dict = self._silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
+                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
                         _cluster[cl].update({'silhouette': _silhouette})
                         _cluster_plot.update({'Silhouette Analysis (MDS)': dict(data=None,
                                                                                 features=None,
@@ -970,7 +953,7 @@ class UnsupervisedML:
                 if self.find_optimum:
                     if self.silhouette:
                         _try_run = Clustering(cl_params=self.kwargs).isometric_mapping().fit(X=self.df[self.features], y=self.target)
-                        _silhouette: dict = self._silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
+                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
                         _cluster[cl].update({'silhouette': _silhouette})
                         _cluster_plot.update({'Silhouette Analysis (Isomap)': dict(data=None,
                                                                                    features=None,
@@ -1034,7 +1017,7 @@ class UnsupervisedML:
                 if self.find_optimum:
                     if self.silhouette:
                         _try_run = Clustering(cl_params=self.kwargs).spectral_embedding().fit(X=self.df[self.features], y=self.target)
-                        _silhouette: dict = self._silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
+                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
                         _cluster[cl].update({'silhouette': _silhouette})
                         _cluster_plot.update({'Silhouette Analysis (SPE)': dict(data=None,
                                                                                 features=None,
@@ -1096,7 +1079,7 @@ class UnsupervisedML:
                 if self.find_optimum:
                     if self.silhouette:
                         _try_run = Clustering(cl_params=self.kwargs).locally_linear_embedding().fit(X=self.df[self.features], y=self.target)
-                        _silhouette: dict = self._silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
+                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.transform(self.df[self.features]))
                         _cluster[cl].update({'silhouette': _silhouette})
                         _cluster_plot.update({'Silhouette Analysis (LLE)': dict(data=None,
                                                                                 features=None,
@@ -1164,7 +1147,7 @@ class UnsupervisedML:
                 if self.find_optimum:
                     if self.silhouette:
                         _try_run = Clustering(cl_params=self.kwargs).kmeans().fit(X=self.df[self.features], y=self.target)
-                        _silhouette: dict = self._silhoutte_analysis(labels=_try_run.predict(self.df[self.features]))
+                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.predict(self.df[self.features]))
                         _cluster[cl].update({'silhouette': _silhouette})
                         _cluster_plot.update({'Silhouette Analysis (KMeans)': dict(data=None,
                                                                                    features=None,
@@ -1396,3 +1379,40 @@ class UnsupervisedML:
                                unit='px'
                                ).run()
         return _cluster
+
+    def silhoutte_analysis(self, labels: List[int]) -> dict:
+        """
+        Calculate silhouette scores to evaluate optimal amount of clusters for most cluster analysis algorithms
+
+        :param labels: List[int]
+            Predicted cluster labels by any cluster algorithm
+
+        :return: dict
+            Optimal clusters and the average silhouette score as well as silhouette score for each sample
+        """
+        _lower: int = 10
+        _silhouette: dict = {}
+        _avg_silhoutte_score: List[float] = []
+        _clusters: List[int] = [n for n in range(0, self.kwargs.get('n_clusters'), 1)]
+        for cl in _clusters:
+            _avg_silhoutte_score.append(silhouette_score(X=self.df[self.features],
+                                                         labels=labels,
+                                                         metric='euclidean' if self.metric is None else self.metric,
+                                                         sample_size=self.kwargs.get('sample_size'),
+                                                         random_state=self.seed
+                                                         )
+                                        )
+            _silhouette.update({'cluster_{}_avg'.format(cl): _avg_silhoutte_score[-1]})
+            _silhouette_samples: np.array = silhouette_samples(X=self.df[self.features],
+                                                               labels=labels,
+                                                               metric='euclidean' if self.metric is None else self.metric,
+                                                               )
+            for s in range(0, cl + 1, 1):
+                _s: np.array = _silhouette_samples[labels == s]
+                _s.sort()
+                _upper: int = _lower + _s.shape[0]
+                _silhouette.update({'cluster_{}_samples'.format(cl): dict(y=np.arange(_lower, _upper), scores=_s)})
+                _lower = _upper + 10
+        _max_avg_score: float = max(_avg_silhoutte_score)
+        _silhouette.update({'best': dict(cluster=_avg_silhoutte_score.index(_max_avg_score) + 1, avg_score=_max_avg_score)})
+        return _silhouette
