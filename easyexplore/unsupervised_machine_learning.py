@@ -500,8 +500,28 @@ class UnsupervisedML:
         """
         Agglomerative clustering
         """
+        if self.ml_algorithm.find('struc') >= 0:
+            if self.kwargs.get('connectivity') is None:
+                self.kwargs.update({'connectivity': kneighbors_graph(X=self.df[self.features],
+                                                                     n_neighbors=self.n_neighbors,
+                                                                     mode='connectivity' if self.kwargs.get(
+                                                                         'connectivity') is None else self.kwargs.get(
+                                                                         'connectivity'),
+                                                                     metric='minkowski' if self.kwargs.get(
+                                                                         'metric') is None else self.kwargs.get(
+                                                                         'metric'),
+                                                                     p=2 if self.kwargs.get(
+                                                                         'p') is None else self.kwargs.get('p'),
+                                                                     metric_params=self.kwargs.get('metric_params'),
+                                                                     include_self=False if self.kwargs.get(
+                                                                         'include_self') is None else self.kwargs.get(
+                                                                         'include_self'),
+                                                                     n_jobs=self.cpu_cores
+                                                                     )
+                                    })
         _clustering: Clustering = Clustering(cl_params=self.kwargs)
         _clustering.agglomerative_clustering().fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'connectivity': self.kwargs.get('connectivity')})
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'clusters': _clustering.clusters_,
                                                 'cluster': _clustering.transform(X=self.df[self.features]),
@@ -1492,17 +1512,6 @@ class UnsupervisedML:
             # Agglomerative Clustering #
             ############################
             elif cl in ['agglo_cl', 'agglo_cluster', 'struc_agglo_cl', 'struc_agglo_cluster', 'unstruc_agglo_cl', 'unstruc_agglo_cluster']:
-                if cl.find('struc') >= 0:
-                    if self.kwargs.get('connectivity') is None:
-                        self.kwargs.update({'connectivity': kneighbors_graph(X=self.df[self.features],
-                                                                             n_neighbors=self.n_neighbors,
-                                                                             mode='connectivity' if self.kwargs.get('connectivity') is None else self.kwargs.get('connectivity'),
-                                                                             metric='minkowski' if self.kwargs.get('metric') is None else self.kwargs.get('metric'),
-                                                                             p=2 if self.kwargs.get('p') is None else self.kwargs.get('p'),
-                                                                             metric_params=self.kwargs.get('metric_params'),
-                                                                             include_self=False if self.kwargs.get('include_self') is None else self.kwargs.get('include_self'),
-                                                                             n_jobs=self.cpu_cores
-                                                                             )})
                 self._agglomerative_clustering()
             ####################
             # Birch Clustering #
