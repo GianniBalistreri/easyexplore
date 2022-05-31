@@ -710,6 +710,55 @@ class UnsupervisedML:
                                        )
              })
 
+    def _k_means(self):
+        """
+        K-Means clustering
+        """
+        if self.n_cluster_components is None:
+            self.kwargs.update({'n_clusters': 5})
+        else:
+            if self.n_cluster_components < 2:
+                Log(write=False, level='info').log(
+                    msg='It makes no sense to run cluster analysis with less than 2 clusters ({}). Run analysis with more than 1 cluster instead'.format(
+                        self.kwargs.get('n_clusters')))
+                self.kwargs.update({'n_clusters': 5})
+            else:
+                self.kwargs.update({'n_clusters': self.n_cluster_components})
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.kmeans().fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'n_clusters': self.kwargs.get('n_clusters')})
+        if self.find_optimum:
+            if self.silhouette:
+                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.predict(self.df[self.features]))
+                self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
+                self.cluster_plot.update({'Silhouette Analysis (KMeans)': dict(data=None,
+                                                                               features=None,
+                                                                               plot_type='silhouette',
+                                                                               kwargs=dict(layout={},
+                                                                                           n_clusters=self.kwargs.get(
+                                                                                               'n_clusters'),
+                                                                                           silhouette=_silhouette
+                                                                                           )
+                                                                               )
+                                          })
+        self.cluster[self.ml_algorithm].update({'inertia': self.cluster[self.ml_algorithm].get('fit').inertia_,
+                                                'cluster': self.cluster[self.ml_algorithm].get('fit').predict(X=self.df[self.features]),
+                                                'cluster_distance_space': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+                                                'centroids': self.cluster[self.ml_algorithm].get('fit').cluster_centers_,
+                                                'labels': self.cluster[self.ml_algorithm].get('fit').labels_
+                                                })
+        self.cluster_plot.update({'Partitioning Clustering: KMeans': dict(data=self.df,
+                                                                          features=self.features,
+                                                                          plot_type='scatter',
+                                                                          melt=True,
+                                                                          kwargs=dict(layout={},
+                                                                                      marker=dict(color=self.cluster[self.ml_algorithm].get(
+                                                                                          'fit').labels_.astype(float))
+                                                                                      )
+                                                                          )
+                                  })
+
     def _locally_linear_embedding(self):
         """
         Locally linear embedding
@@ -717,7 +766,7 @@ class UnsupervisedML:
         if self.kwargs.get('n_components') is None:
             self.kwargs.update({'n_components': 2})
         _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.isometric_mapping().fit(X=self.df[self.features], y=self.df[self.target])
+        _clustering.locally_linear_embedding().fit(X=self.df[self.features], y=self.df[self.target])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
         if self.find_optimum:
@@ -1249,47 +1298,7 @@ class UnsupervisedML:
             # K-Means #
             ###########
             elif cl == 'kmeans':
-                if self.n_cluster_components is None:
-                    self.kwargs.update({'n_clusters': 7})
-                else:
-                    if self.n_cluster_components < 2:
-                        Log(write=False, level='info').log(msg='It makes no sense to run cluster analysis with less than 2 clusters ({}). Run analysis with 7 clusters instead'.format(self.kwargs.get('n_clusters')))
-                        self.kwargs.update({'n_clusters': 7})
-                    else:
-                        self.kwargs.update({'n_clusters': self.n_cluster_components})
-                if self.find_optimum:
-                    if self.silhouette:
-                        _try_run = Clustering(cl_params=self.kwargs).kmeans().fit(X=self.df[self.features], y=self.target)
-                        _silhouette: dict = self.silhoutte_analysis(labels=_try_run.predict(self.df[self.features]))
-                        _cluster[cl].update({'silhouette': _silhouette})
-                        _cluster_plot.update({'Silhouette Analysis (KMeans)': dict(data=None,
-                                                                                   features=None,
-                                                                                   plot_type='silhouette',
-                                                                                   kwargs=dict(layout={},
-                                                                                               n_clusters=self.kwargs.get('n_clusters'),
-                                                                                               silhouette=_silhouette
-                                                                                               )
-                                                                                   )
-                                              })
-                    else:
-                        _try_run = Clustering(cl_params=self.kwargs).kmeans().fit(X=self.df[self.features], y=self.target)
-                    self.kwargs.update({'n_clusters': 7})
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).kmeans().fit(X=self.df[self.features], y=self.target)})
-                _cluster[cl].update({'inertia': _cluster[cl].get('fit').inertia_,
-                                     'cluster': _cluster[cl].get('fit').predict(X=self.df[self.features]),
-                                     'cluster_distance_space': _cluster[cl].get('fit').transform(X=self.df[self.features]),
-                                     'centroids': _cluster[cl].get('fit').cluster_centers_,
-                                     'labels': _cluster[cl].get('fit').labels_
-                                     })
-                _cluster_plot.update({'Partitioning Clustering: KMeans': dict(data=self.df,
-                                                                              features=self.features,
-                                                                              plot_type='scatter',
-                                                                              melt=True,
-                                                                              kwargs=dict(layout={},
-                                                                                          marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                                          )
-                                                                              )
-                                      })
+                self._k_means()
             #####################################
             # Non-Negative Matrix Factorization #
             #####################################
