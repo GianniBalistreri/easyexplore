@@ -1468,12 +1468,17 @@ class UnsupervisedML:
                                                                )
                                   })
 
-    def ml_pipeline(self):
+    def run_clustering(self):
         """
         Run clustering algorithms
         """
         _cluster: dict = {}
         _cluster_plot: dict = {}
+        # if self.df.loc[self.df.isnull(), self.features].shape[0] > 0:
+        #    Log(write=False, level='info').log(msg='Clean cases containing missing values...')
+        #    self.df = self.df[~self.df.isnull()]
+        #    if self.df.shape[0] == 0:
+        #        raise UnsupervisedMLException('No cases containing valid observations left')
         for cl in self.cluster_algorithms:
             self.ml_algorithm = cl
             self.cluster.update({cl: {}})
@@ -1481,11 +1486,6 @@ class UnsupervisedML:
             # Principal Component Analysis #
             ################################
             if cl == 'pca':
-                #if self.df.loc[self.df.isnull(), self.features].shape[0] > 0:
-                #    Log(write=False, level='info').log(msg='Clean cases containing missing values...')
-                #    self.df = self.df[~self.df.isnull()]
-                #    if self.df.shape[0] == 0:
-                #        raise UnsupervisedMLException('No cases containing valid observations left')
                 self._principal_component_analysis()
             ###################
             # Factor Analysis #
@@ -1573,14 +1573,14 @@ class UnsupervisedML:
             elif cl in ['affinity_prop', 'affinity_propagation']:
                 self._affinity_propagation()
             else:
-                raise UnsupervisedMLException('Clustering method ({}) not supported'.format(cl))
-            if self.plot:
-                DataVisualizer(subplots=self.cluster_plot,
-                               interactive=True,
-                               height=500,
-                               width=500,
-                               unit='px'
-                               ).run()
+                raise UnsupervisedMLException('Clustering algorithm ({}) not supported'.format(cl))
+        if self.plot:
+            DataVisualizer(subplots=self.cluster_plot,
+                           interactive=True,
+                           height=500,
+                           width=500,
+                           unit='px'
+                           ).run()
 
     def silhoutte_analysis(self, labels: List[int]) -> dict:
         """
