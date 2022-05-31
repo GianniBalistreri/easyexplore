@@ -496,6 +496,30 @@ class UnsupervisedML:
                 self.cpu_cores: int = os.cpu_count() - 1 if os.cpu_count() > 1 else os.cpu_count()
         self.kwargs: dict = {} if kwargs is None else kwargs
 
+    def _affinity_propagation(self):
+        """
+        Affinity propagation
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.affinity_propagation().fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'cluster_centers': _clustering.cluster_centers_,
+                                                'affinity_matrix': _clustering.affinity_matrix_,
+                                                'labels': _clustering.labels_,
+                                                'predict': _clustering.predict(X=self.df[self.features])
+                                                })
+        self.cluster_plot.update({'Affinity Propagation': dict(data=self.df,
+                                                               features=self.features,
+                                                               plot_type='scatter',
+                                                               melt=True,
+                                                               kwargs=dict(layout={},
+                                                                           marker=dict(
+                                                                               color=_clustering.labels_.astype(
+                                                                                   float))
+                                                                           )
+                                                               )
+                                  })
+
     def _agglomerative_clustering(self):
         """
         Agglomerative clustering
@@ -1547,21 +1571,7 @@ class UnsupervisedML:
             # Affinity Propagation #
             ########################
             elif cl in ['affinity_prop', 'affinity_propagation']:
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).affinity_propagation().fit(X=self.df[self.features], y=self.target)})
-                _cluster[cl].update({'cluster_centers': _cluster[cl].get('fit').cluster_centers_,
-                                     'affinity_matrix': _cluster[cl].get('fit').affinity_matrix_,
-                                     'labels': _cluster[cl].get('fit').labels_,
-                                     'predict': _cluster[cl].get('fit').predict(X=self.df[self.features])
-                                     })
-                _cluster_plot.update({'Affinity Propagation': dict(data=self.df,
-                                                                   features=self.features,
-                                                                   plot_type='scatter',
-                                                                   melt=True,
-                                                                   kwargs=dict(layout={},
-                                                                               marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                               )
-                                                                   )
-                                      })
+                self._affinity_propagation()
             else:
                 raise UnsupervisedMLException('Clustering method ({}) not supported'.format(cl))
             if self.plot:
