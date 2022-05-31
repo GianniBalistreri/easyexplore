@@ -1337,16 +1337,6 @@ class UnsupervisedML:
             ###############################
             elif cl == 'lda':
                 self._latent_dirichlet_allocation()
-            ##################################
-            # Latent Single Value Allocation #
-            ##################################
-            elif cl == 'lsa':
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).truncated_single_value_decomp().fit(X=self.df)})
-                _cluster[cl].update({'components': _cluster[cl].get('fit').transform(X=self.df),
-                                     'explained_variance': _cluster[cl].get('fit').explained_variance_,
-                                     'explained_variance_ration': _cluster[cl].get('fit').explained_variance_ratio_,
-                                     'n_iter': _cluster[cl].get('fit').n_iter_
-                                     })
             ########################################################
             # Ordering Points To Identify the Clustering Structure #
             ########################################################
