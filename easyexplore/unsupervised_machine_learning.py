@@ -629,6 +629,28 @@ class UnsupervisedML:
                                                               )
                                       })
 
+    def _feature_agglomeration(self):
+        """
+        Feature agglomeration
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.feature_agglomeration().fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'clusters': _clustering.clusters_,
+                                                'within_cluster_error': _clustering.explained_variance_,
+                                                'cluster': _clustering.transform(X=self.df[self.features])
+                                                })
+        self.cluster_plot.update({'Feature Agglomeration': dict(data=self.df,
+                                                                features=self.features,
+                                                                plot_type='scatter',
+                                                                melt=True,
+                                                                kwargs=dict(layout={},
+                                                                            marker=dict(color=self.cluster[self.ml_algorithm].get(
+                                                                                'fit').labels_.astype(float))
+                                                                            )
+                                                                )
+                                  })
+
     def _estimate_optimal_factors(self, factors: np.array) -> int:
         """
         Calculate optimal amount of factors to be used in factor analysis based on the eigenvalues
@@ -1442,20 +1464,7 @@ class UnsupervisedML:
             # Feature Agglomeration #
             #########################
             elif cl in ['feature_agglo', 'feature_agglomeration']:
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).feature_agglomeration().fit(X=self.df[self.features], y=self.target)})
-                _cluster[cl].update({'clusters': _cluster[cl].clusters_,
-                                     'within_cluster_error': _cluster[cl].get('fit').explained_variance_,
-                                     'cluster': _cluster[cl].get('fit').transform(X=self.df[self.features])
-                                     })
-                _cluster_plot.update({'Feature Agglomeration': dict(data=self.df,
-                                                                    features=self.features,
-                                                                    plot_type='scatter',
-                                                                    melt=True,
-                                                                    kwargs=dict(layout={},
-                                                                                marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                                )
-                                                                    )
-                                      })
+                self._feature_agglomeration()
             ############################
             # Agglomerative Clustering #
             ############################
