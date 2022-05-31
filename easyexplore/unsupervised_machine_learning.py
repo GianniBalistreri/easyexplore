@@ -513,7 +513,7 @@ class UnsupervisedML:
         Density-based spatial clustering applications with noise (DBSCAN)
         """
         _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.optics().fit(X=self.df)
+        _clustering.dbscan().fit(X=self.df)
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'core_samples': self.cluster[self.ml_algorithm].get('fit').core_samples_,
                                                 'cluster': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
@@ -1089,6 +1089,29 @@ class UnsupervisedML:
                                                                )
                                   })
 
+    def _spectral_clustering(self):
+        """
+        Spectral clustering
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.spectral_clustering().fit(X=self.df)
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'affinity_matrix': self.cluster[self.ml_algorithm].get('fit').affinity_matrix_,
+                                                'cluster': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+                                                'lables': self.cluster[self.ml_algorithm].get('fit').labels_
+                                                })
+        self.cluster_plot.update({'Spectral Clustering': dict(data=self.df,
+                                                              features=self.features,
+                                                              plot_type='scatter',
+                                                              melt=True,
+                                                              kwargs=dict(layout={},
+                                                                          marker=dict(
+                                                                              color=self.cluster[self.ml_algorithm].get('fit').labels_.astype(
+                                                                                  float))
+                                                                          )
+                                                              )
+                                  })
+
     def _spectral_embedding(self):
         """
         Spectral embedding
@@ -1414,20 +1437,7 @@ class UnsupervisedML:
             # Spectral Clustering #
             #######################
             elif cl in ['spectral_cl', 'spectral_cluster']:
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).spectral_clustering().fit(X=self.df)})
-                _cluster[cl].update({'affinity_matrix': _cluster[cl].get('fit').affinity_matrix_,
-                                     'cluster': _cluster[cl].get('fit').transform(X=self.df[self.features]),
-                                     'lables': _cluster[cl].get('fit').labels_
-                                     })
-                _cluster_plot.update({'Spectral Clustering': dict(data=self.df,
-                                                                  features=self.features,
-                                                                  plot_type='scatter',
-                                                                  melt=True,
-                                                                  kwargs=dict(layout={},
-                                                                              marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                              )
-                                                                  )
-                                      })
+                self._spectral_clustering()
             #########################
             # Feature Agglomeration #
             #########################
