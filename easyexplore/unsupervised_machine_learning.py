@@ -539,6 +539,31 @@ class UnsupervisedML:
                                                                    )
                                   })
 
+    def _birch_clustering(self):
+        """
+        Birch clustering
+        """
+        _clustering: Clustering = Clustering(cl_params=self.kwargs)
+        _clustering.birch().fit(X=self.df)
+        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'partial_fit': _clustering.partial_fit_,
+                                                'root': _clustering.root_,
+                                                'centroids': _clustering.subcluster_centers_,
+                                                'cluster': _clustering.transform(X=self.df[self.features]),
+                                                'cluster_labels': _clustering.subcluster_labels_,
+                                                'dummy_leaf': _clustering.dummy_leaf_,
+                                                'labels': _clustering.labels_
+                                                })
+        self.cluster_plot.update({'Birch': dict(data=self.df,
+                                                features=self.features,
+                                                plot_type='scatter',
+                                                melt=True,
+                                                kwargs=dict(layout={},
+                                                            marker=dict(color=_clustering.labels_.astype(float))
+                                                            )
+                                                )
+                                  })
+
     def _cumulative_explained_variance_ratio(self, explained_variance_ratio: np.ndarray) -> int:
         """
         Calculate optimal amount of components to be used for principal component analysis based on the explained variance ratio
@@ -1517,24 +1542,7 @@ class UnsupervisedML:
             # Birch Clustering #
             ####################
             elif cl == 'birch':
-                _cluster[cl].update({'fit': Clustering(cl_params=self.kwargs).birch().fit(X=self.df[self.features])})
-                _cluster[cl].update({'partial_fit': _cluster[cl].get('fit').partial_fit_,
-                                     'root': _cluster[cl].get('fit').root_,
-                                     'centroids': _cluster[cl].get('fit').subcluster_centers_,
-                                     'cluster': _cluster[cl].get('fit').transform(X=self.df[self.features]),
-                                     'cluster_labels': _cluster[cl].get('fit').subcluster_labels_,
-                                     'dummy_leaf': _cluster[cl].get('fit').dummy_leaf_,
-                                     'labels': _cluster[cl].get('fit').labels_
-                                     })
-                _cluster_plot.update({'Birch': dict(data=self.df,
-                                                    features=self.features,
-                                                    plot_type='scatter',
-                                                    melt=True,
-                                                    kwargs=dict(layout={},
-                                                                marker=dict(color=_cluster[cl].get('fit').labels_.astype(float))
-                                                                )
-                                                    )
-                                      })
+                self._birch_clustering()
             ########################
             # Affinity Propagation #
             ########################
