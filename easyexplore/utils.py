@@ -314,14 +314,17 @@ class StatsUtils:
             p: float = _stat.critical_values[2]
         return p
 
-    def _bartlette_sphericity_test(self) -> dict:
+    def _bartlette_sphericity_test(self, features: List[str]) -> dict:
         """
         Bartlette's test for sphericity
+
+        :param features: List[str]
+            Name of the features
 
         :return dict
             Results of the Bartlette's test for sphericity (statistic, p)
         """
-        _cor = self.df[self.features].corr(method='pearson')
+        _cor = self.df[features].corr(method='pearson')
         _cor_det = np.linalg.det(_cor.values)
         _statistic: np.ndarray = -np.log(_cor_det) * (self.n_cases - 1 - (2 * self.n_features + 5) / 6)
         _dof = self.n_features * (self.n_features - 1) / 2
