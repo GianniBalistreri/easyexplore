@@ -424,7 +424,7 @@ class StatsUtils:
                         _beta_j: np.array = linalg.lstsq(self.df[_features].values, self.df[features[i]].values)[0]
                         _residual_j = self.df[features[j]].values - self.df[_features].values.dot(_beta_i)
                         _residual_i = self.df[features[i]].values - self.df[_features].values.dot(_beta_j)
-                        _pearson_r = pearsonr(_residual_i, _residual_j)[0]
+                        _pearson_r: float = pearsonr(_residual_i, _residual_j)[0]
                         _partial_cor[i, j] = _pearson_r
                         _partial_cor[j, i] = _pearson_r
                 _cor: pd.DataFrame = pd.DataFrame(data=_partial_cor, columns=features, index=features)
