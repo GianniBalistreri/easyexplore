@@ -633,7 +633,7 @@ class StatsUtils:
                 'reject': _reject
                 }
 
-    def normality_test(self, features: List[str], alpha: float = 0.05, meth: str = 'shapiro-wilk') -> dict:
+    def normality_test(self, features: List[str], alpha: float = 0.5, meth: str = 'shapiro-wilk') -> dict:
         """
         Test whether a distribution is normal distributed or not
 
@@ -663,7 +663,7 @@ class StatsUtils:
                 _stat, _p = self._dagostino_k2_test(feature=feature)
             else:
                 raise EasyExploreUtilsException('Method ({}) for testing normality not supported'.format(meth))
-            _normality.update({feature: dict(stat=_stat, p=_p, normality=_p > _alpha)})
+            _normality.update({feature: dict(stat=_stat, p=_p, normality=_p >= _alpha)})
         return _normality
 
     def parametric_test(self, x: str, y: str, meth: str = 't-test', welch_t_test: bool = True, *args):
