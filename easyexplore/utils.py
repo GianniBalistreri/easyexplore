@@ -280,10 +280,13 @@ class StatsUtils:
     """
     Class for calculating univariate and multivariate statistics
     """
-    def __init__(self, data: Union[dd.DataFrame, pd.DataFrame]):
+    def __init__(self, data: Union[dd.DataFrame, pd.DataFrame], significance_level: float = 0.95):
         """
         :param data: Union[pd.DataFrame, dd.DataFrame]
             Data set either Pandas or Dask DataFrame
+
+        :param significance_level: float
+            Significance level for rejecting hypothesis
         """
         if isinstance(data, pd.DataFrame):
             self.df: pd.DataFrame = data
@@ -291,7 +294,7 @@ class StatsUtils:
             self.df: pd.DataFrame = data.compute()
         self.n_cases: int = self.df.shape[0]
         self.n_features: int = self.df.shape[1]
-        self.p: float = 0.95
+        self.p: float = 1 - significance_level if 0 < significance_level < 1 else 0.95
         self.nan_policy = 'omit'
 
     def _anderson_darling_test(self, feature: str, sig_level: float = 0.05) -> float:
@@ -376,6 +379,41 @@ class StatsUtils:
             Statistical probability value (p-value)
         """
         return shapiro(x=self.df[feature].values)
+
+    def chi_squared_independence_test(self, x: str, y: str) -> dict:
+        """
+        Test the independency of two categorical features
+
+        :param x: str
+            Name of the first feature
+
+        :param y: str
+            Name of the second feature
+        """
+        _cross_tab: pd.DataFrame = pd.crosstab(self.df[x],
+                                               self.df[y],
+                                               margins=True,
+                                               margins_name="Total"
+                                               )
+        _chi_square: float = 0
+        _rows: np.array = self.df[x].unique()
+        _columns: np.array = self.df[y].unique()
+        for i in _columns:
+            for j in _rows:
+                _o: float = _cross_tab[i][j]
+                _e: float = _cross_tab[i]['Total'] * _cross_tab['Total'][j] / _cross_tab['Total']['Total']
+                _chi_square += (_o - _e) ** 2 / _e
+        _p_value: float = 1 - chi2.cdf(_chi_square, (len(_rows) - 1) * (len(_columns) - 1))
+        if _p_value <= self.p:
+            _reject: bool = True
+        else:
+            _reject: bool = False
+        return {'features': list(self.df.columns),
+                'cases': self.n_cases,
+                'test_statistic': _chi_square,
+                'p_value': _p_value,
+                'reject': _reject
+                }
 
     def curtosis_test(self) -> List[str]:
         """
@@ -485,9 +523,9 @@ class StatsUtils:
         else:
             raise EasyExploreUtilsException('Method for correlation test not supported')
         if _correlation_test[1] <= self.p:
-            _reject = False
-        else:
             _reject = True
+        else:
+            _reject = False
         return {'features': list(self.df.columns),
                 'cases': self.n_cases,
                 'test_statistic': _correlation_test[0],
@@ -522,6 +560,8 @@ class StatsUtils:
                             *args
                             ):
         """
+        Test probability distribution of two features with unknown parameters (distribution-free test)
+
         :param x: str
             Name of the first feature
 
@@ -583,9 +623,9 @@ class StatsUtils:
         else:
             raise ValueError('No non-parametric test found !')
         if _non_parametric_test[1] <= self.p:
-            _reject = False
-        else:
             _reject = True
+        else:
+            _reject = False
         return {'features': list(self.df.columns),
                 'cases': self.n_cases,
                 'test_statistic': _non_parametric_test[0],
@@ -628,6 +668,8 @@ class StatsUtils:
 
     def parametric_test(self, x: str, y: str, meth: str = 't-test', welch_t_test: bool = True, *args):
         """
+        Test probability distribution of two features with (approximately) normal distribution
+
         :param x: str
             Name of the first feature
 
@@ -675,9 +717,9 @@ class StatsUtils:
         else:
             raise ValueError('No parametric test found !')
         if _parametric_test[1] <= self.p:
-            _reject = False
-        else:
             _reject = True
+        else:
+            _reject = False
         return {'features': list(self.df.columns),
                 'cases': self.n_cases,
                 'test_statistic': _parametric_test[0],
