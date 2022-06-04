@@ -26,6 +26,7 @@ from datetime import datetime
 from ipywidgets import FloatProgress
 from IPython.display import display, HTML
 from itertools import islice
+from scipy import linalg
 from scipy.stats import (
     anderson, chi2, chi2_contingency, f_oneway, friedmanchisquare, mannwhitneyu, normaltest, kendalltau,\
     kruskal, ks_2samp, kstest, pearsonr, powerlaw, shapiro, spearmanr, stats, ttest_ind, ttest_rel, wilcoxon
@@ -408,23 +409,25 @@ class StatsUtils:
         if meth in ['pearson', 'kendall', 'spearman']:
             _cor: pd.DataFrame = self.df[features].corr(method=meth, min_periods=min_obs)
         elif meth == 'partial':
-            if len(self.df) - self.df.isnull().astype(dtype=int).sum().sum() > 0:
-                _cov: np.ndarray = np.cov(m=self.df[features].dropna())
-                try:
-                    assert np.linalg.det(_cov) > np.finfo(np.float32).eps
-                    _inv_var_cov: np.ndarray = np.linalg.inv(_cov)
-                except AssertionError:
-                    _inv_var_cov: np.ndarray = np.linalg.pinv(_cov)
-                    #warnings.warn('The inverse of the variance-covariance matrix '
-                    #              'was calculated using the Moore-Penrose generalized '
-                    #              'matrix inversion, due to its determinant being at '
-                    #              'or very close to zero.')
-                _std: np.ndarray = np.sqrt(np.diag(_inv_var_cov))
-                _cov2cor: np.ndarray = _inv_var_cov / np.outer(_std, _std)
-                _cor: pd.DataFrame = pd.DataFrame(data=np.nan_to_num(x=_cov2cor, copy=True) * -1,
-                                                  columns=features,
-                                                  index=features
-                                                  )
+            if (self.df.shape[0] - self.df.isnull().astype(dtype=int).sum().sum()) > 0:
+                _n_features: int = len(features)
+                if _n_features <= 2:
+                    raise EasyExploreUtilsException('Partial correlation can not be calculated. Number of features has to be higher than 2')
+                _partial_cor: np.array = np.zeros((_n_features, _n_features), dtype=np.float)
+                for i in range(0, _n_features, 1):
+                    _partial_cor[i, i] = 1
+                    for j in range(i + 1, _n_features, 1):
+                        _features: List[str] = copy.deepcopy(features)
+                        del _features[j]
+                        del _features[i]
+                        _beta_i: np.array = linalg.lstsq(self.df[_features].values, self.df[features[j]].values)[0]
+                        _beta_j: np.array = linalg.lstsq(self.df[_features].values, self.df[features[i]].values)[0]
+                        _residual_j = self.df[features[j]].values - self.df[_features].values.dot(_beta_i)
+                        _residual_i = self.df[features[i]].values - self.df[_features].values.dot(_beta_j)
+                        _pearson_r = pearsonr(_residual_i, _residual_j)[0]
+                        _partial_cor[i, j] = _pearson_r
+                        _partial_cor[j, i] = _pearson_r
+                _cor: pd.DataFrame = pd.DataFrame(data=_partial_cor, columns=features, index=features)
             else:
                 _cor: pd.DataFrame = pd.DataFrame()
                 Log(write=False, level='info').log(msg='Can not calculate coefficients for partial correlation because of the high missing data rate')
