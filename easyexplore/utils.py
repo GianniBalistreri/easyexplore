@@ -415,15 +415,6 @@ class StatsUtils:
                 'reject': _reject
                 }
 
-    def curtosis_test(self) -> List[str]:
-        """
-        Test whether a distribution is tailed or not
-
-        :return: List[str]
-            Names of the tailed features
-        """
-        raise NotImplementedError('Method not supported yet')
-
     def correlation(self, features: List[str], meth: str = 'pearson', min_obs: int = 1) -> pd.DataFrame:
         """
         Calculate correlation coefficients
@@ -511,7 +502,6 @@ class StatsUtils:
         :return dict
             Results of correlation test (statistic, p-value, p > alpha (reject))
         """
-        _reject = None
         if meth == 'pearson':
             _correlation_test = pearsonr(x=self.df[x].values, y=self.df[y].values)
         elif meth == 'spearman':
@@ -523,9 +513,9 @@ class StatsUtils:
         else:
             raise EasyExploreUtilsException('Method for correlation test not supported')
         if _correlation_test[1] <= self.p:
-            _reject = True
+            _reject: bool = True
         else:
-            _reject = False
+            _reject: bool = False
         return {'features': list(self.df.columns),
                 'cases': self.n_cases,
                 'test_statistic': _correlation_test[0],
@@ -549,6 +539,55 @@ class StatsUtils:
         else:
             raise EasyExploreUtilsException('Method for testing "factoriability" ({}) not supported'.format(meth))
         return {}
+
+    def kurtosis(self,
+                 features: List[str],
+                 axis: str = 'col',
+                 skip_missing_values: bool = True,
+                 use_numeric_features_only: bool = True,
+                 threshold_interval: Tuple[float, float] = (-0.5, 0.5)
+                 ) -> dict:
+        """
+        Test whether a distribution is skewed or not
+
+        :param features: List[str]
+            Name of the features
+
+        :param axis: str
+            Name of the axis of the data frame to use
+                -> col: Test skewness of feature
+                -> row: test skewness of cases
+
+        :param skip_missing_values: bool
+            Whether to skip missing values or not
+
+        :param use_numeric_features_only: bool
+            Whether to use numerical (continuous and semi-continuous) features only or not
+
+        :param threshold_interval: Tuple[float, float]
+            Threshold interval for testing
+
+        :return: dict
+            Kurtosis of features
+        """
+        if axis == 'col':
+            _axis = 0
+        elif axis == 'row':
+            _axis = 1
+        else:
+            raise EasyExploreUtilsException('Axis ({}) not supported'.format(axis))
+        if len(features) == 1:
+            return {features[0]: self.df[features].kurtosis(axis=_axis,
+                                                            skipna=skip_missing_values,
+                                                            level=None,
+                                                            numeric_only=use_numeric_features_only
+                                                            )
+                    }
+        return self.df[features].kurtosis(axis=_axis,
+                                          skipna=skip_missing_values,
+                                          level=None,
+                                          numeric_only=use_numeric_features_only
+                                          )
 
     def non_parametric_test(self,
                             x: str,
@@ -597,7 +636,6 @@ class StatsUtils:
         :return: dict
             Results of non-parametric test (statistic, p-value, p > alpha (reject))
         """
-        _reject = None
         if meth == 'kruskal-wallis':
             _non_parametric_test = kruskal(args, self.nan_policy)
         elif meth == 'mann-whitney':
@@ -623,9 +661,9 @@ class StatsUtils:
         else:
             raise ValueError('No non-parametric test found !')
         if _non_parametric_test[1] <= self.p:
-            _reject = True
+            _reject: bool = True
         else:
-            _reject = False
+            _reject: bool = False
         return {'features': list(self.df.columns),
                 'cases': self.n_cases,
                 'test_statistic': _non_parametric_test[0],
@@ -690,7 +728,6 @@ class StatsUtils:
         :return: dict
             Results of parametric test (statistic, p-value, p > alpha (reject))
         """
-        _reject = None
         if meth == 't-test':
             _parametric_test = ttest_ind(a=self.df[x].value_counts().values,
                                          b=self.df[y].value_counts().values,
@@ -717,9 +754,9 @@ class StatsUtils:
         else:
             raise ValueError('No parametric test found !')
         if _parametric_test[1] <= self.p:
-            _reject = True
+            _reject: bool = True
         else:
-            _reject = False
+            _reject: bool = False
         return {'features': list(self.df.columns),
                 'cases': self.n_cases,
                 'test_statistic': _parametric_test[0],
@@ -772,7 +809,7 @@ class StatsUtils:
             Threshold interval for testing
 
         :return: dict
-            Statistics regarding skewness of features
+            Skewness of features
         """
         if axis == 'col':
             _axis = 0
@@ -780,6 +817,13 @@ class StatsUtils:
             _axis = 1
         else:
             raise EasyExploreUtilsException('Axis ({}) not supported'.format(axis))
+        if len(features) == 1:
+            return {features[0]: self.df[features].skew(axis=_axis,
+                                                        skipna=skip_missing_values,
+                                                        level=None,
+                                                        numeric_only=use_numeric_features_only
+                                                        )
+                    }
         return self.df[features].skew(axis=_axis,
                                       skipna=skip_missing_values,
                                       level=None,
