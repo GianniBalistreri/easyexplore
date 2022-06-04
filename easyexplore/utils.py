@@ -455,8 +455,13 @@ class StatsUtils:
                         -> spearman:
                         -> kendall:
                         -> chi-squared:
-        :param freq_table:
-        :param yates_correction:
+
+        :param freq_table: List[float]
+            Frequency table for apply chi-squared contingency method
+
+        :param yates_correction: bool
+            Whether to apply yates correction or not
+
         :param power_divergence: String defining the power divergence test method used in chi-squared independent test
                                     -> pearson: Pearson's chi-squared statistic
                                     -> log-likelihood: Log-Likelihood ratio (G-test)
@@ -464,15 +469,17 @@ class StatsUtils:
                                     -> mod-log-likelihood: Modified log-likelihood ratio
                                     -> neyman: Neyman's statistic
                                     -> cressie-read: Cressie-Read power divergence test statistic
-        :return:
+
+        :return dict
+            Results of correlation test (statistic, p-value, p > alpha (reject))
         """
         _reject = None
         if meth == 'pearson':
-            _correlation_test = pearsonr(x=self.df[x].values.compute(), y=self.df[y].values)
+            _correlation_test = pearsonr(x=self.df[x].values, y=self.df[y].values)
         elif meth == 'spearman':
-            _correlation_test = spearmanr(a=self.df[x].values.compute(), b=self.df[y].values, axis=0, nan_policy=self.nan_policy)
+            _correlation_test = spearmanr(a=self.df[x].values, b=self.df[y].values, axis=0, nan_policy=self.nan_policy)
         elif meth == 'kendall':
-            _correlation_test = kendalltau(x=self.df[x].values.compute(), y=self.df[y].values, nan_policy=self.nan_policy)
+            _correlation_test = kendalltau(x=self.df[x].values, y=self.df[y].values, nan_policy=self.nan_policy)
         elif meth == 'chi-squared':
             _correlation_test = chi2_contingency(observed=freq_table, correction=yates_correction, lambda_=power_divergence)
         else:
@@ -481,8 +488,8 @@ class StatsUtils:
             _reject = False
         else:
             _reject = True
-        return {'feature': ''.join(self.df.columns),
-                'cases': len(self.df.values),
+        return {'features': list(self.df.columns),
+                'cases': self.n_cases,
                 'test_statistic': _correlation_test[0],
                 'p_value': _correlation_test[1],
                 'reject': _reject}
@@ -551,38 +558,25 @@ class StatsUtils:
             Results of non-parametric test (statistic, p-value, p > alpha (reject))
         """
         _reject = None
-        _df: pd.DataFrame = pd.merge(left=self.df[x].value_counts().to_frame(),
-                                     right=self.df[y].value_counts().to_frame(),
-                                     how='inner',
-                                     on=None,
-                                     left_on=None,
-                                     right_on=None,
-                                     left_index=True,
-                                     right_index=True,
-                                     sort=False,
-                                     suffixes=('_x', '_y')
-                                     )
-        _x: str = f'{x}_x'
-        _y: str = f'{y}_y'
         if meth == 'kruskal-wallis':
             _non_parametric_test = kruskal(args, self.nan_policy)
         elif meth == 'mann-whitney':
-            _non_parametric_test = mannwhitneyu(x=_df[_x],
-                                                y=_df[_y],
+            _non_parametric_test = mannwhitneyu(x=self.df[x].value_counts().values,
+                                                y=self.df[y].value_counts().values,
                                                 use_continuity=continuity_correction,
                                                 alternative=alternative
                                                 )
         elif meth == 'wilcoxon':
-            _non_parametric_test = wilcoxon(x=_df[_x],
-                                            y=_df[_y],
+            _non_parametric_test = wilcoxon(x=self.df[x].value_counts().values,
+                                            y=self.df[y].value_counts().values,
                                             zero_method=zero_meth,
                                             correction=continuity_correction
                                             )
         elif meth == 'friedman':
             _non_parametric_test = friedmanchisquare(args)
         elif meth == 'ks':
-            _non_parametric_test = ks_2samp(data1=_df[_x],
-                                            data2=_df[_y],
+            _non_parametric_test = ks_2samp(data1=self.df[x].value_counts().values,
+                                            data2=self.df[y].value_counts().values,
                                             alternative='two-sided',
                                             mode='auto'
                                             )
@@ -655,37 +649,24 @@ class StatsUtils:
             Results of parametric test (statistic, p-value, p > alpha (reject))
         """
         _reject = None
-        _df: pd.DataFrame = pd.merge(left=self.df[x].value_counts().to_frame(),
-                                     right=self.df[y].value_counts().to_frame(),
-                                     how='inner',
-                                     on=None,
-                                     left_on=None,
-                                     right_on=None,
-                                     left_index=True,
-                                     right_index=True,
-                                     sort=False,
-                                     suffixes=('_x', '_y')
-                                     )
-        _x: str = f'{x}_x'
-        _y: str = f'{y}_y'
         if meth == 't-test':
-            _parametric_test = ttest_ind(a=_df[_x].value_counts().to_frame(),
-                                         b=_df[_y].value_counts().to_frame(),
+            _parametric_test = ttest_ind(a=self.df[x].value_counts().values,
+                                         b=self.df[y].value_counts().values,
                                          axis=0,
                                          equal_var=not welch_t_test,
                                          nan_policy=self.nan_policy
                                          )
         elif meth == 't-test-paired':
-            _parametric_test = ttest_rel(a=_df[_x].value_counts().to_frame(),
-                                         b=_df[_y].value_counts().to_frame(),
+            _parametric_test = ttest_rel(a=self.df[x].value_counts().values,
+                                         b=self.df[y].value_counts().values,
                                          axis=0,
                                          nan_policy=self.nan_policy
                                          )
         elif meth == 'anova':
             _parametric_test = f_oneway(args)
         elif meth == 'z-test':
-            _parametric_test = ztest(x1=_df[_x].value_counts().to_frame(),
-                                     x2=_df[_y].value_counts().to_frame(),
+            _parametric_test = ztest(x1=self.df[x].value_counts().values,
+                                     x2=self.df[y].value_counts().values,
                                      value=0,
                                      alternative='two-sided',
                                      usevar='pooled',
