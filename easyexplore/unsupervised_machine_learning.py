@@ -781,8 +781,8 @@ class UnsupervisedML:
         """
         if self.kwargs.get('n_components') is None:
             self.kwargs.update({'n_components': 2})
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.isometric_mapping().fit(X=self.df[self.features], y=self.df[self.target])
+        _clustering: Isomap = Clustering(cl_params=self.kwargs).isometric_mapping()
+        _clustering.fit(X=self.df[self.features], y=self.df[self.target])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
         if self.find_optimum:
@@ -799,17 +799,19 @@ class UnsupervisedML:
                                                                                            )
                                                                                )
                                           })
-        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').embedding_),
+        if 'silhouette' not in self.cluster[self.ml_algorithm]:
+            self.cluster[self.ml_algorithm].update({'silhouette': None})
+        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.embedding_),
                                                  columns=self.features,
-                                                 index=['emb{}'.format(emb) for emb in
+                                                 index=['iso{}'.format(iso) for iso in
                                                         range(0, self.kwargs.get('n_components'), 1)]
                                                  ).transpose()
         _feature_importance: pd.DataFrame = abs(_embeddings)
-        self.cluster[self.ml_algorithm].update({'embeddings': self.cluster[self.ml_algorithm].get('fit').embedding_,
-                                                'transformed_embeddings': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
-                                                'distance_matrix': self.cluster[self.ml_algorithm].get('fit').dist_matrix_,
-                                                'kernel_pca': self.cluster[self.ml_algorithm].get('fit').kernel_pca_,
-                                                'reconstruction_error': self.cluster[self.ml_algorithm].get('fit').reconstruction_error(),
+        self.cluster[self.ml_algorithm].update({'embeddings': _clustering.embedding_,
+                                                'transformed_embeddings': _clustering.transform(X=self.df[self.features]),
+                                                'distance_matrix': _clustering.dist_matrix_,
+                                                'kernel_pca': _clustering.kernel_pca_,
+                                                'reconstruction_error': _clustering.reconstruction_error(),
                                                 'feature_importance': dict(names={
                                                     c: _feature_importance[c].sort_values(axis=0, ascending=False).index.values[0]
                                                     for c in _feature_importance.keys()}, scores=_feature_importance)
@@ -862,8 +864,8 @@ class UnsupervisedML:
                 self.kwargs.update({'n_clusters': 5})
             else:
                 self.kwargs.update({'n_clusters': self.n_cluster_components})
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.kmeans().fit(X=self.df[self.features], y=self.df[self.target])
+        _clustering: KMeans = Clustering(cl_params=self.kwargs).kmeans()
+        _clustering.fit(X=self.df[self.features], y=self.df[self.target])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'n_clusters': self.kwargs.get('n_clusters')})
         if self.find_optimum:
@@ -880,11 +882,13 @@ class UnsupervisedML:
                                                                                            )
                                                                                )
                                           })
-        self.cluster[self.ml_algorithm].update({'inertia': self.cluster[self.ml_algorithm].get('fit').inertia_,
-                                                'cluster': self.cluster[self.ml_algorithm].get('fit').predict(X=self.df[self.features]),
-                                                'cluster_distance_space': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
-                                                'centroids': self.cluster[self.ml_algorithm].get('fit').cluster_centers_,
-                                                'labels': self.cluster[self.ml_algorithm].get('fit').labels_
+        if 'silhouette' not in self.cluster[self.ml_algorithm].keys():
+            self.cluster[self.ml_algorithm].update({'silhouette': None})
+        self.cluster[self.ml_algorithm].update({'inertia': _clustering.inertia_,
+                                                'cluster': _clustering.predict(X=self.df[self.features]),
+                                                'cluster_distance_space': _clustering.transform(X=self.df[self.features]),
+                                                'centroids': _clustering.cluster_centers_,
+                                                'labels': _clustering.labels_
                                                 })
         self.cluster_plot.update({'Partitioning Clustering: KMeans': dict(data=self.df,
                                                                           features=self.features,
@@ -918,8 +922,8 @@ class UnsupervisedML:
         """
         if self.kwargs.get('n_components') is None:
             self.kwargs.update({'n_components': 2})
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.locally_linear_embedding().fit(X=self.df[self.features], y=self.df[self.target])
+        _clustering: LocallyLinearEmbedding = Clustering(cl_params=self.kwargs).locally_linear_embedding()
+        _clustering.fit(X=self.df[self.features], y=self.df[self.target])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
         if self.find_optimum:
@@ -936,15 +940,17 @@ class UnsupervisedML:
                                                                                         )
                                                                             )
                                           })
-        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').embedding_),
+        if 'silhouette' not in self.cluster[self.ml_algorithm].keys():
+            self.cluster[self.ml_algorithm].update({'silhouette': None})
+        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.embedding_),
                                                  columns=self.features,
-                                                 index=['emb{}'.format(emb) for emb in
+                                                 index=['lle{}'.format(lle) for lle in
                                                         range(0, self.kwargs.get('n_components'), 1)]
                                                  ).transpose()
         _feature_importance: pd.DataFrame = abs(_embeddings)
-        self.cluster[self.ml_algorithm].update({'embeddings': self.cluster[self.ml_algorithm].get('fit').embedding_,
-                                                'transformed_embeddings': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
-                                                'reconstruction_error': self.cluster[self.ml_algorithm].get('fit').reconstruction_error(),
+        self.cluster[self.ml_algorithm].update({'embeddings': _clustering.embedding_,
+                                                'transformed_embeddings': _clustering.transform(X=self.df[self.features]),
+                                                'reconstruction_error': _clustering.reconstruction_error(),
                                                 'feature_importance': dict(names={
                                                     c: _feature_importance[c].sort_values(axis=0, ascending=False).index.values[0]
                                                     for c in _feature_importance.keys()}, scores=_feature_importance)
@@ -989,8 +995,8 @@ class UnsupervisedML:
         """
         if self.kwargs.get('n_components') is None:
             self.kwargs.update({'n_components': 2})
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.multi_dimensional_scaling().fit(X=self.df[self.features], y=self.df[self.target])
+        _clustering: MDS = Clustering(cl_params=self.kwargs).multi_dimensional_scaling()
+        _clustering.fit(X=self.df[self.features], y=self.df[self.target])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
         if self.find_optimum:
@@ -1007,15 +1013,17 @@ class UnsupervisedML:
                                                                                         )
                                                                             )
                                           })
-        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').embedding_),
+        if 'silhouette' not in self.cluster[self.ml_algorithm].keys():
+            self.cluster[self.ml_algorithm].update({'silhouette': None})
+        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.embedding_),
                                                  columns=self.features,
-                                                 index=['emb{}'.format(emb) for emb in
+                                                 index=['mds{}'.format(mds) for mds in
                                                         range(0, self.kwargs.get('n_components'), 1)]
                                                  ).transpose()
         _feature_importance: pd.DataFrame = abs(_embeddings)
-        self.cluster[self.ml_algorithm].update({'embeddings': self.cluster[self.ml_algorithm].get('fit').embedding_,
-                                                'transformed_embeddings': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
-                                                'dissimilarity_matrix': self.cluster[self.ml_algorithm].get('fit').dissimilarity_matrix_,
+        self.cluster[self.ml_algorithm].update({'embeddings': _clustering.embedding_,
+                                                'transformed_embeddings': _clustering.transform(X=self.df[self.features]),
+                                                'dissimilarity_matrix': _clustering.dissimilarity_matrix_,
                                                 'feature_importance': dict(
                                                     names={c: _feature_importance[c].sort_values(axis=0, ascending=False).index.values[0]
                                                            for c in _feature_importance.keys()}, scores=_feature_importance)
@@ -1234,8 +1242,8 @@ class UnsupervisedML:
         """
         if self.kwargs.get('n_components') is None:
             self.kwargs.update({'n_components': 2})
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.spectral_embedding().fit(X=self.df[self.features], y=self.df[self.target])
+        _clustering: SpectralEmbedding = Clustering(cl_params=self.kwargs).spectral_embedding()
+        _clustering.fit(X=self.df[self.features], y=self.df[self.target])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
         if self.find_optimum:
@@ -1252,15 +1260,17 @@ class UnsupervisedML:
                                                                                         )
                                                                             )
                                           })
-        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').embedding_),
+        if 'silhouette' not in self.cluster[self.ml_algorithm].keys():
+            self.cluster[self.ml_algorithm].update({'silhouette': None})
+        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.embedding_),
                                                  columns=self.features,
-                                                 index=['emb{}'.format(emb) for emb in
+                                                 index=['spe{}'.format(spe) for spe in
                                                         range(0, self.kwargs.get('n_components'), 1)]
                                                  ).transpose()
         _feature_importance: pd.DataFrame = abs(_embeddings)
-        self.cluster[self.ml_algorithm].update({'embeddings': self.cluster[self.ml_algorithm].get('fit').embedding_,
-                                                'transformed_embeddings': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
-                                                'affinity_matrix': self.cluster[self.ml_algorithm].get('fit').affinity_matrix_,
+        self.cluster[self.ml_algorithm].update({'embeddings': _clustering.embedding_,
+                                                'transformed_embeddings': _clustering.transform(X=self.df[self.features]),
+                                                'affinity_matrix': _clustering.affinity_matrix_,
                                                 'feature_importance': dict(names={
                                                     c: _feature_importance[c].sort_values(axis=0, ascending=False).index.values[0]
                                                     for c in _feature_importance.keys()}, scores=_feature_importance)
