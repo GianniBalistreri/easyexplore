@@ -626,7 +626,7 @@ class UnsupervisedML:
         """
         Factor analysis
         """
-        _kmo: dict = StatsUtils(data=self.df, features=self.features).factoriability_test(meth='kmo')
+        _kmo: dict = StatsUtils(data=self.df).factoriability_test(meth='kmo')
         self.cluster[self.ml_algorithm].update({'kmo': _kmo})
         if _kmo.get('kmo') < 0.6:
             Log(write=False, level='info').log(
@@ -637,15 +637,15 @@ class UnsupervisedML:
                 self.kwargs.update({'n_factors': 2})
             else:
                 if self.n_cluster_components >= len(self.features):
-                    self.kwargs.update({'n_components': 2})
+                    self.kwargs.update({'n_factors': 2})
                     Log(write=False, level='info').log(
                         msg='Number of factors are greater than or equal to number of features. Number of factors set to 2')
                 else:
                     self.kwargs.update({'n_components': self.n_cluster_components})
-            _clustering: Clustering = Clustering(cl_params=self.kwargs)
-            _clustering.factor_analysis().fit(X=self.df[self.features])
+            _clustering: FactorAnalysis = Clustering(cl_params=self.kwargs).factor_analysis()
+            _clustering.fit(X=self.df[self.features])
             self.cluster[self.ml_algorithm].update({'fit': _clustering})
-            self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+            self.cluster[self.ml_algorithm].update({'n_factors': self.kwargs.get('n_factors')})
             if self.find_optimum:
                 if self.silhouette:
                     _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
@@ -669,12 +669,14 @@ class UnsupervisedML:
                                                                                 kwargs=dict(layout={})
                                                                                 )
                                               })
-            _factors: np.array = self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features])
-            self.cluster[self.ml_algorithm].update({'factors': self.cluster[self.ml_algorithm].get('fit').components_,
-                                                    'explained_variance': self.cluster[self.ml_algorithm].get('fit').explained_variance_,
+            if 'silhouette' not in self.cluster[self.ml_algorithm].keys():
+                self.cluster[self.ml_algorithm].update({'silhouette': None})
+            _factors: np.array = _clustering.transform(X=self.df[self.features])
+            self.cluster[self.ml_algorithm].update({'factors': _clustering.components_,
+                                                    'explained_variance': _clustering.explained_variance_,
                                                     'fa': _factors
                                                     })
-            _components: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').components_),
+            _components: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.components_),
                                                      columns=self.features,
                                                      index=['fa{}'.format(fa) for fa in
                                                             range(0, self.kwargs.get('n_factors'), 1)]
@@ -1303,8 +1305,8 @@ class UnsupervisedML:
         """
         if self.kwargs.get('n_components') is None:
             self.kwargs.update({'n_components': 2})
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.t_distributed_stochastic_neighbor_embedding().fit(X=self.df[self.features])
+        _clustering: TSNE = Clustering(cl_params=self.kwargs).t_distributed_stochastic_neighbor_embedding()
+        _clustering.fit(X=self.df[self.features])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
         if self.find_optimum:
@@ -1321,14 +1323,16 @@ class UnsupervisedML:
                                                                                          )
                                                                              )
                                           })
-        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').embedding_),
+        if 'silhouette' not in self.cluster[self.ml_algorithm].keys():
+            self.cluster[self.ml_algorithm].update({'silhouette': None})
+        _embeddings: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.embedding_),
                                                  columns=self.features,
-                                                 index=['emb{}'.format(emb) for emb in
+                                                 index=['tsne{}'.format(tsne) for tsne in
                                                         range(0, self.kwargs.get('n_components'), 1)]
                                                  ).transpose()
         _feature_importance: pd.DataFrame = abs(_embeddings)
-        self.cluster[self.ml_algorithm].update({'embeddings': self.cluster[self.ml_algorithm].get('fit').embedding_,
-                                                'transformed_embeddings': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+        self.cluster[self.ml_algorithm].update({'embeddings': _clustering.embedding_,
+                                                'transformed_embeddings': _clustering.transform(X=self.df[self.features]),
                                                 'feature_importance': dict(
                                                     names={c: _feature_importance[c].sort_values(axis=0, ascending=False).index.values[0]
                                                            for c in _feature_importance.keys()}, scores=_feature_importance)
