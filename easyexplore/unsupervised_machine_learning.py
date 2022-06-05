@@ -880,7 +880,7 @@ class UnsupervisedML:
             if self.silhouette:
                 _silhouette: dict = self.silhouette_analysis(labels=_clustering.predict(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
-                self.cluster_plot.update({'Silhouette Analysis (KMeans)': dict(data=None,
+                self.cluster_plot.update({'Silhouette Analysis (KMeans)': dict(data=self.df,
                                                                                features=None,
                                                                                plot_type='silhouette',
                                                                                kwargs=dict(layout={},
@@ -898,14 +898,14 @@ class UnsupervisedML:
                                                 'centroids': _clustering.cluster_centers_,
                                                 'labels': _clustering.labels_
                                                 })
-        self.cluster_plot.update({'Partitioning Clustering: KMeans': dict(data=self.df,
+        _df: pd.DataFrame = self.df
+        _df['cluster'] = self.cluster[self.ml_algorithm].get('cluster')
+        self.cluster_plot.update({'Partitioning Clustering: KMeans': dict(data=_df,
                                                                           features=self.features,
+                                                                          group_by=['cluster'],
                                                                           plot_type='scatter',
                                                                           melt=True,
-                                                                          kwargs=dict(layout={},
-                                                                                      marker=dict(color=self.cluster[self.ml_algorithm].get(
-                                                                                          'fit').labels_.astype(float))
-                                                                                      )
+                                                                          kwargs=dict(layout={})
                                                                           )
                                   })
 
