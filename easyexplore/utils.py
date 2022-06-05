@@ -548,7 +548,7 @@ class StatsUtils:
                  threshold_interval: Tuple[float, float] = (-0.5, 0.5)
                  ) -> dict:
         """
-        Test whether a distribution is skewed or not
+        Calculate the kurtosis of feature distribution
 
         :param features: List[str]
             Name of the features
@@ -781,15 +781,15 @@ class StatsUtils:
         """
         raise NotImplementedError('Method not implemented yet')
 
-    def skewness_test(self,
-                      features: List[str],
-                      axis: str = 'col',
-                      skip_missing_values: bool = True,
-                      use_numeric_features_only: bool = True,
-                      threshold_interval: Tuple[float, float] = (-0.5, 0.5)
-                      ) -> dict:
+    def skewness(self,
+                 features: List[str],
+                 axis: str = 'col',
+                 skip_missing_values: bool = True,
+                 use_numeric_features_only: bool = True,
+                 threshold_interval: Tuple[float, float] = (-0.5, 0.5)
+                 ) -> dict:
         """
-        Test whether a distribution is skewed or not
+        Calculate the skewness of feature distribution
 
         :param features: List[str]
             Name of the features
