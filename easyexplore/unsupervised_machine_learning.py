@@ -604,12 +604,11 @@ class UnsupervisedML:
         """
         Density-based spatial clustering applications with noise (DBSCAN)
         """
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.dbscan().fit(X=self.df)
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'core_samples': self.cluster[self.ml_algorithm].get('fit').core_samples_,
-                                                'cluster': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
-                                                'lables': self.cluster[self.ml_algorithm].get('fit').labels_
+        _clustering: DBSCAN = Clustering(cl_params=self.kwargs).dbscan()
+        _clustering.fit(X=self.df[self.features])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'core_sample_indices': _clustering.core_sample_indices_,
+                                                'labels': _clustering.labels_
                                                 })
         self.cluster_plot.update({'DBSCAN': dict(data=self.df,
                                                  features=self.features,
@@ -617,7 +616,7 @@ class UnsupervisedML:
                                                  melt=True,
                                                  kwargs=dict(layout={},
                                                              marker=dict(
-                                                                 color=self.cluster[self.ml_algorithm].get('fit').labels_.astype(float))
+                                                                 color=_clustering.labels_.astype(float))
                                                              )
                                                  )
                                   })
@@ -644,8 +643,9 @@ class UnsupervisedML:
                     self.kwargs.update({'n_components': self.n_cluster_components})
             _clustering: FactorAnalysis = Clustering(cl_params=self.kwargs).factor_analysis()
             _clustering.fit(X=self.df[self.features])
-            self.cluster[self.ml_algorithm].update({'fit': _clustering})
-            self.cluster[self.ml_algorithm].update({'n_factors': self.kwargs.get('n_factors')})
+            self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                    'n_factors': self.kwargs.get('n_factors')
+                                                    })
             if self.find_optimum:
                 if self.silhouette:
                     _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
@@ -727,10 +727,21 @@ class UnsupervisedML:
         """
         Feature agglomeration
         """
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.feature_agglomeration().fit(X=self.df[self.features], y=self.df[self.target])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'clusters': _clustering.clusters_,
+        if self.n_cluster_components is None:
+            self.kwargs.update({'n_clusters': 5})
+        else:
+            if self.n_cluster_components < 2:
+                Log(write=False, level='info').log(
+                    msg='It makes no sense to run cluster analysis with less than 2 clusters ({}). Run analysis with more than 1 cluster instead'.format(
+                        self.kwargs.get('n_clusters')))
+                self.kwargs.update({'n_clusters': 5})
+            else:
+                self.kwargs.update({'n_clusters': self.n_cluster_components})
+        _clustering: FeatureAgglomeration = Clustering(cl_params=self.kwargs).feature_agglomeration()
+        _clustering.fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_clusters': self.kwargs.get('n_clusters'),
+                                                'clusters': _clustering.clusters_,
                                                 'within_cluster_error': _clustering.explained_variance_,
                                                 'cluster': _clustering.transform(X=self.df[self.features])
                                                 })
@@ -739,8 +750,7 @@ class UnsupervisedML:
                                                                 plot_type='scatter',
                                                                 melt=True,
                                                                 kwargs=dict(layout={},
-                                                                            marker=dict(color=self.cluster[self.ml_algorithm].get(
-                                                                                'fit').labels_.astype(float))
+                                                                            marker=dict(color=_clustering.labels_.astype(float))
                                                                             )
                                                                 )
                                   })
@@ -783,8 +793,9 @@ class UnsupervisedML:
             self.kwargs.update({'n_components': 2})
         _clustering: Isomap = Clustering(cl_params=self.kwargs).isometric_mapping()
         _clustering.fit(X=self.df[self.features], y=self.df[self.target])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_components': self.kwargs.get('n_components')
+                                                })
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
@@ -866,8 +877,9 @@ class UnsupervisedML:
                 self.kwargs.update({'n_clusters': self.n_cluster_components})
         _clustering: KMeans = Clustering(cl_params=self.kwargs).kmeans()
         _clustering.fit(X=self.df[self.features], y=self.df[self.target])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'n_clusters': self.kwargs.get('n_clusters')})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_clusters': self.kwargs.get('n_clusters')
+                                                })
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhoutte_analysis(labels=_clustering.predict(self.df[self.features]))
@@ -905,15 +917,15 @@ class UnsupervisedML:
         """
         Latent Dirichlet Allocation
         """
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.latent_dirichlet_allocation().fit(X=self.df)
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'components': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df),
-                                                'em_iter': self.cluster[self.ml_algorithm].get('fit').n_batch_iter_,
-                                                'passes_iter': self.cluster[self.ml_algorithm].get('fit').n_iter_,
-                                                'perplexity_score': self.cluster[self.ml_algorithm].get('fit').bound_,
-                                                'doc_topic_prior': self.cluster[self.ml_algorithm].get('fit').doc_topic_prior_,
-                                                'topic_word_prior': self.cluster[self.ml_algorithm].get('fit').topic_word_prior_,
+        _clustering: LatentDirichletAllocation = Clustering(cl_params=self.kwargs).latent_dirichlet_allocation()
+        _clustering.fit(X=self.df[self.features])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'components': _clustering.transform(X=self.df[self.features]),
+                                                'em_iter': _clustering.n_batch_iter_,
+                                                'passes_iter': _clustering.n_iter_,
+                                                'perplexity_score': _clustering.bound_,
+                                                'doc_topic_prior': _clustering.doc_topic_prior_,
+                                                'topic_word_prior': _clustering.topic_word_prior_,
                                                 })
 
     def _locally_linear_embedding(self):
@@ -924,8 +936,9 @@ class UnsupervisedML:
             self.kwargs.update({'n_components': 2})
         _clustering: LocallyLinearEmbedding = Clustering(cl_params=self.kwargs).locally_linear_embedding()
         _clustering.fit(X=self.df[self.features], y=self.df[self.target])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_components': self.kwargs.get('n_components')
+                                                })
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
@@ -997,8 +1010,9 @@ class UnsupervisedML:
             self.kwargs.update({'n_components': 2})
         _clustering: MDS = Clustering(cl_params=self.kwargs).multi_dimensional_scaling()
         _clustering.fit(X=self.df[self.features], y=self.df[self.target])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_components': self.kwargs.get('n_components')
+                                                })
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
@@ -1066,29 +1080,28 @@ class UnsupervisedML:
         """
         Non-Negative Matrix Factorization
         """
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.non_negative_matrix_factorization().fit(X=self.df)
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'factorization_matrix_w': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df),
-                                                'factorization_matrix_h': self.cluster[self.ml_algorithm].get('fit').components_,
-                                                'reconstruction_error': self.cluster[self.ml_algorithm].get('fit').reconstruction_err_,
-                                                'n_iter': self.cluster[self.ml_algorithm].get('fit').n_iter_
+        _clustering: NMF = Clustering(cl_params=self.kwargs).non_negative_matrix_factorization()
+        _clustering.fit(X=self.df[self.features])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'factorization_matrix_w': _clustering.transform(X=self.df[self.features]),
+                                                'factorization_matrix_h': _clustering.components_,
+                                                'reconstruction_error': _clustering.reconstruction_err_,
+                                                'n_iter': _clustering.n_iter_
                                                 })
 
     def _ordering_points_to_identify_clustering_structure(self):
         """
         Ordering points to identify the clustering structure (OPTICS)
         """
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.optics().fit(X=self.df)
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'reachability': self.cluster[self.ml_algorithm].get('fit').reachability_,
-                                                'ordering': self.cluster[self.ml_algorithm].get('fit').ordering_,
-                                                'core_distances': self.cluster[self.ml_algorithm].get('fit').core_distances_,
-                                                'predecessor': self.cluster[self.ml_algorithm].get('fit').predecessor_,
-                                                'cluster': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
-                                                'cluster_hierarchy': self.cluster[self.ml_algorithm].get('fit').cluster_hierarchy_,
-                                                'labels': self.cluster[self.ml_algorithm].get('fit').labels_
+        _clustering: OPTICS = Clustering(cl_params=self.kwargs).optics()
+        _clustering.fit(X=self.df[self.features])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'reachability': _clustering.reachability_,
+                                                'ordering': _clustering.ordering_,
+                                                'core_distances': _clustering.core_distances_,
+                                                'predecessor': _clustering.predecessor_,
+                                                'cluster_hierarchy': _clustering.cluster_hierarchy_,
+                                                'labels': _clustering.labels_
                                                 })
         _reachability: pd.DataFrame = pd.DataFrame(
             data={'reachability': self.cluster[self.ml_algorithm].get('reachability')[self.cluster[self.ml_algorithm].get('ordering')],
@@ -1101,7 +1114,7 @@ class UnsupervisedML:
                                                  melt=True,
                                                  kwargs=dict(layout={},
                                                              marker=dict(
-                                                                 color=self.cluster[self.ml_algorithm].get('fit').labels_.astype(float))
+                                                                 color=_clustering.labels_.astype(float))
                                                              )
                                                  ),
                                   'Reachability': dict(data=_reachability,
@@ -1111,7 +1124,7 @@ class UnsupervisedML:
                                                        melt=True,
                                                        kwargs=dict(layout={},
                                                                    marker=dict(
-                                                                       color=self.cluster[self.ml_algorithm].get('fit').labels_.astype(float))
+                                                                       color=_clustering.labels_.astype(float))
                                                                    )
                                                        )
                                   })
@@ -1131,7 +1144,9 @@ class UnsupervisedML:
                 self.kwargs.update({'n_components': self.n_cluster_components})
         _clustering: PCA = Clustering(cl_params=self.kwargs).principal_component_analysis()
         _clustering.fit(X=self.df[self.features])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_components': self.kwargs.get('n_components')
+                                                })
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
@@ -1147,6 +1162,7 @@ class UnsupervisedML:
                                                                             )
                                           })
             else:
+                self.cluster[self.ml_algorithm].update({'silhouette': None})
                 _cumulative_explained_variance_ratio: np.ndarray = np.cumsum(_clustering.explained_variance_ratio_)
                 self.cluster[self.ml_algorithm].update({'explained_variance_ratio': _clustering.explained_variance_ratio_})
                 self.cluster[self.ml_algorithm].update({'cumulative_explained_variance_ratio': _cumulative_explained_variance_ratio})
@@ -1217,12 +1233,11 @@ class UnsupervisedML:
         """
         Spectral clustering
         """
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.spectral_clustering().fit(X=self.df)
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'affinity_matrix': self.cluster[self.ml_algorithm].get('fit').affinity_matrix_,
-                                                'cluster': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
-                                                'lables': self.cluster[self.ml_algorithm].get('fit').labels_
+        _clustering: SpectralClustering = Clustering(cl_params=self.kwargs).spectral_clustering()
+        _clustering.fit(X=self.df[self.features])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'affinity_matrix': _clustering.affinity_matrix_,
+                                                'labels': _clustering.labels_
                                                 })
         self.cluster_plot.update({'Spectral Clustering': dict(data=self.df,
                                                               features=self.features,
@@ -1230,7 +1245,7 @@ class UnsupervisedML:
                                                               melt=True,
                                                               kwargs=dict(layout={},
                                                                           marker=dict(
-                                                                              color=self.cluster[self.ml_algorithm].get('fit').labels_.astype(
+                                                                              color=_clustering.labels_.astype(
                                                                                   float))
                                                                           )
                                                               )
@@ -1244,8 +1259,9 @@ class UnsupervisedML:
             self.kwargs.update({'n_components': 2})
         _clustering: SpectralEmbedding = Clustering(cl_params=self.kwargs).spectral_embedding()
         _clustering.fit(X=self.df[self.features], y=self.df[self.target])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_components': self.kwargs.get('n_components')
+                                                })
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
@@ -1317,8 +1333,9 @@ class UnsupervisedML:
             self.kwargs.update({'n_components': 2})
         _clustering: TSNE = Clustering(cl_params=self.kwargs).t_distributed_stochastic_neighbor_embedding()
         _clustering.fit(X=self.df[self.features])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_components': self.kwargs.get('n_components')
+                                                })
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
@@ -1396,7 +1413,9 @@ class UnsupervisedML:
                 self.kwargs.update({'n_components': self.n_cluster_components})
         _clustering: TruncatedSVD = Clustering(cl_params=self.kwargs).truncated_single_value_decomp()
         _clustering.fit(X=self.df[self.features])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_components': self.kwargs.get('n_components')
+                                                })
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
