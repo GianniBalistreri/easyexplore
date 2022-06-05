@@ -43,6 +43,7 @@ setuptools.setup(
                          'test/test_data_import_export.py',
                          'test/test_data_visualizer.py',
                          'test/test_interactive_visualizer.py',
+                         'test/test_unsupervised_machine_learning.py',
                          'test/test_utils.py'
                          ]
                 )],
@@ -50,6 +51,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
