@@ -728,13 +728,13 @@ class UnsupervisedML:
         Feature agglomeration
         """
         if self.n_cluster_components is None:
-            self.kwargs.update({'n_clusters': 5})
+            self.kwargs.update({'n_clusters': 3})
         else:
             if self.n_cluster_components < 2:
                 Log(write=False, level='info').log(
                     msg='It makes no sense to run cluster analysis with less than 2 clusters ({}). Run analysis with more than 1 cluster instead'.format(
                         self.kwargs.get('n_clusters')))
-                self.kwargs.update({'n_clusters': 5})
+                self.kwargs.update({'n_clusters': 3})
             else:
                 self.kwargs.update({'n_clusters': self.n_cluster_components})
         _clustering: FeatureAgglomeration = Clustering(cl_params=self.kwargs).feature_agglomeration()
