@@ -3173,31 +3173,29 @@ class DataVisualizer:
             raise DataVisualizerException('No results of silhouette analysis found')
         if isinstance(self.plot['kwargs'].get('silhouette'), dict):
             _silhouette: dict = self.plot['kwargs'].get('silhouette')
-            for pl in range(2, self.plot['kwargs'].get('n_clusters') + 1, 1):
-                for cl in range(0, pl, 1):
-                    self.plot['kwargs'].update({'x': _silhouette['cluster_{}_samples'.format(cl)].get('scores'),
-                                                'y': _silhouette['cluster_{}_samples'.format(cl)].get('y'),
-                                                'mode': 'lines',
-                                                'line': dict(width=0.5),
-                                                'fill': 'tozerox',
-                                                'name': 'Cluster {}'.format(cl + 1),
-                                                'xaxis': 'x',
-                                                'yaxis': 'y',
-                                                'showlegend': True
-                                                })
-                    _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter_gl())
-                self.plot['kwargs']['layout'].update({'xaxis': dict(anchor='y',
-                                                                    domain=[0, 1],
-                                                                    showticklabels=True
-                                                                    ),
-                                                      'yaxis': dict(anchor='x',
-                                                                    domain=[0, 1],
-                                                                    showticklabels=True
-                                                                    )
-                                                      })
-                self.fig = go.Figure(_data)
-                self._show_plotly_offline()
-                _data = []
+            for cl in range(0, self.plot['kwargs'].get('n_clusters'), 1):
+                self.plot['kwargs'].update({'x': _silhouette['cluster_{}_samples'.format(cl)].get('scores'),
+                                            'y': _silhouette['cluster_{}_samples'.format(cl)].get('y'),
+                                            'mode': 'lines',
+                                            'line': dict(width=0.5),
+                                            'fill': 'tozerox',
+                                            'name': 'Cluster {}'.format(cl + 1),
+                                            'xaxis': 'x',
+                                            'yaxis': 'y',
+                                            'showlegend': True
+                                            })
+                _data.append(PlotlyAdapter(plot=self.plot, offline=True).scatter_gl())
+            self.plot['kwargs']['layout'].update({'xaxis': dict(anchor='y',
+                                                                domain=[0, 1],
+                                                                showticklabels=True
+                                                                ),
+                                                  'yaxis': dict(anchor='x',
+                                                                domain=[0, 1],
+                                                                showticklabels=True
+                                                                )
+                                                  })
+            self.fig = go.Figure(_data)
+            self._show_plotly_offline()
         else:
             raise DataVisualizerException('Results of silhouette analysis should be a dictionary')
 
