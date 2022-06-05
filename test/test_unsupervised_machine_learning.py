@@ -111,45 +111,6 @@ class UnsupervisedMLTest(unittest.TestCase):
     """
     Unit test for class UnsupervisedML
     """
-    def test_run_clustering(self):
-        _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['pca',
-                                                                         'factor',
-                                                                         'svd',
-                                                                         'tsne',
-                                                                         'mds',
-                                                                         'isomap',
-                                                                         'spectral_embedding',
-                                                                         'locally_embedding',
-                                                                         'kmeans',
-                                                                         'nmf',
-                                                                         'lda',
-                                                                         'optics',
-                                                                         'dbscan',
-                                                                         'spectral_cluster',
-                                                                         'feature_agglomeration',
-                                                                         'agglo_cluster',
-                                                                         'unstruc_agglo_cluster',
-                                                                         'birch',
-                                                                         'affinity_propagation'
-                                                                         ],
-                                                     features=FEATURES,
-                                                     find_optimum=False,
-                                                     silhouette_analysis=True,
-                                                     n_cluster_components=3,
-                                                     n_neighbors=None,
-                                                     n_iter=None,
-                                                     metric=None,
-                                                     affinity=None,
-                                                     connectivity=None,
-                                                     linkage=None,
-                                                     target=TARGET_FEATURE,
-                                                     plot=False,
-                                                     log_path=None
-                                                     )
-        _results: dict = _clustering.run_clustering()
-        print(_results)
-
     def test_run_clustering_pca(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      cluster_algorithms=['pca'],
