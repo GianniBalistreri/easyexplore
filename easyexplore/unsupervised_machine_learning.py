@@ -1119,8 +1119,8 @@ class UnsupervisedML:
                     msg='Number of components are greater than or equal to number of features. Number of components set to 2')
             else:
                 self.kwargs.update({'n_components': self.n_cluster_components})
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.principal_component_analysis().fit(X=self.df[self.features])
+        _clustering: PCA = Clustering(cl_params=self.kwargs).principal_component_analysis()
+        _clustering.fit(X=self.df[self.features])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         if self.find_optimum:
             if self.silhouette:
@@ -1149,16 +1149,16 @@ class UnsupervisedML:
                                                                                kwargs=dict(layout={})
                                                                                )
                                           })
-        _components: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').components_),
+        _components: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.components_),
                                                  columns=self.features,
                                                  index=['pc{}'.format(pc) for pc in
                                                         range(0, self.kwargs.get('n_components'), 1)]
                                                  ).transpose()
         _feature_importance: pd.DataFrame = abs(_components)
-        self.cluster[self.ml_algorithm].update({'components': self.cluster[self.ml_algorithm].get('fit').components_,
-                                                'explained_variance': list(self.cluster[self.ml_algorithm].get('fit').explained_variance_),
-                                                'explained_variance_ratio': list(self.cluster[self.ml_algorithm].get('fit').explained_variance_ratio_),
-                                                'pc': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+        self.cluster[self.ml_algorithm].update({'components': _clustering.components_,
+                                                'explained_variance': list(_clustering.explained_variance_),
+                                                'explained_variance_ratio': list(_clustering.explained_variance_ratio_),
+                                                'pc': _clustering.transform(X=self.df[self.features]),
                                                 'feature_importance': dict(names={pca: _feature_importance[pca].sort_values(axis=0, ascending=False).index.values[0] for pca in _feature_importance.keys()},
                                                                            scores=_feature_importance
                                                                            )
@@ -1380,8 +1380,8 @@ class UnsupervisedML:
                     msg='Number of components are greater than or equal to number of features. Number of components set to 2')
             else:
                 self.kwargs.update({'n_components': self.n_cluster_components})
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.truncated_single_value_decomp().fit(X=self.df[self.features])
+        _clustering: TruncatedSVD = Clustering(cl_params=self.kwargs).truncated_single_value_decomp()
+        _clustering.fit(X=self.df[self.features])
         self.cluster[self.ml_algorithm].update({'fit': _clustering})
         if self.find_optimum:
             if self.silhouette:
@@ -1412,16 +1412,16 @@ class UnsupervisedML:
                                                                                kwargs=dict(layout={})
                                                                                )
                                           })
-        _components: pd.DataFrame = pd.DataFrame(data=np.array(self.cluster[self.ml_algorithm].get('fit').components_),
+        _components: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.components_),
                                                  columns=self.features,
-                                                 index=['c{}'.format(pc) for pc in
+                                                 index=['svd{}'.format(svd) for svd in
                                                         range(0, self.kwargs.get('n_components'), 1)]
                                                  ).transpose()
         _feature_importance: pd.DataFrame = abs(_components)
-        self.cluster[self.ml_algorithm].update({'components': self.cluster[self.ml_algorithm].get('fit').components_,
-                                                'explained_variance': list(self.cluster[self.ml_algorithm].get('fit').explained_variance_),
-                                                'explained_variance_ratio': list(self.cluster[self.ml_algorithm].get('fit').explained_variance_ratio_),
-                                                'pc': self.cluster[self.ml_algorithm].get('fit').transform(X=self.df[self.features]),
+        self.cluster[self.ml_algorithm].update({'components': _clustering.components_,
+                                                'explained_variance': list(_clustering.explained_variance_),
+                                                'explained_variance_ratio': list(_clustering.explained_variance_ratio_),
+                                                'pc': _clustering.transform(X=self.df[self.features]),
                                                 'feature_importance': dict(
                                                     names={c: _feature_importance[c].sort_values(axis=0, ascending=False).index.values[0]
                                                            for c in _feature_importance.keys()},
@@ -1429,21 +1429,21 @@ class UnsupervisedML:
                                                 )
                                                 })
         for svd in range(0, self.kwargs.get('n_components'), 1):
-            self.cluster_plot.update({'Feature Importance PC{}'.format(svd): dict(data=_feature_importance,
-                                                                                  features=None,
-                                                                                  plot_type='bar',
-                                                                                  kwargs=dict(layout={},
-                                                                                              x=self.features,
-                                                                                              y=_feature_importance[
-                                                                                                  'svd{}'.format(svd)],
-                                                                                              marker=dict(
-                                                                                                  color=_feature_importance[
-                                                                                                      'svd{}'.format(svd)],
-                                                                                                  colorscale='rdylgn',
-                                                                                                  autocolorscale=True
-                                                                                              )
-                                                                                              )
-                                                                                  )
+            self.cluster_plot.update({f'Feature Importance SVD{svd}': dict(data=_feature_importance,
+                                                                           features=None,
+                                                                           plot_type='bar',
+                                                                           kwargs=dict(layout={},
+                                                                                       x=self.features,
+                                                                                       y=_feature_importance[
+                                                                                           'svd{}'.format(svd)],
+                                                                                       marker=dict(
+                                                                                           color=_feature_importance[
+                                                                                               'svd{}'.format(svd)],
+                                                                                           colorscale='rdylgn',
+                                                                                           autocolorscale=True
+                                                                                       )
+                                                                                       )
+                                                                           )
                                       })
         self.cluster_plot.update({'Explained Variance': dict(data=pd.DataFrame(),
                                                              features=None,
