@@ -402,7 +402,7 @@ class UnsupervisedML:
     """
     def __init__(self,
                  df: pd.DataFrame,
-                 cluster_algorithms: List[str],
+                 cluster_algorithms: List[str] = None,
                  features: List[str] = None,
                  find_optimum: bool = False,
                  silhouette_analysis: bool = True,
@@ -500,10 +500,10 @@ class UnsupervisedML:
         """
         Affinity propagation
         """
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.affinity_propagation().fit(X=self.df[self.features], y=self.df[self.target])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'cluster_centers': _clustering.cluster_centers_,
+        _clustering: AffinityPropagation = Clustering(cl_params=self.kwargs).affinity_propagation()
+        _clustering.fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'cluster_centers': _clustering.cluster_centers_,
                                                 'affinity_matrix': _clustering.affinity_matrix_,
                                                 'labels': _clustering.labels_,
                                                 'predict': _clustering.predict(X=self.df[self.features])
@@ -524,7 +524,7 @@ class UnsupervisedML:
         """
         Agglomerative clustering
         """
-        if self.ml_algorithm.find('struc') >= 0:
+        if self.ml_algorithm.find('unstruc') < 0:
             if self.kwargs.get('connectivity') is None:
                 self.kwargs.update({'connectivity': kneighbors_graph(X=self.df[self.features],
                                                                      n_neighbors=self.n_neighbors,
@@ -543,13 +543,10 @@ class UnsupervisedML:
                                                                      n_jobs=self.cpu_cores
                                                                      )
                                     })
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.agglomerative_clustering().fit(X=self.df[self.features], y=self.df[self.target])
-        self.cluster[self.ml_algorithm].update({'connectivity': self.kwargs.get('connectivity')})
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'clusters': _clustering.clusters_,
-                                                'cluster': _clustering.transform(X=self.df[self.features]),
-                                                'components': _clustering.n_components_,
+        _clustering: AgglomerativeClustering = Clustering(cl_params=self.kwargs).agglomerative_clustering()
+        _clustering.fit(X=self.df[self.features], y=self.df[self.target])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'connectivity': self.kwargs.get('connectivity'),
                                                 'labels': _clustering.labels_
                                                 })
         self.cluster_plot.update({'Agglomerative Clustering': dict(data=self.df,
@@ -557,8 +554,7 @@ class UnsupervisedML:
                                                                    plot_type='scatter',
                                                                    melt=True,
                                                                    kwargs=dict(layout={},
-                                                                               marker=dict(color=self.cluster[self.ml_algorithm].get(
-                                                                                   'fit').labels_.astype(float))
+                                                                               marker=dict(color=_clustering.labels_.astype(float))
                                                                                )
                                                                    )
                                   })
@@ -567,10 +563,10 @@ class UnsupervisedML:
         """
         Birch clustering
         """
-        _clustering: Clustering = Clustering(cl_params=self.kwargs)
-        _clustering.birch().fit(X=self.df)
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
-        self.cluster[self.ml_algorithm].update({'partial_fit': _clustering.partial_fit_,
+        _clustering: Birch = Clustering(cl_params=self.kwargs).birch()
+        _clustering.fit(X=self.df[self.features])
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'partial_fit': _clustering.partial_fit_,
                                                 'root': _clustering.root_,
                                                 'centroids': _clustering.subcluster_centers_,
                                                 'cluster': _clustering.transform(X=self.df[self.features]),
@@ -648,7 +644,7 @@ class UnsupervisedML:
                                                     })
             if self.find_optimum:
                 if self.silhouette:
-                    _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                    _silhouette: dict = self.silhouette_analysis(labels=_clustering.transform(self.df[self.features]))
                     self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                     self.cluster_plot.update({'Silhouette Analysis (FA)': dict(data=None,
                                                                                features=None,
@@ -798,7 +794,7 @@ class UnsupervisedML:
                                                 })
         if self.find_optimum:
             if self.silhouette:
-                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                _silhouette: dict = self.silhouette_analysis(labels=_clustering.transform(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                 self.cluster_plot.update({'Silhouette Analysis (Isomap)': dict(data=None,
                                                                                features=None,
@@ -882,7 +878,7 @@ class UnsupervisedML:
                                                 })
         if self.find_optimum:
             if self.silhouette:
-                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.predict(self.df[self.features]))
+                _silhouette: dict = self.silhouette_analysis(labels=_clustering.predict(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                 self.cluster_plot.update({'Silhouette Analysis (KMeans)': dict(data=None,
                                                                                features=None,
@@ -941,7 +937,7 @@ class UnsupervisedML:
                                                 })
         if self.find_optimum:
             if self.silhouette:
-                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                _silhouette: dict = self.silhouette_analysis(labels=_clustering.transform(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                 self.cluster_plot.update({'Silhouette Analysis (LLE)': dict(data=None,
                                                                             features=None,
@@ -1015,7 +1011,7 @@ class UnsupervisedML:
                                                 })
         if self.find_optimum:
             if self.silhouette:
-                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                _silhouette: dict = self.silhouette_analysis(labels=_clustering.transform(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                 self.cluster_plot.update({'Silhouette Analysis (MDS)': dict(data=None,
                                                                             features=None,
@@ -1149,7 +1145,7 @@ class UnsupervisedML:
                                                 })
         if self.find_optimum:
             if self.silhouette:
-                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                _silhouette: dict = self.silhouette_analysis(labels=_clustering.transform(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                 self.cluster_plot.update({'Silhouette Analysis (PCA)': dict(data=None,
                                                                             features=None,
@@ -1264,7 +1260,7 @@ class UnsupervisedML:
                                                 })
         if self.find_optimum:
             if self.silhouette:
-                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                _silhouette: dict = self.silhouette_analysis(labels=_clustering.transform(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                 self.cluster_plot.update({'Silhouette Analysis (SPE)': dict(data=None,
                                                                             features=None,
@@ -1338,7 +1334,7 @@ class UnsupervisedML:
                                                 })
         if self.find_optimum:
             if self.silhouette:
-                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                _silhouette: dict = self.silhouette_analysis(labels=_clustering.transform(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                 self.cluster_plot.update({'Silhouette Analysis (TSNE)': dict(data=None,
                                                                              features=None,
@@ -1418,7 +1414,7 @@ class UnsupervisedML:
                                                 })
         if self.find_optimum:
             if self.silhouette:
-                _silhouette: dict = self.silhoutte_analysis(labels=_clustering.transform(self.df[self.features]))
+                _silhouette: dict = self.silhouette_analysis(labels=_clustering.transform(self.df[self.features]))
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
                 self.cluster_plot.update({'Silhouette Analysis (SVD)': dict(data=None,
                                                                             features=None,
@@ -1512,6 +1508,8 @@ class UnsupervisedML:
         #    self.df = self.df[~self.df.isnull()]
         #    if self.df.shape[0] == 0:
         #        raise UnsupervisedMLException('No cases containing valid observations left')
+        if self.cluster_algorithms is None:
+            raise UnsupervisedMLException('No clustering algorithm found')
         for cl in self.cluster_algorithms:
             self.ml_algorithm = cl
             self.cluster.update({cl: {}})
@@ -1606,7 +1604,7 @@ class UnsupervisedML:
             elif cl in ['affinity_prop', 'affinity_propagation']:
                 self._affinity_propagation()
             else:
-                raise UnsupervisedMLException('Clustering algorithm ({}) not supported'.format(cl))
+                raise UnsupervisedMLException(f'Clustering algorithm ({cl}) not supported')
         if self.plot:
             DataVisualizer(subplots=self.cluster_plot,
                            interactive=True,
@@ -1615,7 +1613,7 @@ class UnsupervisedML:
                            unit='px'
                            ).run()
 
-    def silhoutte_analysis(self, labels: List[int]) -> dict:
+    def silhouette_analysis(self, labels: List[int]) -> dict:
         """
         Calculate silhouette scores to evaluate optimal amount of clusters for most cluster analysis algorithms
 
@@ -1628,6 +1626,17 @@ class UnsupervisedML:
         _lower: int = 10
         _silhouette: dict = {}
         _avg_silhoutte_score: List[float] = []
+        if self.kwargs.get('n_clusters') is None:
+            if self.n_cluster_components is None:
+                self.kwargs.update({'n_clusters': 5})
+            else:
+                if self.n_cluster_components < 2:
+                    Log(write=False, level='info').log(
+                        msg='It makes no sense to run cluster analysis with less than 2 clusters ({}). Run analysis with more than 1 cluster instead'.format(
+                            self.kwargs.get('n_clusters')))
+                    self.kwargs.update({'n_clusters': 5})
+                else:
+                    self.kwargs.update({'n_clusters': self.n_cluster_components})
         _clusters: List[int] = [n for n in range(0, self.kwargs.get('n_clusters'), 1)]
         for cl in _clusters:
             _avg_silhoutte_score.append(silhouette_score(X=self.df[self.features],
