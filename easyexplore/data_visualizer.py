@@ -864,7 +864,7 @@ class DataVisualizer:
                                                               'hovermode': 'closest',
                                                               'showlegend': True
                                                               })
-                        self.title_extension = f'({group}={val})'
+                        self.title_extension = f'<br></br>({group}={val})'
                         self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}_{val}')
                         self.fig = _fig
                         self._show_plotly_offline()
@@ -1003,7 +1003,7 @@ class DataVisualizer:
                                     self._show_plotly_offline()
                                     _data = []
                             else:
-                                self.title_extension = f'({ft} - {group}={val})'
+                                self.title_extension = f'<br></br>({ft} - {group}={val})'
                                 self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                                 self.fig = _data
                                 self._show_plotly_offline()
@@ -1148,7 +1148,7 @@ class DataVisualizer:
                                     self._show_plotly_offline()
                                     _data = []
                             else:
-                                #self.title_extension = f'({group}={val})'
+                                #self.title_extension = f'<br></br>({group}={val})'
                                 self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                                 self.fig = _data
                                 self._show_plotly_offline()
@@ -1228,7 +1228,7 @@ class DataVisualizer:
                             _data = []
                     else:
                         if len(_open_features) > 1:
-                            self.title_extension = f'({tft} - {_feature_name})'
+                            self.title_extension = f'<br></br>({tft} - {_feature_name})'
                         if self.use_auto_extensions:
                             self.file_path_extension = self._trim(input_str=f'{tft}_{_feature_name}')
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).candlestick()
@@ -1263,7 +1263,7 @@ class DataVisualizer:
                                                             'close': _sorted_df.loc[_sorted_df[group] == val, _close_features[k]].values
                                                             })
                             self.plot['kwargs']['layout'].update({'xaxis_rangeslider_visible': True})
-                            self.title_extension = f'({tft} - {_feature_name} - {group}={val})'
+                            self.title_extension = f'<br></br>({tft} - {_feature_name} - {group}={val})'
                             self.file_path_extension = self._trim(input_str=f'{tft}_{_feature_name}_{group}_{val}')
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).candlestick()
                             self._show_plotly_offline()
@@ -1627,7 +1627,7 @@ class DataVisualizer:
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map_annotated()
                     else:
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).heat_map()
-                    self.title_extension = f'({group}={val})'
+                    self.title_extension = f'<br></br>({group}={val})'
                     self.file_path_extension = self._trim(input_str=f'{group}_{val}')
                     self._show_plotly_offline()
 
@@ -1724,7 +1724,7 @@ class DataVisualizer:
                                 self._show_plotly_offline()
                                 _data = []
                         else:
-                            self.title_extension = f'({ft} - {group}={val})'
+                            self.title_extension = f'<br></br>({ft} - {group}={val})'
                             self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                             self.fig = _data
                             self._show_plotly_offline()
@@ -1973,7 +1973,7 @@ class DataVisualizer:
                                                                              domain=[0.65, 1],
                                                                              showgrid=False)
                                                               })
-                        self.title_extension = f'({group}={val})'
+                        self.title_extension = f'<br></br>({group}={val})'
                         self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}_{val}')
                         self.fig = _fig
                         self._show_plotly_offline()
@@ -2002,7 +2002,7 @@ class DataVisualizer:
                             self._show_plotly_offline()
                             _data = []
                     else:
-                        self.title_extension = f'({tft} - {ft})'
+                        self.title_extension = f'<br></br>({ft} - {tft})'
                         if self.plot.get('use_auto_extensions'):
                             self.file_path_extension = self._trim(input_str=f'{tft}_{ft}')
                         self.fig = _data
@@ -2033,14 +2033,14 @@ class DataVisualizer:
                             if self.plot.get('melt'):
                                 _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
                                 if ext == len(_unique):
-                                    self.title_extension = f'({tft} - {ft} - {group})'
+                                    self.title_extension = f'<br></br>({tft} - {ft} - {group})'
                                     self.file_path_extension = self._trim(input_str=f'{tft}_{ft}_{group}')
                                     self.fig = _data
                                     self._show_plotly_offline()
                                     _data = []
                             else:
                                 _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
-                                self.title_extension = f'({tft} - {ft} - {group}={val})'
+                                self.title_extension = f'<br></br>({tft} - {ft} - {group}={val})'
                                 self.file_path_extension = self._trim(input_str=f'{tft}_{ft}_{group}_{val}')
                                 self.fig = _data
                                 self._show_plotly_offline()
@@ -2072,7 +2072,7 @@ class DataVisualizer:
                             _data = []
                     else:
                         _data.append(PlotlyAdapter(plot=self.plot, offline=True).bar())
-                        self.title_extension = f'({tft} - {ft})'
+                        self.title_extension = f'<br></br>({tft} - {ft})'
                         if self.plot.get('use_auto_extensions'):
                             self.file_path_extension = self._trim(input_str=f'{tft}_{ft}')
                         self.fig = _data
@@ -2102,13 +2102,13 @@ class DataVisualizer:
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
                             if self.plot.get('melt'):
                                 if ext == len(_unique):
-                                    self.title_extension = f'({tft} - {ft} - {group})'
+                                    self.title_extension = f'<br></br>({ft} - {tft} - {group})'
                                     self.file_path_extension = self._trim(input_str=f'{tft}_{ft}_{group}')
                                     self.fig = _data
                                     self._show_plotly_offline()
                                     _data = []
                             else:
-                                self.title_extension = f'({tft} - {ft} - {group}={val})'
+                                self.title_extension = f'<br></br>({ft} - {tft} - {group}={val})'
                                 self.file_path_extension = self._trim(input_str=f'{tft}_{ft}_{group}_{val}')
                                 self.fig = _data
                                 self._show_plotly_offline()
@@ -2773,7 +2773,7 @@ class DataVisualizer:
                                                         })
                             # self.title = '{}<br></br>{}'.format(self.title, self._trim(
                             #    input_str='{} ({}={})'.format(ft, group, val)))
-                            self.title_extension = f'({ft} - {group}={val})'
+                            self.title_extension = f'<br></br>({ft} - {group}={val})'
                             self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
                             self.fig = PlotlyAdapter(plot=self.plot, offline=True).pie()
                             self._show_plotly_offline()
@@ -3056,7 +3056,7 @@ class DataVisualizer:
                                 self._show_plotly_offline()
                                 _data = []
                         else:
-                            self.title_extension = f'({pair[0]}_{pair[1]} - {group}={val})'
+                            self.title_extension = f'<br></br>({pair[0]}_{pair[1]} - {group}={val})'
                             self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{group}_{val}')
                             self.fig = _data
                             self._show_plotly_offline()
@@ -3154,7 +3154,7 @@ class DataVisualizer:
                                 self._show_plotly_offline()
                                 _data = []
                         else:
-                            self.title_extension = f'({pair[0]}_{pair[1]}_{pair[2]} - {group}={val})'
+                            self.title_extension = f'<br></br>({pair[0]}_{pair[1]}_{pair[2]} - {group}={val})'
                             self.file_path_extension = self._trim(input_str=f'{pair[0]}_{pair[1]}_{pair[2]}_{group}_{val}')
                             self.fig = _data
                             self._show_plotly_offline()
