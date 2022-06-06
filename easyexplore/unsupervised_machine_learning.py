@@ -1281,17 +1281,17 @@ class UnsupervisedML:
             if self.silhouette:
                 _silhouette: dict = self.silhouette_analysis(labels=_clustering.labels_)
                 self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
-                self.cluster_plot.update({'OPTICS: Silhouette Analysis': dict(data=self.df,
-                                                                              features=None,
-                                                                              plot_type='silhouette',
-                                                                              use_auto_extensions=self.kwargs.get(
-                                                                                  'use_auto_extensions'),
-                                                                              file_path=_file_path_silhouette,
-                                                                              kwargs=dict(layout={},
-                                                                                          n_clusters=self.cluster[self.ml_algorithm].get('n_clusters'),
-                                                                                          silhouette=_silhouette
-                                                                                          )
-                                                                              )
+                self.cluster_plot.update({'Spectral Clustering: Silhouette Analysis': dict(data=self.df,
+                                                                                           features=None,
+                                                                                           plot_type='silhouette',
+                                                                                           use_auto_extensions=self.kwargs.get(
+                                                                                               'use_auto_extensions'),
+                                                                                           file_path=_file_path_silhouette,
+                                                                                           kwargs=dict(layout={},
+                                                                                                       n_clusters=self.cluster[self.ml_algorithm].get('n_clusters'),
+                                                                                                       silhouette=_silhouette
+                                                                                                       )
+                                                                                           )
                                           })
         if 'silhouette' not in self.cluster[self.ml_algorithm].keys():
             self.cluster[self.ml_algorithm].update({'silhouette': None})
@@ -1370,6 +1370,11 @@ class UnsupervisedML:
             _file_path_pca: str = None
         if self.find_optimum:
             _cumulative_explained_variance_ratio: np.ndarray = np.cumsum(_clustering.explained_variance_ratio_)
+            _cumulative_variance: pd.DataFrame = pd.DataFrame(data=_cumulative_explained_variance_ratio,
+                                                              columns=['cumulative_explained_variance'],
+                                                              index=[i for i in
+                                                                     range(0, self.kwargs.get('n_components'), 1)]
+                                                              )
             self.cluster[self.ml_algorithm].update(
                 {'explained_variance_ratio': _clustering.explained_variance_ratio_})
             self.cluster[self.ml_algorithm].update(
@@ -1377,8 +1382,9 @@ class UnsupervisedML:
             self.kwargs.update({'n_components': self._cumulative_explained_variance_ratio(
                 explained_variance_ratio=_cumulative_explained_variance_ratio)})
             self.cluster[self.ml_algorithm].update({'n_components': self.kwargs.get('n_components')})
-            self.cluster_plot.update({'SVD: Optimal Number of Components': dict(data=_cumulative_explained_variance_ratio,
-                                                                                features=None,
+            self.cluster_plot.update({'SVD: Optimal Number of Components': dict(data=_cumulative_variance,
+                                                                                features=['cumulative_explained_variance'],
+                                                                                time_features=['component'],
                                                                                 plot_type='line',
                                                                                 use_auto_extensions=self.kwargs.get(
                                                                                     'use_auto_extensions'),
