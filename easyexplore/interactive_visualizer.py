@@ -482,7 +482,7 @@ class PlotlyAdapter:
                                     labels=self.plot['kwargs'].get('labels'),
                                     colorscale=self.plot['kwargs'].get('colorscale'),
                                     distfun=self.plot['kwargs'].get('distfun'),
-                                    linkagefun=self.plot['kwargs'].get('linkagefun'),
+                                    #linkagefun=self.plot['kwargs'].get('linkagefun'),
                                     hovertext=self.plot['kwargs'].get('hovertext'),
                                     color_threshold=self.plot['kwargs'].get('color_threshold')
                                     )

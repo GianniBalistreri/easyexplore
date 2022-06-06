@@ -1338,14 +1338,10 @@ class DataVisualizer:
         :param color_scale: List[tuple]
             List of color ranges
         """
-        self.df = self.df[self.plot.get('features')]
-        if len(self.plot.get('features')) > 0:
-            self.df = self.df[self.plot.get('features')]
-        self.plot['kwargs'].update({'X': np.transpose(self.df.values),
+        self.plot['kwargs'].update({'X': self.df[self.plot.get('features')], #np.transpose(self.df[self.plot.get('features')].values),
                                     'orientation': 'bottom' if self.plot['kwargs'].get(
                                         'orientation') is None else self.plot['kwargs'].get('orientation'),
-                                    'labels': self.df.columns if self.plot['kwargs'].get(
-                                        'labels') is None else self.plot['kwargs'].get('labels'),
+                                    'labels': self.plot['kwargs'].get('labels'),
                                     'colorscale': color_scale,
                                     'linkagefun': linkage,
                                     # 'hovertext': self.df.columns if self.plot['kwargs'].get('hovertext') is None else self.plot['kwargs'].get('hovertext'),

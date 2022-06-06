@@ -23,7 +23,6 @@ FEATURES: List[str] = ['alcohol',
                        'OD280/OD315_of_diluted_wines',
                        'proline'
                        ]
-TARGET_FEATURE: str = 'class'
 
 
 class ClusterTest(unittest.TestCase):
@@ -233,7 +232,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -242,10 +241,9 @@ class UnsupervisedMLTest(unittest.TestCase):
         _mds_keys: List[str] = ['fit',
                                 'n_components',
                                 'embeddings',
-                                'transformed_embeddings',
-                                'silhouette',
                                 'dissimilarity_matrix',
-                                'feature_importance'
+                                'stress',
+                                'n_iter'
                                 ]
         self.assertTrue(expr=_meth == 'mds' and list(_clustering.cluster[_meth].keys()) == _mds_keys)
 
@@ -262,7 +260,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -272,11 +270,9 @@ class UnsupervisedMLTest(unittest.TestCase):
                                    'n_components',
                                    'embeddings',
                                    'transformed_embeddings',
-                                   'silhouette',
-                                   'dissimilarity_matrix',
+                                   'distance_matrix',
                                    'kernel_pca',
-                                   'reconstruction_error',
-                                   'feature_importance'
+                                   'reconstruction_error'
                                    ]
         self.assertTrue(expr=_meth == 'isomap' and list(_clustering.cluster[_meth].keys()) == _isomap_keys)
 
@@ -293,7 +289,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -322,7 +318,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -332,9 +328,9 @@ class UnsupervisedMLTest(unittest.TestCase):
                                               'n_components',
                                               'embeddings',
                                               'transformed_embeddings',
-                                              'silhouette',
+                                              #'silhouette',
                                               'reconstruction_error',
-                                              'feature_importance'
+                                              #'feature_importance'
                                               ]
         self.assertTrue(expr=_meth == 'locally_embedding' and list(_clustering.cluster[_meth].keys()) == _locally_embedding_keys)
 
@@ -351,7 +347,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -516,7 +512,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -524,9 +520,11 @@ class UnsupervisedMLTest(unittest.TestCase):
         _meth: str = list(_clustering.cluster.keys())[0]
         _feature_agglomeration_keys: List[str] = ['fit',
                                                   'n_clusters',
-                                                  'clusters',
-                                                  'within_cluster_error',
-                                                  'cluster'
+                                                  'n_leaves',
+                                                  'n_components',
+                                                  'children',
+                                                  'reduced_data_set',
+                                                  'labels'
                                                   ]
         self.assertTrue(expr=_meth == 'feature_agglomeration' and list(_clustering.cluster[_meth].keys()) == _feature_agglomeration_keys)
 
@@ -543,7 +541,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -551,6 +549,10 @@ class UnsupervisedMLTest(unittest.TestCase):
         _meth: str = list(_clustering.cluster.keys())[0]
         _agglo_cluster_keys: List[str] = ['fit',
                                           'connectivity',
+                                          'n_clusters',
+                                          'n_leaves',
+                                          'n_components',
+                                          'children',
                                           'labels'
                                           ]
         self.assertTrue(expr=_meth == 'agglo_cluster' and list(_clustering.cluster[_meth].keys()) == _agglo_cluster_keys)
@@ -568,7 +570,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -623,7 +625,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
@@ -633,7 +635,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                  'cluster_centers',
                                                  'affinity_matrix',
                                                  'labels',
-                                                 'predict'
+                                                 'cluster'
                                                  ]
         self.assertTrue(expr=_meth == 'affinity_propagation' and list(_clustering.cluster[_meth].keys()) == _affinity_propagation_keys)
 
@@ -651,11 +653,11 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      affinity=None,
                                                      connectivity=None,
                                                      linkage=None,
-                                                     target=TARGET_FEATURE,
+                                                     target=None,
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _silhouette_results: dict = _clustering.silhouette_analysis(labels=DATA_SET[TARGET_FEATURE].values.tolist())
+        _silhouette_results: dict = _clustering.silhouette_analysis(labels=DATA_SET['class'].values.tolist())
         _silhouette_results_keys: List[str] = []
         for c in range(0, _n_clusters, 1):
             _silhouette_results_keys.append(f'cluster_{c}_avg')
