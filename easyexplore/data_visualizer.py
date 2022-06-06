@@ -3607,7 +3607,7 @@ class DataVisualizer:
                                sunburstcolorway=self.plot['kwargs']['layout'].get('sunburstcolorway'),
                                template=self.plot['kwargs']['layout'].get('template'),
                                ternary=self.plot['kwargs']['layout'].get('ternary'),
-                               title=dict(text=f'{self.title} {self.title_extension}', xanchor='left', yanchor='top'),
+                               title=dict(text=f'{self.title} {self.title_extension}', xanchor='auto', yanchor='top'),
                                titlefont=self.plot['kwargs']['layout'].get('titlefont'),
                                transition=self.plot['kwargs']['layout'].get('transition'),
                                treemapcolorway=self.plot['kwargs']['layout'].get('treemapcolorway'),
