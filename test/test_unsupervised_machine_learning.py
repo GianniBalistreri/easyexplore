@@ -113,7 +113,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_pca(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -130,9 +130,10 @@ class UnsupervisedMLTest(unittest.TestCase):
         _meth: str = list(_clustering.cluster.keys())[0]
         _pca_keys: List[str] = ['fit',
                                 'n_components',
+                                'explained_variance_ratio',
+                                'cumulative_explained_variance_ratio',
                                 'components',
                                 'explained_variance',
-                                'explained_variance_ratio',
                                 'pc',
                                 'feature_importance'
                                 ]
@@ -141,7 +142,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_factor(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -162,7 +163,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_svd(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -179,9 +180,10 @@ class UnsupervisedMLTest(unittest.TestCase):
         _meth: str = list(_clustering.cluster.keys())[0]
         _svd_keys: List[str] = ['fit',
                                 'n_components',
+                                'explained_variance_ratio',
+                                'cumulative_explained_variance_ratio',
                                 'components',
                                 'explained_variance',
-                                'explained_variance_ratio',
                                 'pc',
                                 'feature_importance'
                                 ]
@@ -190,7 +192,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_tsne(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -214,7 +216,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_mds(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -241,7 +243,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_isomap(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -269,7 +271,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_spectral_embedding(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -294,7 +296,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_locally_embedding(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -349,7 +351,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_nmf(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -375,7 +377,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_lda(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -484,7 +486,7 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_run_clustering_feature_agglomeration(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
