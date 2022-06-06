@@ -112,7 +112,6 @@ class UnsupervisedMLTest(unittest.TestCase):
     """
     def test_run_clustering_pca(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['pca'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -127,11 +126,10 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['pca'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _pca_keys: List[str] = ['fit',
                                 'n_components',
-                                'silhouette',
                                 'components',
                                 'explained_variance',
                                 'explained_variance_ratio',
@@ -142,7 +140,6 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_factor(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['factor'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -157,14 +154,13 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['factor'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _factor_keys: List[str] = []
         self.assertTrue(expr=_meth == 'factor' and list(_clustering.cluster[_meth].keys()) == _factor_keys)
 
     def test_run_clustering_svd(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['svd'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -179,7 +175,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['svd'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _svd_keys: List[str] = ['fit',
                                 'n_components',
@@ -193,7 +189,6 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_tsne(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['tsne'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -208,20 +203,16 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['tsne'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _tsne_keys: List[str] = ['fit',
                                  'n_components',
-                                 'embeddings',
-                                 'transformed_embeddings',
-                                 'silhouette',
-                                 'feature_importance'
+                                 'embeddings'
                                  ]
         self.assertTrue(expr=_meth == 'tsne' and list(_clustering.cluster[_meth].keys()) == _tsne_keys)
 
     def test_run_clustering_mds(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['mds'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -236,7 +227,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['mds'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _mds_keys: List[str] = ['fit',
                                 'n_components',
@@ -249,7 +240,6 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_isomap(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['isomap'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -264,7 +254,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['isomap'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _isomap_keys: List[str] = ['fit',
                                    'n_components',
@@ -278,7 +268,6 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_spectral_embedding(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['spectral_embedding'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -293,21 +282,17 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['spectral_embedding'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _spectral_embedding_keys: List[str] = ['fit',
                                                'n_components',
                                                'embeddings',
-                                               'transformed_embeddings',
-                                               'silhouette',
                                                'affinity_matrix',
-                                               'feature_importance'
                                                ]
         self.assertTrue(expr=_meth == 'spectral_embedding' and list(_clustering.cluster[_meth].keys()) == _spectral_embedding_keys)
 
     def test_run_clustering_locally_embedding(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['locally_embedding'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -322,23 +307,20 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['locally_embedding'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _locally_embedding_keys: List[str] = ['fit',
                                               'n_components',
                                               'embeddings',
                                               'transformed_embeddings',
-                                              #'silhouette',
-                                              'reconstruction_error',
-                                              #'feature_importance'
+                                              'reconstruction_error'
                                               ]
         self.assertTrue(expr=_meth == 'locally_embedding' and list(_clustering.cluster[_meth].keys()) == _locally_embedding_keys)
 
     def test_run_clustering_kmeans(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['kmeans'],
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -351,7 +333,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['kmeans'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _kmeans_keys: List[str] = ['fit',
                                    'n_clusters',
@@ -366,7 +348,6 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_nmf(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['nmf'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -381,7 +362,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['nmf'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _nmf_keys: List[str] = ['fit',
                                 'factorization_matrix_w',
@@ -393,7 +374,6 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_lda(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['lda'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -408,7 +388,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['lda'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _lda_keys: List[str] = ['fit',
                                 'components',
@@ -422,9 +402,8 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_optics(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['optics'],
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -437,9 +416,11 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['optics'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _optics_keys: List[str] = ['fit',
+                                   'n_clusters',
+                                   'silhouette',
                                    'reachability',
                                    'ordering',
                                    'core_distances',
@@ -451,9 +432,8 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_dbscan(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['dbscan'],
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -466,9 +446,10 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['dbscan'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _dbscan_keys: List[str] = ['fit',
+                                   'n_clusters',
                                    'core_sample_indices',
                                    'labels'
                                    ]
@@ -476,9 +457,8 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_spectral_cluster(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['spectral_cluster'],
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -491,9 +471,11 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['spectral_cluster'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _spectral_cluster_keys: List[str] = ['fit',
+                                             'n_clusters',
+                                             'silhouette',
                                              'affinity_matrix',
                                              'labels'
                                              ]
@@ -501,7 +483,6 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_feature_agglomeration(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['feature_agglomeration'],
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
@@ -516,7 +497,7 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['feature_agglomeration'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _feature_agglomeration_keys: List[str] = ['fit',
                                                   'n_clusters',
@@ -530,9 +511,8 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_agglo_cluster(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['agglo_cluster'],
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=3,
@@ -545,9 +525,10 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['agglo_cluster'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _agglo_cluster_keys: List[str] = ['fit',
+                                          'silhouette',
                                           'connectivity',
                                           'n_clusters',
                                           'n_leaves',
@@ -559,9 +540,8 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_unstruc_agglo_cluster(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['unstruc_agglo_cluster'],
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -574,19 +554,23 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['unstruc_agglo_cluster'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _unstruc_agglo_cluster_keys: List[str] = ['fit',
+                                                  'silhouette',
                                                   'connectivity',
+                                                  'n_clusters',
+                                                  'n_leaves',
+                                                  'n_components',
+                                                  'children',
                                                   'labels'
                                                   ]
         self.assertTrue(expr=_meth == 'unstruc_agglo_cluster' and list(_clustering.cluster[_meth].keys()) == _unstruc_agglo_cluster_keys)
 
     def test_run_clustering_birch(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['birch'],
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -599,9 +583,11 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['birch'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _birch_keys: List[str] = ['fit',
+                                  'n_clusters',
+                                  'silhouette',
                                   'partial_fit',
                                   'root',
                                   'centroids',
@@ -614,9 +600,8 @@ class UnsupervisedMLTest(unittest.TestCase):
 
     def test_run_clustering_affinity_propagation(self):
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=['affinity_propagation'],
                                                      features=FEATURES,
-                                                     find_optimum=False,
+                                                     find_optimum=True,
                                                      silhouette_analysis=True,
                                                      n_cluster_components=3,
                                                      n_neighbors=None,
@@ -629,9 +614,11 @@ class UnsupervisedMLTest(unittest.TestCase):
                                                      plot=False,
                                                      log_path=None
                                                      )
-        _clustering.run_clustering()
+        _clustering.run_clustering(cluster_algorithms=['affinity_propagation'])
         _meth: str = list(_clustering.cluster.keys())[0]
         _affinity_propagation_keys: List[str] = ['fit',
+                                                 'n_clusters',
+                                                 'silhouette',
                                                  'cluster_centers',
                                                  'affinity_matrix',
                                                  'labels',
