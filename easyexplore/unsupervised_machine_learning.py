@@ -1162,7 +1162,9 @@ class UnsupervisedML:
         _clustering: PCA = Clustering(cl_params=self.kwargs).principal_component_analysis()
         _clustering.fit(X=self.df[self.features])
         self.cluster[self.ml_algorithm].update({'fit': _clustering,
-                                                'n_components': self.kwargs.get('n_components')
+                                                'n_components': self.kwargs.get('n_components'),
+                                                'explained_variance_ratio': None,
+                                                'cumulative_explained_variance_ratio': None
                                                 })
         if self.to_export:
             _file_path_onc: str = os.path.join(self.kwargs.get('file_path'), 'pca_optimal_number_of_components.html')
@@ -1195,6 +1197,11 @@ class UnsupervisedML:
                                                                                 kwargs=dict(layout={})
                                                                                 )
                                       })
+            _clustering: PCA = Clustering(cl_params=self.kwargs).principal_component_analysis()
+            _clustering.fit(X=self.df[self.features])
+            self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                    'n_components': self.kwargs.get('n_components')
+                                                    })
         _components: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.components_),
                                                  columns=self.features,
                                                  index=['pc{}'.format(pc) for pc in
@@ -1349,7 +1356,9 @@ class UnsupervisedML:
         _clustering: TruncatedSVD = Clustering(cl_params=self.kwargs).truncated_single_value_decomp()
         _clustering.fit(X=self.df[self.features])
         self.cluster[self.ml_algorithm].update({'fit': _clustering,
-                                                'n_components': self.kwargs.get('n_components')
+                                                'n_components': self.kwargs.get('n_components'),
+                                                'explained_variance_ratio': None,
+                                                'cumulative_explained_variance_ratio': None
                                                 })
         if self.to_export:
             _file_path_onc: str = os.path.join(self.kwargs.get('file_path'), 'svd_optimal_number_of_components.html')
@@ -1377,6 +1386,11 @@ class UnsupervisedML:
                                                                                 kwargs=dict(layout={})
                                                                                 )
                                       })
+            _clustering: TruncatedSVD = Clustering(cl_params=self.kwargs).truncated_single_value_decomp()
+            _clustering.fit(X=self.df[self.features])
+            self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                    'n_components': self.kwargs.get('n_components')
+                                                    })
         _components: pd.DataFrame = pd.DataFrame(data=np.array(_clustering.components_),
                                                  columns=self.features,
                                                  index=['svd{}'.format(svd) for svd in
