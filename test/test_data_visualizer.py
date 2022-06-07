@@ -433,10 +433,32 @@ class DataVisualizerTest(unittest.TestCase):
         pass
 
     def test_run_contour_chart(self):
-        pass
+        _features: List[str] = ['C', 'H']
+        DataVisualizer(title='Contour Test',
+                       df=DATA_SET,
+                       features=_features,
+                       group_by=None,
+                       melt=False,
+                       plot_type='contour',
+                       render=False,
+                       file_path='test_contour.html',
+                       use_auto_extensions=False
+                       ).run()
+        self.assertTrue(expr=os.path.isfile('test_contour.html'))
 
     def test_run_dendrogram_chart(self):
-        pass
+        _features: List[str] = ['C', 'H']
+        DataVisualizer(title='Dendrogram Test',
+                       df=DATA_SET,
+                       features=_features,
+                       group_by=None,
+                       melt=False,
+                       plot_type='dendro',
+                       render=False,
+                       file_path='test_dendrogram.html',
+                       use_auto_extensions=False
+                       ).run()
+        self.assertTrue(expr=os.path.isfile('test_dendrogram.html'))
 
     def test_run_density_map_chart(self):
         _df: pd.DataFrame = pd.DataFrame()
