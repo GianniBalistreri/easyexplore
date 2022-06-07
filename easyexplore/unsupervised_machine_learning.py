@@ -526,6 +526,7 @@ class UnsupervisedML:
         self.cluster[self.ml_algorithm].update({'fit': _clustering,
                                                 'n_clusters': len(list(set(_labels)))
                                                 })
+        self.kwargs.update({'n_clusters': self.cluster[self.ml_algorithm].get('n_clusters')})
         if self.to_export:
             _file_path_silhouette: str = os.path.join(self.kwargs.get('file_path'), 'affinity_propagation_silhouette.html')
             _file_path_cluster_partition: str = os.path.join(self.kwargs.get('file_path'), 'affinity_propagation_cluster_partition.html')
@@ -539,7 +540,8 @@ class UnsupervisedML:
                 self.cluster_plot.update({'Affinity Propagation: Silhouette Analysis': dict(data=self.df,
                                                                                             features=None,
                                                                                             plot_type='silhouette',
-                                                                                            use_auto_extensions=self.kwargs.get(
+                                                                                            use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
                                                                                                 'use_auto_extensions'),
                                                                                             file_path=_file_path_silhouette,
                                                                                             kwargs=dict(layout={},
@@ -562,8 +564,9 @@ class UnsupervisedML:
                                                                                   group_by=['cluster'],
                                                                                   melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                                                   plot_type='scatter',
-                                                                                  use_auto_extensions=self.kwargs.get(
-                                                                                      'use_auto_extensions'),
+                                                                                  use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                   file_path=_file_path_cluster_partition,
                                                                                   kwargs=dict(layout={})
                                                                                   )
@@ -594,7 +597,10 @@ class UnsupervisedML:
                                     })
         _clustering: AgglomerativeClustering = Clustering(cl_params=self.kwargs).agglomerative_clustering()
         _clustering.fit(X=self.df[self.features])
-        self.cluster[self.ml_algorithm].update({'fit': _clustering})
+        self.cluster[self.ml_algorithm].update({'fit': _clustering,
+                                                'n_clusters': _clustering.n_clusters_
+                                                })
+        self.kwargs.update({'n_clusters': self.cluster[self.ml_algorithm].get('n_clusters')})
         if self.to_export:
             _file_path_silhouette: str = os.path.join(self.kwargs.get('file_path'), 'agglomerative_clustering_silhouette.html')
             _file_path_cluster_partition: str = os.path.join(self.kwargs.get('file_path'), 'agglomerative_clustering_partition.html')
@@ -610,11 +616,12 @@ class UnsupervisedML:
                 self.cluster_plot.update({'Agglomerative Clustering: Silhouette Analysis': dict(data=self.df,
                                                                                                 features=None,
                                                                                                 plot_type='silhouette',
-                                                                                                use_auto_extensions=self.kwargs.get(
-                                                                                                    'use_auto_extensions'),
+                                                                                                use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                                 file_path=_file_path_silhouette,
                                                                                                 kwargs=dict(layout={},
-                                                                                                            n_clusters=_clustering.n_clusters_,
+                                                                                                            n_clusters=self.cluster[self.ml_algorithm].get('n_clusters'),
                                                                                                             silhouette=_silhouette
                                                                                                             )
                                                                                                 )
@@ -660,6 +667,7 @@ class UnsupervisedML:
         self.cluster[self.ml_algorithm].update({'fit': _clustering,
                                                 'n_clusters': len(list(set(_labels)))
                                                 })
+        self.kwargs.update({'n_clusters': self.cluster[self.ml_algorithm].get('n_clusters')})
         if self.to_export:
             _file_path_silhouette: str = os.path.join(self.kwargs.get('file_path'), 'birch_silhouette.html')
             _file_path_cluster_partition: str = os.path.join(self.kwargs.get('file_path'), 'birch_cluster_partition.html')
@@ -669,12 +677,15 @@ class UnsupervisedML:
         if self.find_optimum:
             if self.silhouette:
                 _silhouette: dict = self.silhouette_analysis(labels=_labels)
-                self.cluster[self.ml_algorithm].update({'silhouette': _silhouette})
+                self.cluster[self.ml_algorithm].update({'n_clusters': int((len(list(_silhouette.keys())) - 1) / 2),
+                                                        'silhouette': _silhouette
+                                                        })
                 self.cluster_plot.update({'Birch: Silhouette Analysis': dict(data=self.df,
                                                                              features=None,
                                                                              plot_type='silhouette',
-                                                                             use_auto_extensions=self.kwargs.get(
-                                                                                 'use_auto_extensions'),
+                                                                             use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                              file_path=_file_path_silhouette,
                                                                              kwargs=dict(layout={},
                                                                                          n_clusters=self.cluster[self.ml_algorithm].get('n_clusters'),
@@ -699,7 +710,9 @@ class UnsupervisedML:
                                                                    group_by=['cluster'],
                                                                    melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                                    plot_type='scatter',
-                                                                   use_auto_extensions=self.kwargs.get('use_auto_extensions'),
+                                                                   use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                    file_path=_file_path_cluster_partition,
                                                                    kwargs=dict(layout={})
                                                                    )
@@ -748,7 +761,9 @@ class UnsupervisedML:
                                                                     group_by=['cluster'],
                                                                     melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                                     plot_type='scatter',
-                                                                    use_auto_extensions=self.kwargs.get('use_auto_extensions'),
+                                                                    use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                     file_path=_file_path_cluster_partition,
                                                                     kwargs=dict(layout={})
                                                                     )
@@ -786,8 +801,9 @@ class UnsupervisedML:
                     self.cluster_plot.update({'Silhouette Analysis (FA)': dict(data=None,
                                                                                features=None,
                                                                                plot_type='silhouette',
-                                                                               use_auto_extensions=self.kwargs.get(
-                                                                                   'use_auto_extensions'),
+                                                                               use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                file_path=self.kwargs.get('file_path'),
                                                                                kwargs=dict(layout={},
                                                                                            n_clusters=self.kwargs.get(
@@ -802,8 +818,9 @@ class UnsupervisedML:
                     self.cluster_plot.update({'Optimal Number of Factors': dict(data=self.eigen_value,
                                                                                 features=None,
                                                                                 plot_type='line',
-                                                                                use_auto_extensions=self.kwargs.get(
-                                                                                    'use_auto_extensions'),
+                                                                                use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                 file_path=self.kwargs.get('file_path'),
                                                                                 kwargs=dict(layout={})
                                                                                 )
@@ -825,8 +842,9 @@ class UnsupervisedML:
                 self.cluster_plot.update({'Feature Importance FA{}'.format(fa): dict(data=_feature_importance,
                                                                                      features=None,
                                                                                      plot_type='bar',
-                                                                                     use_auto_extensions=self.kwargs.get(
-                                                                                         'use_auto_extensions'),
+                                                                                     use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                      file_path=self.kwargs.get(
                                                                                          'file_path'),
                                                                                      kwargs=dict(layout={},
@@ -846,8 +864,9 @@ class UnsupervisedML:
             self.cluster_plot.update({'Explained Variance': dict(data=pd.DataFrame(),
                                                                  features=None,
                                                                  plot_type='bar',
-                                                                 use_auto_extensions=self.kwargs.get(
-                                                                     'use_auto_extensions'),
+                                                                 use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                  file_path=self.kwargs.get('file_path'),
                                                                  kwargs=dict(layout={},
                                                                              x=list(_feature_importance.keys()),
@@ -859,8 +878,9 @@ class UnsupervisedML:
                                                                                 ),
                                                               features=list(_feature_importance.keys()),
                                                               plot_type='scatter',
-                                                              use_auto_extensions=self.kwargs.get(
-                                                                  'use_auto_extensions'),
+                                                              use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                               file_path=self.kwargs.get('file_path'),
                                                               melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                               kwargs=dict(layout={},
@@ -979,8 +999,9 @@ class UnsupervisedML:
                 self.cluster_plot.update({'K-Means: Silhouette Analysis': dict(data=self.df,
                                                                                features=None,
                                                                                plot_type='silhouette',
-                                                                               use_auto_extensions=self.kwargs.get(
-                                                                                   'use_auto_extensions'),
+                                                                               use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                file_path=_file_path_silhouette,
                                                                                kwargs=dict(layout={},
                                                                                            n_clusters=self.kwargs.get(
@@ -1004,8 +1025,9 @@ class UnsupervisedML:
                                                                     group_by=['cluster'],
                                                                     melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                                     plot_type='scatter',
-                                                                    use_auto_extensions=self.kwargs.get(
-                                                                        'use_auto_extensions'),
+                                                                    use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                     file_path=_file_path_cluster_partition,
                                                                     kwargs=dict(layout={})
                                                                     )
@@ -1082,6 +1104,7 @@ class UnsupervisedML:
         self.cluster[self.ml_algorithm].update({'fit': _clustering,
                                                 'n_clusters': len(list(set(_clustering.labels_)))
                                                 })
+        self.kwargs.update({'n_clusters': self.cluster[self.ml_algorithm].get('n_clusters')})
         if self.to_export:
             _file_path_silhouette: str = os.path.join(self.kwargs.get('file_path'), 'optics_silhouette.html')
             _file_path_cluster_partition: str = os.path.join(self.kwargs.get('file_path'),
@@ -1099,8 +1122,9 @@ class UnsupervisedML:
                 self.cluster_plot.update({'OPTICS: Silhouette Analysis': dict(data=self.df,
                                                                               features=None,
                                                                               plot_type='silhouette',
-                                                                              use_auto_extensions=self.kwargs.get(
-                                                                                  'use_auto_extensions'),
+                                                                              use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                               file_path=_file_path_silhouette,
                                                                               kwargs=dict(layout={},
                                                                                           n_clusters=self.cluster[self.ml_algorithm].get('n_clusters'),
@@ -1131,7 +1155,9 @@ class UnsupervisedML:
                                                                     group_by=['cluster'],
                                                                     melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                                     plot_type='scatter',
-                                                                    use_auto_extensions=self.kwargs.get('use_auto_extensions'),
+                                                                    use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                     file_path=_file_path_cluster_partition,
                                                                     kwargs=dict(layout={})
                                                                     ),
@@ -1140,7 +1166,9 @@ class UnsupervisedML:
                                                                group_by=['labels'],
                                                                melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                                plot_type='hist',
-                                                               use_auto_extensions=self.kwargs.get('use_auto_extensions'),
+                                                               use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                file_path=_file_path_cluster_reachability,
                                                                kwargs=dict(layout={})
                                                                )
@@ -1191,8 +1219,9 @@ class UnsupervisedML:
                                                                                 features=['cumulative_explained_variance'],
                                                                                 time_features=['component'],
                                                                                 plot_type='line',
-                                                                                use_auto_extensions=self.kwargs.get(
-                                                                                    'use_auto_extensions'),
+                                                                                use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                 file_path=_file_path_onc,
                                                                                 kwargs=dict(layout={})
                                                                                 )
@@ -1220,9 +1249,10 @@ class UnsupervisedML:
             self.cluster_plot.update({'PCA: Feature Importance PC{}'.format(pca): dict(data=_feature_importance,
                                                                                        features=None,
                                                                                        plot_type='bar',
-                                                                                       use_auto_extensions=self.kwargs.get(
-                                                                                           'use_auto_extensions'),
-                                                                                       file_path=os.path.join(self.kwargs.get('file_path'), f'feature_importance_{pca}.html') if self.to_export else None,
+                                                                                       use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
+                                                                                       file_path=os.path.join(self.kwargs.get('file_path'), f'pca_feature_importance_{pca}.html') if self.to_export else None,
                                                                                        kwargs=dict(layout={},
                                                                                                    x=self.features,
                                                                                                    y=_feature_importance[f'pc{pca}'],
@@ -1237,7 +1267,9 @@ class UnsupervisedML:
         self.cluster_plot.update({'PCA: Explained Variance': dict(data=pd.DataFrame(),
                                                                   features=None,
                                                                   plot_type='bar',
-                                                                  use_auto_extensions=self.kwargs.get('use_auto_extensions'),
+                                                                  use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                   file_path=_file_path_explained_variance,
                                                                   kwargs=dict(layout={},
                                                                               x=list(_feature_importance.keys()),
@@ -1245,13 +1277,14 @@ class UnsupervisedML:
                                                                               )
                                                                   ),
                                   'PCA: Principal Components': dict(data=pd.DataFrame(data=self.cluster[self.ml_algorithm].get('pc'),
-                                                                                 columns=list(_feature_importance.keys())
-                                                                                 ),
+                                                                                      columns=list(_feature_importance.keys())
+                                                                                      ),
                                                                     features=list(_feature_importance.keys()),
                                                                     plot_type='scatter',
                                                                     melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
-                                                                    use_auto_extensions=self.kwargs.get(
-                                                                        'use_auto_extensions'),
+                                                                    use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                     file_path=_file_path_pca,
                                                                     kwargs=dict(layout={},
                                                                                 marker=dict(color=self.cluster[self.ml_algorithm].get('pc'),
@@ -1271,6 +1304,7 @@ class UnsupervisedML:
         self.cluster[self.ml_algorithm].update({'fit': _clustering,
                                                 'n_clusters': len(list(set(_clustering.labels_)))
                                                 })
+        self.kwargs.update({'n_clusters': self.cluster[self.ml_algorithm].get('n_clusters')})
         if self.to_export:
             _file_path_silhouette: str = os.path.join(self.kwargs.get('file_path'), 'spectral_clustering_silhouette.html')
             _file_path_cluster_partition: str = os.path.join(self.kwargs.get('file_path'), 'spectral_clustering_cluster_partition.html')
@@ -1284,8 +1318,9 @@ class UnsupervisedML:
                 self.cluster_plot.update({'Spectral Clustering: Silhouette Analysis': dict(data=self.df,
                                                                                            features=None,
                                                                                            plot_type='silhouette',
-                                                                                           use_auto_extensions=self.kwargs.get(
-                                                                                               'use_auto_extensions'),
+                                                                                           use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                            file_path=_file_path_silhouette,
                                                                                            kwargs=dict(layout={},
                                                                                                        n_clusters=self.cluster[self.ml_algorithm].get('n_clusters'),
@@ -1306,8 +1341,9 @@ class UnsupervisedML:
                                                                          group_by=['cluster'],
                                                                          melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                                          plot_type='scatter',
-                                                                         use_auto_extensions=self.kwargs.get(
-                                                                             'use_auto_extensions'),
+                                                                         use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                          file_path=_file_path_cluster_partition,
                                                                          kwargs=dict(layout={})
                                                                          )
@@ -1375,6 +1411,7 @@ class UnsupervisedML:
                                                               index=[i for i in
                                                                      range(0, self.kwargs.get('n_components'), 1)]
                                                               )
+            _cumulative_variance['component'] = _cumulative_variance.index.values.tolist()
             self.cluster[self.ml_algorithm].update(
                 {'explained_variance_ratio': _clustering.explained_variance_ratio_})
             self.cluster[self.ml_algorithm].update(
@@ -1386,8 +1423,9 @@ class UnsupervisedML:
                                                                                 features=['cumulative_explained_variance'],
                                                                                 time_features=['component'],
                                                                                 plot_type='line',
-                                                                                use_auto_extensions=self.kwargs.get(
-                                                                                    'use_auto_extensions'),
+                                                                                use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                                 file_path=_file_path_pca,
                                                                                 kwargs=dict(layout={})
                                                                                 )
@@ -1417,9 +1455,10 @@ class UnsupervisedML:
             self.cluster_plot.update({f'SVD: Feature Importance PC{svd}': dict(data=_feature_importance,
                                                                                features=None,
                                                                                plot_type='bar',
-                                                                               use_auto_extensions=self.kwargs.get(
-                                                                                   'use_auto_extensions'),
-                                                                               file_path=os.path.join(self.kwargs.get('file_path'), f'feature_importance_{svd}.html') if self.to_export else None,
+                                                                               use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
+                                                                               file_path=os.path.join(self.kwargs.get('file_path'), f'svd_feature_importance_{svd}.html') if self.to_export else None,
                                                                                kwargs=dict(layout={},
                                                                                            x=self.features,
                                                                                            y=_feature_importance[
@@ -1436,8 +1475,9 @@ class UnsupervisedML:
         self.cluster_plot.update({'SVD: Explained Variance': dict(data=pd.DataFrame(),
                                                                   features=None,
                                                                   plot_type='bar',
-                                                                  use_auto_extensions=self.kwargs.get(
-                                                                      'use_auto_extensions'),
+                                                                  use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                   file_path=_file_path_explained_variance,
                                                                   kwargs=dict(layout={},
                                                                               x=list(_feature_importance.keys()),
@@ -1450,8 +1490,9 @@ class UnsupervisedML:
                                                                     features=list(_feature_importance.keys()),
                                                                     melt=True if self.kwargs.get('melt') is None else self.kwargs.get('melt'),
                                                                     plot_type='scatter',
-                                                                    use_auto_extensions=self.kwargs.get(
-                                                                        'use_auto_extensions'),
+                                                                    use_auto_extensions=False if self.kwargs.get(
+                                                                                                'use_auto_extensions') is None else self.kwargs.get(
+                                                                                                'use_auto_extensions'),
                                                                     file_path=_file_path_pca,
                                                                     kwargs=dict(layout={},
                                                                                 marker=dict(color=self.cluster[self.ml_algorithm].get('pc'),
@@ -1594,13 +1635,13 @@ class UnsupervisedML:
         _avg_silhoutte_score: List[float] = []
         if self.kwargs.get('n_clusters') is None:
             if self.n_cluster_components is None:
-                self.kwargs.update({'n_clusters': 5})
+                self.kwargs.update({'n_clusters': 2})
             else:
                 if self.n_cluster_components < 2:
                     Log(write=False, level='info').log(
                         msg='It makes no sense to run cluster analysis with less than 2 clusters ({}). Run analysis with more than 1 cluster instead'.format(
                             self.kwargs.get('n_clusters')))
-                    self.kwargs.update({'n_clusters': 5})
+                    self.kwargs.update({'n_clusters': 2})
                 else:
                     self.kwargs.update({'n_clusters': self.n_cluster_components})
         _clusters: List[int] = [n for n in range(0, self.kwargs.get('n_clusters'), 1)]
