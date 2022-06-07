@@ -3170,12 +3170,12 @@ class DataVisualizer:
         if isinstance(self.plot['kwargs'].get('silhouette'), dict):
             _silhouette: dict = self.plot['kwargs'].get('silhouette')
             for cl in range(0, self.plot['kwargs'].get('n_clusters'), 1):
-                self.plot['kwargs'].update({'x': _silhouette['cluster_{}_samples'.format(cl)].get('scores'),
-                                            'y': _silhouette['cluster_{}_samples'.format(cl)].get('y'),
+                self.plot['kwargs'].update({'x': _silhouette[f'cluster_{cl}_samples'].get('scores'),
+                                            'y': _silhouette[f'cluster_{cl}_samples'].get('y'),
                                             'mode': 'lines',
                                             'line': dict(width=0.5),
                                             'fill': 'tozerox',
-                                            'name': 'Cluster {}'.format(cl + 1),
+                                            'name': f'Cluster {cl + 1}',
                                             'xaxis': 'x',
                                             'yaxis': 'y',
                                             'showlegend': True
