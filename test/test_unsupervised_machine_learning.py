@@ -631,7 +631,6 @@ class UnsupervisedMLTest(unittest.TestCase):
     def test_silhouette_analysis(self):
         _n_clusters: int = 3
         _clustering: UnsupervisedML = UnsupervisedML(df=DATA_SET,
-                                                     cluster_algorithms=None,
                                                      features=FEATURES,
                                                      find_optimum=False,
                                                      silhouette_analysis=True,
