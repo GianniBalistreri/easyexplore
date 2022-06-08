@@ -5,6 +5,7 @@ import plotly.graph_objs as go
 import unittest
 
 from easyexplore.data_visualizer import DataVisualizer, load_plotly_from_json, load_static_plot
+from easyexplore.unsupervised_machine_learning import Clustering, UnsupervisedML
 from typing import List
 
 DATA_SET: pd.DataFrame = pd.read_csv(filepath_or_buffer='test_data.csv', sep=',')
@@ -598,7 +599,21 @@ class DataVisualizerTest(unittest.TestCase):
                         )
 
     def test_run_histogram_decile_chart(self):
-        pass
+        _df: pd.DataFrame = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/2016-weather-data-seattle.csv')
+        _df['month'] = pd.to_datetime(_df['Date']).dt.month
+        _df['week'] = pd.to_datetime(_df['Date']).dt.week
+        DataVisualizer(title='Histogram-Decile Test',
+                       df=_df,
+                       features=['Max_TemperatureC'],
+                       group_by=['month'],
+                       time_features=['week'],
+                       melt=False,
+                       plot_type='hist_decile',
+                       render=False,
+                       file_path='test_histogram_decile.html',
+                       use_auto_extensions=False
+                       ).run()
+        self.assertTrue(expr=os.path.isfile('test_histogram_decile.html'))
 
     def test_run_joint_distribution_chart(self):
         _features: List[str] = ['C', 'H']
@@ -921,7 +936,78 @@ class DataVisualizerTest(unittest.TestCase):
         pass
 
     def test_run_ridgeline_chart(self):
-        pass
+        _df: pd.DataFrame = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/2016-weather-data-seattle.csv')
+        _df['month'] = pd.to_datetime(_df['Date']).dt.month
+        _df['week'] = pd.to_datetime(_df['Date']).dt.week
+        _features: List[str] = ['Max_TemperatureC']
+        _time_features: List[str] = ['week']
+        _group_features: List[str] = ['month']
+        _group_values: List[int] = _df[_group_features[0]].unique().tolist()
+        # without group by and without auto extensions
+        DataVisualizer(title='Ridgeline Test',
+                       df=_df,
+                       features=_features,
+                       time_features=_time_features,
+                       group_by=None,
+                       melt=False,
+                       plot_type='ridgeline',
+                       render=False,
+                       file_path='test_ridgeline.html',
+                       use_auto_extensions=False
+                       ).run()
+        _output_file_path_1: str = 'test_ridgeline.html'
+        # without group by and with auto extensions
+        DataVisualizer(title='Ridgeline Test',
+                       df=_df,
+                       features=_features,
+                       time_features=_time_features,
+                       group_by=None,
+                       melt=False,
+                       plot_type='ridgeline',
+                       render=False,
+                       file_path='test_ridgeline.html',
+                       use_auto_extensions=True
+                       ).run()
+        _output_file_path_2: str = 'test_ridgeline_week_Max_TemperatureC.html'
+        # with group by
+        DataVisualizer(title='Ridgeline Test',
+                       df=_df,
+                       features=_features,
+                       time_features=_time_features,
+                       group_by=_group_features,
+                       melt=False,
+                       plot_type='ridgeline',
+                       render=False,
+                       file_path='test_ridgeline.html',
+                       use_auto_extensions=False
+                       ).run()
+        _output_file_path_3: str = 'test_ridgeline_week_Max_TemperatureC_month_1.html'
+        _output_file_path_4: str = 'test_ridgeline_week_Max_TemperatureC_month_2.html'
+        _output_file_path_5: str = 'test_ridgeline_week_Max_TemperatureC_month_3.html'
+        _output_file_path_6: str = 'test_ridgeline_week_Max_TemperatureC_month_4.html'
+        _output_file_path_7: str = 'test_ridgeline_week_Max_TemperatureC_month_5.html'
+        _output_file_path_8: str = 'test_ridgeline_week_Max_TemperatureC_month_6.html'
+        _output_file_path_9: str = 'test_ridgeline_week_Max_TemperatureC_month_7.html'
+        _output_file_path_10: str = 'test_ridgeline_week_Max_TemperatureC_month_8.html'
+        _output_file_path_11: str = 'test_ridgeline_week_Max_TemperatureC_month_9.html'
+        _output_file_path_12: str = 'test_ridgeline_week_Max_TemperatureC_month_10.html'
+        _output_file_path_13: str = 'test_ridgeline_week_Max_TemperatureC_month_11.html'
+        _output_file_path_14: str = 'test_ridgeline_week_Max_TemperatureC_month_12.html'
+        self.assertTrue(expr=os.path.isfile(_output_file_path_1) and
+                             os.path.isfile(_output_file_path_2) and
+                             os.path.isfile(_output_file_path_3) and
+                             os.path.isfile(_output_file_path_4) and
+                             os.path.isfile(_output_file_path_5) and
+                             os.path.isfile(_output_file_path_6) and
+                             os.path.isfile(_output_file_path_7) and
+                             os.path.isfile(_output_file_path_8) and
+                             os.path.isfile(_output_file_path_9) and
+                             os.path.isfile(_output_file_path_10) and
+                             os.path.isfile(_output_file_path_11) and
+                             os.path.isfile(_output_file_path_12) and
+                             os.path.isfile(_output_file_path_13) and
+                             os.path.isfile(_output_file_path_14)
+                        )
 
     def test_run_scatter_chart(self):
         _features: List[str] = ['C', 'H']
@@ -1090,7 +1176,24 @@ class DataVisualizerTest(unittest.TestCase):
                         )
 
     def test_run_silhouette_chart(self):
-        pass
+        _df: pd.DataFrame = pd.read_csv('wine.csv')
+        _features: List[str] = ['alcohol', 'malic_acid', 'ash']
+        _clustering = Clustering(cl_params=dict(n_clusters=3)).kmeans()
+        _clustering.fit(X=_df[_features])
+        _silhouette: dict = UnsupervisedML(df=_df,
+                                           n_cluster_components=3
+                                           ).silhouette_analysis(labels=_clustering.predict(_df[_features]))
+        DataVisualizer(title='Silhouette Test',
+                       df=_df,
+                       features=None,
+                       plot_type='silhouette',
+                       file_path='test_silhouette.html',
+                       **dict(layout={},
+                              n_clusters=3,
+                              silhouette=_silhouette
+                              )
+                       ).run()
+        self.assertTrue(expr=os.path.isfile('test_silhouette.html'))
 
     def test_run_sunburst_chart(self):
         pass
