@@ -477,7 +477,80 @@ class DataVisualizerTest(unittest.TestCase):
         self.assertTrue(expr=os.path.isfile('test_density_map.html'))
 
     def test_run_dist_chart(self):
-        pass
+        _df: pd.DataFrame = pd.read_csv('wine.csv')
+        _features: List[str] = ['alcohol']
+        _group_features: List[str] = ['class']
+        _group_values: List[int] = _df[_group_features[0]].unique().tolist()
+        # without group by and without melt and without auto extensions
+        DataVisualizer(title='Dist Test',
+                       df=_df,
+                       features=_features,
+                       group_by=None,
+                       melt=False,
+                       plot_type='dist',
+                       render=False,
+                       file_path='test_dist.html',
+                       use_auto_extensions=False
+                       ).run()
+        _output_file_path_1: str = 'test_dist.html'
+        # without group by and without melt and with auto extensions
+        DataVisualizer(title='Dist Test',
+                       df=_df,
+                       features=_features,
+                       group_by=None,
+                       melt=False,
+                       plot_type='dist',
+                       render=False,
+                       file_path='test_dist.html',
+                       use_auto_extensions=True
+                       ).run()
+        _output_file_path_2: str = 'test_dist_alcohol.html'
+        # without group by and with melt and with auto extensions
+        DataVisualizer(title='Dist Test',
+                       df=_df,
+                       features=_features,
+                       group_by=None,
+                       melt=True,
+                       plot_type='dist',
+                       render=False,
+                       file_path='test_dist.html',
+                       use_auto_extensions=True
+                       ).run()
+        _output_file_path_3: str = 'test_dist_melt.html'
+        # with group by and without melt
+        DataVisualizer(title='Dist Test',
+                       df=_df,
+                       features=_features,
+                       group_by=_group_features,
+                       melt=False,
+                       plot_type='dist',
+                       render=False,
+                       file_path='test_dist.html',
+                       use_auto_extensions=False
+                       ).run()
+        _output_file_path_4: str = 'test_dist_alcohol_class_1.html'
+        _output_file_path_5: str = 'test_dist_alcohol_class_2.html'
+        _output_file_path_6: str = 'test_dist_alcohol_class_3.html'
+        # with group by and with melt
+        DataVisualizer(title='Dist Test',
+                       df=_df,
+                       features=_features,
+                       group_by=_group_features,
+                       melt=True,
+                       plot_type='dist',
+                       render=False,
+                       file_path='test_dist.html',
+                       use_auto_extensions=False
+                       ).run()
+        _output_file_path_7: str = 'test_dist_alcohol_class.html'
+        self.assertTrue(expr=os.path.isfile(_output_file_path_1) and
+                             os.path.isfile(_output_file_path_2) and
+                             os.path.isfile(_output_file_path_3) and
+                             os.path.isfile(_output_file_path_4) and
+                             os.path.isfile(_output_file_path_5) and
+                             os.path.isfile(_output_file_path_6) and
+                             os.path.isfile(_output_file_path_7)
+                        )
 
     def test_run_funnel_chart(self):
         pass
