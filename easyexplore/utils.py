@@ -26,8 +26,11 @@ from datetime import datetime
 from ipywidgets import FloatProgress
 from IPython.display import display, HTML
 from itertools import islice
-from scipy.stats import anderson, chi2, chi2_contingency, f_oneway, friedmanchisquare, mannwhitneyu, normaltest, kendalltau,\
-                        kruskal, kstest, pearsonr, powerlaw, shapiro, spearmanr, stats, ttest_ind, ttest_rel, wilcoxon
+from scipy import linalg
+from scipy.stats import (
+    anderson, chi2, chi2_contingency, f_oneway, friedmanchisquare, mannwhitneyu, normaltest, kendalltau,\
+    kruskal, ks_2samp, kstest, pearsonr, powerlaw, shapiro, spearmanr, stats, ttest_ind, ttest_rel, wilcoxon
+)
 from statsmodels.stats.weightstats import ztest
 from typing import Dict, List, Tuple, Union
 
@@ -277,25 +280,21 @@ class StatsUtils:
     """
     Class for calculating univariate and multivariate statistics
     """
-    def __init__(self, data, features: List[str], partitions: int = 1):
+    def __init__(self, data: Union[dd.DataFrame, pd.DataFrame], significance_level: float = 0.95):
         """
-        :param data: Pandas or dask DataFrame
-            Data set
+        :param data: Union[pd.DataFrame, dd.DataFrame]
+            Data set either Pandas or Dask DataFrame
 
-        :param features: List[str]
-            Name of the features
-
-        :param partitions: int
-            Number of partitions to create using parallel computing framework dask
+        :param significance_level: float
+            Significance level for rejecting hypothesis
         """
         if isinstance(data, pd.DataFrame):
-            self.df: dd.DataFrame = dd.from_pandas(data=data, npartitions=partitions)
+            self.df: pd.DataFrame = data
         elif isinstance(data, dd.DataFrame):
-            self.df: dd.DataFrame = data
-        self.features = features
-        self.n_features: int = len(features)
-        self.n_cases: int = len(self.df)
-        self.p: float = 0.95
+            self.df: pd.DataFrame = data.compute()
+        self.n_cases: int = self.df.shape[0]
+        self.n_features: int = self.df.shape[1]
+        self.p: float = 1 - significance_level if 0 < significance_level < 1 else 0.95
         self.nan_policy = 'omit'
 
     def _anderson_darling_test(self, feature: str, sig_level: float = 0.05) -> float:
@@ -311,7 +310,7 @@ class StatsUtils:
         :return: float
             Probability describing significance level
         """
-        _stat = anderson(x=self.df[feature].values.compute(), dist='norm')
+        _stat = anderson(x=self.df[feature].values, dist='norm')
         try:
             _i: int = _stat.significance_level.tolist().index(100 * sig_level)
             p: float = _stat.critical_values[_i]
@@ -319,11 +318,17 @@ class StatsUtils:
             p: float = _stat.critical_values[2]
         return p
 
-    def _bartlette_sphericity_test(self) -> dict:
+    def _bartlette_sphericity_test(self, features: List[str]) -> dict:
         """
         Bartlette's test for sphericity
+
+        :param features: List[str]
+            Name of the features
+
+        :return dict
+            Results of the Bartlette's test for sphericity (statistic, p)
         """
-        _cor = self.df[self.features].corr('pearson').compute()
+        _cor = self.df[features].corr(method='pearson')
         _cor_det = np.linalg.det(_cor.values)
         _statistic: np.ndarray = -np.log(_cor_det) * (self.n_cases - 1 - (2 * self.n_features + 5) / 6)
         _dof = self.n_features * (self.n_features - 1) / 2
@@ -339,12 +344,15 @@ class StatsUtils:
         :return: float
             Statistical probability value (p-value)
         """
-        stat, p = normaltest(a=self.df[feature].values.compute(), axis=0, nan_policy='propagate')
+        stat, p = normaltest(a=self.df[feature].values, axis=0, nan_policy='propagate')
         return p
 
     def _kaiser_meyer_olkin_test(self) -> dict:
         """
         Kaiser-Meyer-Olkin test for unobserved features
+
+        :return dict
+            Results of Kaiser-Meyer-Olkin test
         """
         _cor = self.correlation(meth='pearson').values
         _partial_cor = self.correlation(meth='partial').values
@@ -370,20 +378,49 @@ class StatsUtils:
         :return: float
             Statistical probability value (p-value)
         """
-        return shapiro(x=self.df[feature].values.compute())
+        return shapiro(x=self.df[feature].values)
 
-    def curtosis_test(self) -> List[str]:
+    def chi_squared_independence_test(self, x: str, y: str) -> dict:
         """
-        Test whether a distribution is tailed or not
+        Test the independency of two categorical features
 
-        :return: List[str]
-            Names of the tailed features
+        :param x: str
+            Name of the first feature
+
+        :param y: str
+            Name of the second feature
         """
-        raise NotImplementedError('Method not supported yet')
+        _cross_tab: pd.DataFrame = pd.crosstab(self.df[x],
+                                               self.df[y],
+                                               margins=True,
+                                               margins_name="Total"
+                                               )
+        _chi_square: float = 0
+        _rows: np.array = self.df[x].unique()
+        _columns: np.array = self.df[y].unique()
+        for i in _columns:
+            for j in _rows:
+                _o: float = _cross_tab[i][j]
+                _e: float = _cross_tab[i]['Total'] * _cross_tab['Total'][j] / _cross_tab['Total']['Total']
+                _chi_square += (_o - _e) ** 2 / _e
+        _p_value: float = 1 - chi2.cdf(_chi_square, (len(_rows) - 1) * (len(_columns) - 1))
+        if _p_value <= self.p:
+            _reject: bool = True
+        else:
+            _reject: bool = False
+        return {'features': list(self.df.columns),
+                'cases': self.n_cases,
+                'test_statistic': _chi_square,
+                'p_value': _p_value,
+                'reject': _reject
+                }
 
-    def correlation(self, meth: str = 'pearson', min_obs: int = 1) -> pd.DataFrame:
+    def correlation(self, features: List[str], meth: str = 'pearson', min_obs: int = 1) -> pd.DataFrame:
         """
         Calculate correlation coefficients
+
+        :param features: List[str]
+            Name of the features
 
         :param meth: str
             Method to be used as correlation coefficient
@@ -391,6 +428,7 @@ class StatsUtils:
                 -> kendall: Rank Correlation based on Kendall
                 -> spearman: Rank Correlation based on Spearman
                 -> partial: Partial Correlation
+
         :param min_obs: int
             Minimum number of valid observations
 
@@ -398,25 +436,27 @@ class StatsUtils:
             Correlation matrix
         """
         if meth in ['pearson', 'kendall', 'spearman']:
-            _cor: pd.DataFrame = self.df[self.features].corr(method=meth, min_periods=min_obs).compute()
+            _cor: pd.DataFrame = self.df[features].corr(method=meth, min_periods=min_obs)
         elif meth == 'partial':
-            if len(self.df) - self.df.isnull().astype(dtype=int).sum().sum().compute() > 0:
-                _cov: np.ndarray = np.cov(m=self.df[self.features].dropna())
-                try:
-                    assert np.linalg.det(_cov) > np.finfo(np.float32).eps
-                    _inv_var_cov: np.ndarray = np.linalg.inv(_cov)
-                except AssertionError:
-                    _inv_var_cov: np.ndarray = np.linalg.pinv(_cov)
-                    #warnings.warn('The inverse of the variance-covariance matrix '
-                    #              'was calculated using the Moore-Penrose generalized '
-                    #              'matrix inversion, due to its determinant being at '
-                    #              'or very close to zero.')
-                _std: np.ndarray = np.sqrt(np.diag(_inv_var_cov))
-                _cov2cor: np.ndarray = _inv_var_cov / np.outer(_std, _std)
-                _cor: pd.DataFrame = pd.DataFrame(data=np.nan_to_num(x=_cov2cor, copy=True) * -1,
-                                                  columns=self.features,
-                                                  index=self.features
-                                                  )
+            if (self.df.shape[0] - self.df.isnull().astype(dtype=int).sum().sum()) > 0:
+                _n_features: int = len(features)
+                if _n_features <= 2:
+                    raise EasyExploreUtilsException('Partial correlation can not be calculated. Number of features has to be higher than 2')
+                _partial_cor: np.array = np.zeros((_n_features, _n_features), dtype=np.float)
+                for i in range(0, _n_features, 1):
+                    _partial_cor[i, i] = 1
+                    for j in range(i + 1, _n_features, 1):
+                        _features: List[str] = copy.deepcopy(features)
+                        del _features[j]
+                        del _features[i]
+                        _beta_i: np.array = linalg.lstsq(self.df[_features].values, self.df[features[j]].values)[0]
+                        _beta_j: np.array = linalg.lstsq(self.df[_features].values, self.df[features[i]].values)[0]
+                        _residual_j = self.df[features[j]].values - self.df[_features].values.dot(_beta_i)
+                        _residual_i = self.df[features[i]].values - self.df[_features].values.dot(_beta_j)
+                        _pearson_r: float = pearsonr(_residual_i, _residual_j)[0]
+                        _partial_cor[i, j] = _pearson_r
+                        _partial_cor[j, i] = _pearson_r
+                _cor: pd.DataFrame = pd.DataFrame(data=_partial_cor, columns=features, index=features)
             else:
                 _cor: pd.DataFrame = pd.DataFrame()
                 Log(write=False, level='info').log(msg='Can not calculate coefficients for partial correlation because of the high missing data rate')
@@ -433,15 +473,24 @@ class StatsUtils:
                          power_divergence: str = 'cressie_read'
                          ) -> dict:
         """
-        :param x:
-        :param y:
+        :param x: str
+            Name of the first feature
+
+        :param y: str
+            Name of the second feature
+
         :param meth: String defining the hypothesis test method for correlation
                         -> pearson:
                         -> spearman:
                         -> kendall:
                         -> chi-squared:
-        :param freq_table:
-        :param yates_correction:
+
+        :param freq_table: List[float]
+            Frequency table for apply chi-squared contingency method
+
+        :param yates_correction: bool
+            Whether to apply yates correction or not
+
         :param power_divergence: String defining the power divergence test method used in chi-squared independent test
                                     -> pearson: Pearson's chi-squared statistic
                                     -> log-likelihood: Log-Likelihood ratio (G-test)
@@ -449,25 +498,26 @@ class StatsUtils:
                                     -> mod-log-likelihood: Modified log-likelihood ratio
                                     -> neyman: Neyman's statistic
                                     -> cressie-read: Cressie-Read power divergence test statistic
-        :return:
+
+        :return dict
+            Results of correlation test (statistic, p-value, p > alpha (reject))
         """
-        _reject = None
         if meth == 'pearson':
-            _correlation_test = pearsonr(x=self.df[x].values.compute(), y=self.df[y].values.compute())
+            _correlation_test = pearsonr(x=self.df[x].values, y=self.df[y].values)
         elif meth == 'spearman':
-            _correlation_test = spearmanr(a=self.df[x].values.compute(), b=self.df[y].values.compute(), axis=0, nan_policy=self.nan_policy)
+            _correlation_test = spearmanr(a=self.df[x].values, b=self.df[y].values, axis=0, nan_policy=self.nan_policy)
         elif meth == 'kendall':
-            _correlation_test = kendalltau(x=self.df[x].values.compute(), y=self.df[y].values.compute(), nan_policy=self.nan_policy)
+            _correlation_test = kendalltau(x=self.df[x].values, y=self.df[y].values, nan_policy=self.nan_policy)
         elif meth == 'chi-squared':
             _correlation_test = chi2_contingency(observed=freq_table, correction=yates_correction, lambda_=power_divergence)
         else:
             raise EasyExploreUtilsException('Method for correlation test not supported')
         if _correlation_test[1] <= self.p:
-            _reject = False
+            _reject: bool = True
         else:
-            _reject = True
-        return {'feature': ''.join(self.df.keys()),
-                'cases': len(self.df.values),
+            _reject: bool = False
+        return {'features': list(self.df.columns),
+                'cases': self.n_cases,
                 'test_statistic': _correlation_test[0],
                 'p_value': _correlation_test[1],
                 'reject': _reject}
@@ -490,18 +540,73 @@ class StatsUtils:
             raise EasyExploreUtilsException('Method for testing "factoriability" ({}) not supported'.format(meth))
         return {}
 
+    def kurtosis(self,
+                 features: List[str],
+                 axis: str = 'col',
+                 skip_missing_values: bool = True,
+                 use_numeric_features_only: bool = True,
+                 threshold_interval: Tuple[float, float] = (-0.5, 0.5)
+                 ) -> dict:
+        """
+        Calculate the kurtosis of feature distribution
+
+        :param features: List[str]
+            Name of the features
+
+        :param axis: str
+            Name of the axis of the data frame to use
+                -> col: Test skewness of feature
+                -> row: test skewness of cases
+
+        :param skip_missing_values: bool
+            Whether to skip missing values or not
+
+        :param use_numeric_features_only: bool
+            Whether to use numerical (continuous and semi-continuous) features only or not
+
+        :param threshold_interval: Tuple[float, float]
+            Threshold interval for testing
+
+        :return: dict
+            Kurtosis of features
+        """
+        if axis == 'col':
+            _axis = 0
+        elif axis == 'row':
+            _axis = 1
+        else:
+            raise EasyExploreUtilsException('Axis ({}) not supported'.format(axis))
+        if len(features) == 1:
+            return {features[0]: self.df[features].kurtosis(axis=_axis,
+                                                            skipna=skip_missing_values,
+                                                            level=None,
+                                                            numeric_only=use_numeric_features_only
+                                                            )
+                    }
+        return self.df[features].kurtosis(axis=_axis,
+                                          skipna=skip_missing_values,
+                                          level=None,
+                                          numeric_only=use_numeric_features_only
+                                          )
+
     def non_parametric_test(self,
                             x: str,
                             y: str,
-                            meth: str = 'kruskal-wallis',
+                            meth: str = 'ks',
                             continuity_correction: bool = True,
                             alternative: str = 'two-sided',
                             zero_meth: str = 'pratt',
                             *args
                             ):
         """
-        :param x:
-        :param y:
+        Test probability distribution of two features with unknown parameters (distribution-free test)
+
+        :param x: str
+            Name of the first feature
+
+        :param y: str
+            Name of the second feature
+
         :param meth: String defining the hypothesis test method for non-parametric tests
                         -> kruskal-wallis: Kruskal-Wallis H test to test whether the distributions of two or more
                                            independent samples are equal or not
@@ -511,50 +616,67 @@ class StatsUtils:
                                      are equal or not
                         -> friedman: Friedman test for test whether the distributions of two or more paired samples
                                      are equal or not
-        :param continuity_correction:
+                        -> ks: Kolmogorov-Smirnov test
+
+        :param continuity_correction: bool
+            Whether to apply continuity correction or not
+
         :param alternative: String defining the type of hypothesis test
                             -> two-sided:
                             -> less:
                             -> greater:
+
         :param zero_meth: String defining the method to handle zero differences in the ranking process (Wilcoxon test)
                             -> pratt: Pratt treatment that includes zero-differences (more conservative)
-                            -> wilcox: Wilcox tratment that discards all zero-differences
+                            -> wilcox: Wilcox treatment that discards all zero-differences
                             -> zsplit: Zero rank split, just like Pratt, but spliting the zero rank between positive
                                        and negative ones
         :param args:
-        :return:
+
+        :return: dict
+            Results of non-parametric test (statistic, p-value, p > alpha (reject))
         """
-        _reject = None
         if meth == 'kruskal-wallis':
             _non_parametric_test = kruskal(args, self.nan_policy)
         elif meth == 'mann-whitney':
-            _non_parametric_test = mannwhitneyu(x=self.df[x].values.compute(),
-                                                y=self.df[y].values.compute(),
+            _non_parametric_test = mannwhitneyu(x=self.df[x].value_counts().values,
+                                                y=self.df[y].value_counts().values,
                                                 use_continuity=continuity_correction,
-                                                alternative=alternative)
+                                                alternative=alternative
+                                                )
         elif meth == 'wilcoxon':
-            _non_parametric_test = wilcoxon(x=self.df[x].values.compute(),
-                                            y=self.df[y].values.compute(),
+            _non_parametric_test = wilcoxon(x=self.df[x].value_counts().values,
+                                            y=self.df[y].value_counts().values,
                                             zero_method=zero_meth,
-                                            correction=continuity_correction)
+                                            correction=continuity_correction
+                                            )
         elif meth == 'friedman':
             _non_parametric_test = friedmanchisquare(args)
+        elif meth == 'ks':
+            _non_parametric_test = ks_2samp(data1=self.df[x].value_counts().values,
+                                            data2=self.df[y].value_counts().values,
+                                            alternative='two-sided',
+                                            mode='auto'
+                                            )
         else:
             raise ValueError('No non-parametric test found !')
         if _non_parametric_test[1] <= self.p:
-            _reject = False
+            _reject: bool = True
         else:
-            _reject = True
-        return {'feature': ''.join(list(self.df.columns)),
+            _reject: bool = False
+        return {'features': list(self.df.columns),
                 'cases': self.n_cases,
                 'test_statistic': _non_parametric_test[0],
                 'p_value': _non_parametric_test[1],
                 'reject': _reject
                 }
 
-    def normality_test(self, alpha: float = 0.05, meth: str = 'shapiro-wilk') -> dict:
+    def normality_test(self, features: List[str], alpha: float = 0.5, meth: str = 'shapiro-wilk') -> dict:
         """
         Test whether a distribution is normal distributed or not
+
+        :param features: List[str]
+            Name of the features
 
         :param alpha: float
             Threshold that indicates whether a hypothesis can be rejected or not
@@ -564,12 +686,13 @@ class StatsUtils:
                 -> shapiro-wilk:
                 -> anderson-darling:
                 -> dagostino:
+
         :return: dict
             Results of normality test (statistic, p-value, p > alpha)
         """
         _alpha = alpha
         _normality: dict = {}
-        for feature in self.features:
+        for feature in features:
             if meth == 'shapiro-wilk':
                 _stat, _p = self._shapiro_wilk_test(feature=feature)
             elif meth == 'anderson-darling':
@@ -578,39 +701,63 @@ class StatsUtils:
                 _stat, _p = self._dagostino_k2_test(feature=feature)
             else:
                 raise EasyExploreUtilsException('Method ({}) for testing normality not supported'.format(meth))
-            _normality.update({feature: dict(stat=_stat, p=_p, normality=_p > _alpha)})
+            _normality.update({feature: dict(stat=_stat, p=_p, normality=_p >= _alpha)})
         return _normality
 
     def parametric_test(self, x: str, y: str, meth: str = 't-test', welch_t_test: bool = True, *args):
         """
-        :param x:
-        :param y:
+        Test probability distribution of two features with (approximately) normal distribution
+
+        :param x: str
+            Name of the first feature
+
+        :param y: str
+            Name of the second feature
+
         :param meth: String defining the hypothesis test method for parametric tests
                         -> z-test:
                         -> t-test:
                         -> t-test-paired:
                         -> anova:
-        :param welch_t_test:
+
+        :param welch_t_test: bool
+            Whether to apply Welch T-test or not
+
         :param args: Arguments containing samples from two or more groups for anova test
-        :return:
+
+        :return: dict
+            Results of parametric test (statistic, p-value, p > alpha (reject))
         """
-        _reject = None
         if meth == 't-test':
-            _parametric_test = ttest_ind(a=self.df[x].values.compute(), b=self.df[y].values.compute(),
-                                         axis=0, equal_var=not welch_t_test, nan_policy=self.nan_policy)
+            _parametric_test = ttest_ind(a=self.df[x].value_counts().values,
+                                         b=self.df[y].value_counts().values,
+                                         axis=0,
+                                         equal_var=not welch_t_test,
+                                         nan_policy=self.nan_policy
+                                         )
         elif meth == 't-test-paired':
-            _parametric_test = ttest_rel(a=self.df[x].values.compute(), b=self.df[y].values.compute(), axis=0, nan_policy=self.nan_policy)
+            _parametric_test = ttest_rel(a=self.df[x].value_counts().values,
+                                         b=self.df[y].value_counts().values,
+                                         axis=0,
+                                         nan_policy=self.nan_policy
+                                         )
         elif meth == 'anova':
             _parametric_test = f_oneway(args)
         elif meth == 'z-test':
-            _parametric_test = ztest(x1=x, x2=y, value=0, alternative='two-sided', usevar='pooled', ddof=1)
+            _parametric_test = ztest(x1=self.df[x].value_counts().values,
+                                     x2=self.df[y].value_counts().values,
+                                     value=0,
+                                     alternative='two-sided',
+                                     usevar='pooled',
+                                     ddof=1
+                                     )
         else:
             raise ValueError('No parametric test found !')
         if _parametric_test[1] <= self.p:
-            _reject = False
+            _reject: bool = True
         else:
-            _reject = True
-        return {'feature': ''.join(list(self.df.columns)),
+            _reject: bool = False
+        return {'features': list(self.df.columns),
                 'cases': self.n_cases,
                 'test_statistic': _parametric_test[0],
                 'p_value': _parametric_test[1],
@@ -634,20 +781,35 @@ class StatsUtils:
         """
         raise NotImplementedError('Method not implemented yet')
 
-    def skewness_test(self, axis: str = 'col', threshold_interval: Tuple[float, float] = (-0.5, 0.5)) -> dict:
+    def skewness(self,
+                 features: List[str],
+                 axis: str = 'col',
+                 skip_missing_values: bool = True,
+                 use_numeric_features_only: bool = True,
+                 threshold_interval: Tuple[float, float] = (-0.5, 0.5)
+                 ) -> dict:
         """
-        Test whether a distribution is skewed or not
+        Calculate the skewness of feature distribution
+
+        :param features: List[str]
+            Name of the features
 
         :param axis: str
             Name of the axis of the data frame to use
                 -> col: Test skewness of feature
                 -> row: test skewness of cases
 
+        :param skip_missing_values: bool
+            Whether to skip missing values or not
+
+        :param use_numeric_features_only: bool
+            Whether to use numerical (continuous and semi-continuous) features only or not
+
         :param threshold_interval: Tuple[float, float]
             Threshold interval for testing
 
         :return: dict
-            Statistics regarding skewness of features
+            Skewness of features
         """
         if axis == 'col':
             _axis = 0
@@ -655,7 +817,18 @@ class StatsUtils:
             _axis = 1
         else:
             raise EasyExploreUtilsException('Axis ({}) not supported'.format(axis))
-        return self.df[self.features].compute().skew(axis=_axis).to_dict()
+        if len(features) == 1:
+            return {features[0]: self.df[features].skew(axis=_axis,
+                                                        skipna=skip_missing_values,
+                                                        level=None,
+                                                        numeric_only=use_numeric_features_only
+                                                        )
+                    }
+        return self.df[features].skew(axis=_axis,
+                                      skipna=skip_missing_values,
+                                      level=None,
+                                      numeric_only=use_numeric_features_only
+                                      ).to_dict()
 
 
 class EasyExploreUtilsException(Exception):
