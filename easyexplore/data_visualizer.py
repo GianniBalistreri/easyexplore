@@ -974,8 +974,7 @@ class DataVisualizer:
                                                         'base': 0 if self.plot['kwargs'].get(
                                                             'base') is None else self.plot['kwargs'].get(
                                                             'base'),
-                                                        'name': self._trim(
-                                                            input_str='{} ({}={})'.format(ft, group, val)),
+                                                        'name': self._trim(input_str=f'{ft} ({group}={val})'),
                                                         'showlegend': True if self.plot['kwargs'].get(
                                                             'showlegend') is None else self.plot['kwargs'].get(
                                                             'showlegend'),
@@ -1395,7 +1394,7 @@ class DataVisualizer:
         for i, ft in enumerate(self.plot.get('features'), start=1):
             if self.plot.get('group_by') is None:
                 self.plot['kwargs'].update({'bin_size': 1.0 if self.plot['kwargs'].get(
-                    'bin_size') is None or i > 1 else self.plot['kwargs'].get('bin_size'),
+                    'bin_size') is None else self.plot['kwargs'].get('bin_size'),
                                             'curve_type': 'kde' if self.plot['kwargs'].get(
                                                 'curve_type') is None else self.plot['kwargs'].get(
                                                 'curve_type'),
@@ -1412,30 +1411,29 @@ class DataVisualizer:
                                             'colorscale': color_scale if self.plot['kwargs'].get(
                                                 'colorscale') is None else self.plot['kwargs'].get('colorscale')
                                             })
+                _ft.append(self.df.loc[~self.df[ft].isnull(), ft].values)
+                _labels.append(ft)
                 if self.plot.get('melt'):
-                    _ft.append(self.df.loc[~self.df[ft].isnull(), ft].values)
-                    _labels.append(ft)
                     if i == len(self.plot.get('features')):
-                        self.plot['kwargs'].update({'hist_data': _ft if self.plot['kwargs'].get(
-                            'hist_data') is None or i > 1 else self.plot['kwargs'].get('hist_data'),
-                                                    'group_labels': _labels if self.plot['kwargs'].get(
-                                                        'group_labels') is None or i > 1 else self.plot[
-                                                        'kwargs'].get('group_labels'),
+                        self.plot['kwargs'].update({'hist_data': _ft,
+                                                    'group_labels': _labels,
                                                     })
+                        if self.plot.get('use_auto_extensions'):
+                            self.file_path_extension = 'melt'
                         self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
                         self._show_plotly_offline()
+                        _ft = []
+                        _labels = []
                 else:
-                    self.plot['kwargs'].update({'hist_data': [self.df.loc[~self.df[ft].isnull(), ft].values] if
-                    self.plot['kwargs'].get('hist_data') is None or i > 1 else self.plot['kwargs'].get(
-                        'hist_data'),
-                                                'group_labels': [ft] if self.plot['kwargs'].get(
-                                                    'group_labels') is None or i > 1 else self.plot[
-                                                    'kwargs'].get('group_labels'),
+                    self.plot['kwargs'].update({'hist_data': _ft,
+                                                'group_labels': _labels,
                                                 })
                     if self.plot.get('use_auto_extensions'):
                         self.file_path_extension = self._trim(input_str=ft)
                     self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
                     self._show_plotly_offline()
+                    _ft = []
+                    _labels = []
             else:
                 for j, group in enumerate(self.plot.get('group_by'), start=1):
                     if str(self.df[group].dtype).find('date') >= 0:
@@ -1447,7 +1445,7 @@ class DataVisualizer:
                         else:
                             _x: np.array = self.df.loc[self.df[group] == val, ft].values
                         self.plot['kwargs'].update({'bin_size': 1.0 if self.plot['kwargs'].get(
-                            'bin_size') is None or i > 1 else self.plot['kwargs'].get('bin_size'),
+                            'bin_size') is None else self.plot['kwargs'].get('bin_size'),
                                                     'curve_type': 'kde' if self.plot['kwargs'].get(
                                                         'curve_type') is None else self.plot['kwargs'].get(
                                                         'curve_type'),
@@ -1455,8 +1453,7 @@ class DataVisualizer:
                                                                                              'kwargs'].get(
                                                         'histnorm') is None else self.plot['kwargs'].get(
                                                         'histnorm'),
-                                                    'name': self._trim(
-                                                        input_str='{} ({}={})'.format(ft, group, val)),
+                                                    'name': self._trim(input_str=f'{ft} ({group}={val})'),
                                                     'show_hist': True if self.plot['kwargs'].get(
                                                         'show_hist') is None else self.plot['kwargs'].get(
                                                         'show_hist'),
@@ -1470,30 +1467,29 @@ class DataVisualizer:
                                                         'colorscale') is None else self.plot['kwargs'].get(
                                                         'colorscale')
                                                     })
+                        _ft.append(_x)
+                        _labels.append(ft)
                         if self.plot.get('melt'):
-                            _ft.append(_x)
-                            _labels.append(ft)
-                            if k == len(self.df[group].unique()) and i == len(self.plot.get('features')):
-                                self.plot['kwargs'].update({'hist_data': _ft if self.plot['kwargs'].get(
-                                    'hist_data') is None or i > 1 else self.plot['kwargs'].get('hist_data'),
-                                                            'group_labels': _labels if self.plot['kwargs'].get(
-                                                                'group_labels') is None or i > 1 else self.plot[
-                                                                'kwargs'].get('group_labels')
-                                                            })
-                                self.file_path_extension = self._trim(input_str='{}_{}'.format(ft, group))
-                                self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
-                                self._show_plotly_offline()
-                        else:
                             if k == len(_unique):
-                                self.plot['kwargs'].update({'hist_data': [_x] if self.plot['kwargs'].get(
-                                    'hist_data') is None or i > 1 else self.plot['kwargs'].get('hist_data'),
-                                                            'group_labels': [ft] if self.plot['kwargs'].get(
-                                                                'group_labels') is None or i > 1 else self.plot[
-                                                                'kwargs'].get('group_labels')
+                                self.plot['kwargs'].update({'hist_data': _ft,
+                                                            'group_labels': _labels
                                                             })
-                                self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, group, k))
+                                self.title_extension = f'<br></br>({ft} - {group})'
+                                self.file_path_extension = self._trim(input_str=f'{ft}_{group}')
                                 self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
                                 self._show_plotly_offline()
+                                _ft = []
+                                _labels = []
+                        else:
+                            self.plot['kwargs'].update({'hist_data': _ft,
+                                                        'group_labels': _labels
+                                                        })
+                            self.title_extension = f'<br></br>({ft} - {group}={val})'
+                            self.file_path_extension = self._trim(input_str=f'{ft}_{group}_{val}')
+                            self.fig = PlotlyAdapter(plot=self.plot, offline=True).distplot()
+                            self._show_plotly_offline()
+                            _ft = []
+                            _labels = []
 
     def _plotly_funnel_chart(self):
         """
@@ -2002,7 +1998,7 @@ class DataVisualizer:
                             self._show_plotly_offline()
                             _data = []
                     else:
-                        self.title_extension = f'<br></br>({ft} - {tft})'
+                        self.title_extension = f'<br></br>({tft} - {ft})'
                         if self.plot.get('use_auto_extensions'):
                             self.file_path_extension = self._trim(input_str=f'{tft}_{ft}')
                         self.fig = _data
@@ -2102,13 +2098,13 @@ class DataVisualizer:
                             _data.append(PlotlyAdapter(plot=self.plot, offline=True).line())
                             if self.plot.get('melt'):
                                 if ext == len(_unique):
-                                    self.title_extension = f'<br></br>({ft} - {tft} - {group})'
+                                    self.title_extension = f'<br></br>({tft} - {ft} - {group})'
                                     self.file_path_extension = self._trim(input_str=f'{tft}_{ft}_{group}')
                                     self.fig = _data
                                     self._show_plotly_offline()
                                     _data = []
                             else:
-                                self.title_extension = f'<br></br>({ft} - {tft} - {group}={val})'
+                                self.title_extension = f'<br></br>({tft} - {ft} - {group}={val})'
                                 self.file_path_extension = self._trim(input_str=f'{tft}_{ft}_{group}_{val}')
                                 self.fig = _data
                                 self._show_plotly_offline()
@@ -2896,26 +2892,23 @@ class DataVisualizer:
         if self.plot.get('group_by') is None:
             for ft in self.plot.get('features'):
                 self.fig = go.Figure()
-                for i, time in enumerate(self.plot.get('time_features')):
-                    _unique_val: np.array = np.sort(self.df[time].unique())
+                for i, tft in enumerate(self.plot.get('time_features')):
+                    _unique_val: np.array = np.sort(self.df[tft].unique())
                     _colors: list = n_colors('rgb(5, 200, 200)', 'rgb(200, 10, 10)', len(_unique_val),
                                              colortype='rgb')
-                    for ext, time_val in enumerate(_unique_val):
-                        if time_val in INVALID_VALUES:
-                            _x: list = self.df.loc[self.df[time].isnull(), ft].values
+                    for ext, val in enumerate(_unique_val):
+                        if val in INVALID_VALUES:
+                            _x: list = self.df.loc[self.df[tft].isnull(), ft].values
                         else:
-                            _x: list = self.df.loc[self.df[time] == time_val, ft].values
-                        self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, time, ext))
+                            _x: list = self.df.loc[self.df[tft] == val, ft].values
                         self.plot['kwargs'].update({'x': _x,
-                                                    'name': self._trim(
-                                                        input_str='{} ({}={})'.format(ft, time, time_val)),
+                                                    'name': self._trim(input_str=f'{ft} ({tft}={val})'),
                                                     'side': 'positive' if self.plot['kwargs'].get(
                                                         'side') is None else self.plot['kwargs'].get('side'),
                                                     'points': False if self.plot['kwargs'].get(
                                                         'points') is None else self.plot['kwargs'].get(
                                                         'points'),
-                                                    'line': dict(color=_colors[i]) if self.plot['kwargs'].get(
-                                                        'line') is None else self.plot['kwargs'].get('line'),
+                                                    'line': dict(color=_colors[ext]),
                                                     'width': 3 if self.plot['kwargs'].get('width') is None else
                                                     self.plot['kwargs'].get('width')
                                                     })
@@ -2923,41 +2916,39 @@ class DataVisualizer:
                     self.fig.update_traces(
                         orientation='h' if self.plot['kwargs'].get('orientation') is None else self.plot[
                             'kwargs'].get('orientation'))
+                    self.title_extension = f'<br></br>({tft} - {ft})'
+                    if self.plot.get('use_auto_extensions'):
+                        self.file_path_extension = self._trim(input_str=f'{tft}_{ft}')
                     self._show_plotly_offline()
         else:
             for ft in self.plot.get('features'):
                 self.fig = go.Figure()
                 for group in self.plot.get('group_by'):
-                    _unique_group_val: np.array = np.sort(self.df[group].unique())
-                    for val in _unique_group_val:
-                        if val in INVALID_VALUES:
+                    _unique: np.array = np.sort(self.df[group].unique())
+                    for group_val in _unique:
+                        if group_val in INVALID_VALUES:
                             _df: pd.DataFrame = self.df.loc[self.df[group].isnull(), :]
                         else:
-                            _df: pd.DataFrame = self.df.loc[self.df[group] == val, :]
-                        for i, time in enumerate(self.plot.get('time_features')):
-                            _unique_val: np.array = np.sort(_df[time].unique())
+                            _df: pd.DataFrame = self.df.loc[self.df[group] == group_val, :]
+                        for i, tft in enumerate(self.plot.get('time_features')):
+                            _unique_val: np.array = np.sort(_df[tft].unique())
                             _colors: list = n_colors('rgb(5, 200, 200)', 'rgb(200, 10, 10)', len(_unique_val),
                                                      colortype='rgb')
-                            for ext, time_val in enumerate(_unique_val):
-                                if time_val in INVALID_VALUES:
-                                    _x: list = self.df.loc[_df[time].isnull(), ft].values
+                            for ext, val in enumerate(_unique_val):
+                                if val in INVALID_VALUES:
+                                    _x: list = _df.loc[_df[tft].isnull(), ft].values
                                 else:
-                                    _x: list = self.df.loc[_df[time] == time_val, ft].values
-                                self.file_path_extension = self._trim(input_str='{}_{}_{}'.format(ft, time, ext))
+                                    _x: list = _df.loc[_df[tft] == val, ft].values
                                 self.plot['kwargs'].update({'x': _x,
                                                             'name': self._trim(
-                                                                input_str='{} ({}={})'.format(ft, time,
-                                                                                              time_val)),
+                                                                input_str=f'{ft} ({tft}={val})'),
                                                             'side': 'positive' if self.plot['kwargs'].get(
                                                                 'side') is None else self.plot['kwargs'].get(
                                                                 'side'),
                                                             'points': False if self.plot['kwargs'].get(
                                                                 'points') is None else self.plot['kwargs'].get(
                                                                 'points'),
-                                                            'line': dict(color=_colors[i]) if self.plot[
-                                                                                                  'kwargs'].get(
-                                                                'line') is None else self.plot['kwargs'].get(
-                                                                'line'),
+                                                            'line': dict(color=_colors[ext]),
                                                             'width': 3 if self.plot['kwargs'].get(
                                                                 'width') is None else self.plot['kwargs'].get(
                                                                 'width')
@@ -2966,7 +2957,10 @@ class DataVisualizer:
                             self.fig.update_traces(
                                 orientation='h' if self.plot['kwargs'].get('orientation') is None else
                                 self.plot['kwargs'].get('orientation'))
+                            self.title_extension = f'<br></br>({tft} - {ft} - {group}={group_val})'
+                            self.file_path_extension = self._trim(input_str=f'{tft}_{ft}_{group}_{group_val}')
                             self._show_plotly_offline()
+                            self.fig = go.Figure()
 
     def _plotly_scatter_chart(self, color_scale: List[tuple], color_feature: np.array):
         """
@@ -3618,13 +3612,14 @@ class DataVisualizer:
                                waterfallgap=self.plot['kwargs']['layout'].get('waterfallgap'),
                                waterfallgroupgap=self.plot['kwargs']['layout'].get('waterfallgroupgap'),
                                waterfallmode=self.plot['kwargs']['layout'].get('waterfallmode'),
-                               #width=self.plot['kwargs']['layout'].get('width'),
-                               xaxis=self.plot['kwargs']['layout'].get('xaxis'),
-                               xaxis2=self.plot['kwargs']['layout'].get('xaxis2'),
                                xaxis_rangeslider_visible=self.plot['kwargs']['layout'].get('xaxis_rangeslider_visible'),
-                               yaxis=self.plot['kwargs']['layout'].get('yaxis'),
-                               yaxis2=self.plot['kwargs']['layout'].get('yaxis2')
                                )
+            if self.plot.get('plot_type') in ['choro', 'dendro', 'density', 'geo', 'joint']:
+                _fig.update_layout(xaxis=self.plot['kwargs']['layout'].get('xaxis'),
+                                   xaxis2=self.plot['kwargs']['layout'].get('xaxis2'),
+                                   yaxis=self.plot['kwargs']['layout'].get('yaxis'),
+                                   yaxis2=self.plot['kwargs']['layout'].get('yaxis2')
+                                   )
             if self.plot.get('file_path') is not None:
                 _original_file_path: str = self.plot.get('file_path')
                 if len(self.plot.get('file_path')) > 0:
