@@ -16,7 +16,7 @@ from .data_visualizer import DataVisualizer
 from .utils import Log, PERCENTILES, StatsUtils, EasyExploreUtils
 from dask.array import from_array
 from dask.distributed import Client
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 
 class DataExplorerException(Exception):
@@ -31,7 +31,7 @@ class DataExplorer:
     Class for data exploration
     """
     def __init__(self,
-                 df=None,
+                 df: Union[dd.DataFrame, pd.DataFrame],
                  file_path: str = '',
                  table_name: str = None,
                  target: str = None,
@@ -424,24 +424,7 @@ class DataExplorer:
             if _ar.shape[0] == 0:
                 Log(write=False).log('Partial correlation not possible because of high amount of missing values')
             else:
-                #_n_features = _ar.shape[1]
-                #_partial_cor: np.array = np.zeros((_n_features, _n_features), dtype=np.float)
-                #for i in range(_n_features):
-                #    _partial_cor[i, i] = 1
-                #    for j in range(i + 1, _n_features):
-                #        _idx = np.ones(_n_features, dtype=np.bool)
-                #        _idx[i] = False
-                #        _idx[j] = False
-                #        _beta_i = linalg.lstsq(_ar[:, _idx], _ar[:, j])[0]
-                #        _beta_j = linalg.lstsq(_ar[:, _idx], _ar[:, i])[0]
-                #        _res_j = _ar[:, j] - _ar[:, _idx].dot(_beta_i)
-                #        _res_i = _ar[:, i] - _ar[:, _idx].dot(_beta_j)
-                #        _corr = stats.pearsonr(_res_i, _res_j)[0]
-                #        _partial_cor[i, j] = _corr
-                #        _partial_cor[j, i] = _corr
-                #_cor_matrix: pd.DataFrame = pd.DataFrame(data=_partial_cor, columns=self.feature_types.get('continuous'), index=self.feature_types.get('continuous'))
-                _partial_cor_matrix = StatsUtils(data=self.df, features=self.feature_types.get('continuous')).correlation(meth='partial')
-                #print(_partial_cor_matrix)
+                _partial_cor_matrix = StatsUtils(data=self.df).correlation(meth='partial', features=self.feature_types.get('continuous'))
                 _cor['partial'].update(_partial_cor_matrix.to_dict())
                 _cor_plot.update({'Partial Correlation': dict(data=_partial_cor_matrix,
                                                               features=self.feature_types.get('continuous'),
@@ -731,27 +714,32 @@ class DataExplorer:
                                                                    kwargs=dict(values=[_df_all_data.sum().sum(),
                                                                                        (self.n_cases * len(_features)) - _df_all_data.sum().sum()
                                                                                        ],
-                                                                               labels=['Valid Data', 'Missing Data']
+                                                                               labels=['Valid Data', 'Missing Data'],
+                                                                               layout={}
                                                                                )
                                                                    ),
                                       'Missing Data Distribution Case-wise': dict(data=_df_nan_case_sum,
                                                                                   features=[],
                                                                                   plot_type='pie',
                                                                                   kwargs=dict(values=list(_df_nan_case_sum.loc[:, 'N'].values),
-                                                                                              labels=list(_df_nan_case_sum.loc[:, 'N'].index.values)
+                                                                                              labels=list(_df_nan_case_sum.loc[:, 'N'].index.values),
+                                                                                              layout={}
                                                                                               )
                                                                                   ),
                                       'Missing Data Distribution Features-wise': dict(data=_df_feature_mis,
                                                                                       features=[],
                                                                                       plot_type='pie',
                                                                                       kwargs=dict(values=list(_df_feature_mis.loc[:, 'N'].values),
-                                                                                                  labels=list(_df_feature_mis.loc[:, 'N'].index.values)
+                                                                                                  labels=list(_df_feature_mis.loc[:, 'N'].index.values),
+                                                                                                  layout={}
                                                                                                   )
                                                                                       ),
                                       'Sparsity of the features': dict(data=_df_feature_mis,
                                                                        features=[],
                                                                        plot_type='table',
-                                                                       kwargs=dict(index_title='Features with Missing Data')
+                                                                       kwargs=dict(index_title='Features with Missing Data',
+                                                                                   layout={}
+                                                                                   )
                                                                        )
                                       })
                     if nan_heat_map:
@@ -764,7 +752,9 @@ class DataExplorer:
                                                                                    colorbar=dict(title='Value Range',
                                                                                                  tickvals=['0', '1'],
                                                                                                  ticktext=['Valid',
-                                                                                                           'Missing'])
+                                                                                                           'Missing']
+                                                                                                 ),
+                                                                                   layout={}
                                                                                    )
                                                                        )
                                           })
@@ -782,7 +772,8 @@ class DataExplorer:
                         _label.append('variant')
                 _subplots.update({'Invariant Features': dict(data=pd.DataFrame(data=dict(features=self.features, invariant=_label)),
                                                              features=['invariant'],
-                                                             plot_type='pie'
+                                                             plot_type='pie',
+                                                             kwargs=dict(layout={})
                                                              )
                                   })
         if duplicate_features or duplicate_cases:
@@ -811,14 +802,14 @@ class DataExplorer:
                     _subplots.update({'Duplicate Cases': dict(data=pd.DataFrame(data=dict(duplicate_cases=_duplicate_cases)),
                                                               features=['duplicate_cases'],
                                                               plot_type='pie',
-                                                              interactive=True
+                                                              kwargs=dict(layout={})
                                                               )
                                       })
                 if duplicate_features:
                     _subplots.update({'Duplicate Features': dict(data=pd.DataFrame(data=dict(features=_features, duplicate_features=_duplicate_features)),
                                                                  features=['duplicate_features'],
                                                                  plot_type='pie',
-                                                                 interactive=True
+                                                                 kwargs=dict(layout={})
                                                                  )
                                       })
         for mis_feature in _data_health['sparsity']['features']:
@@ -856,13 +847,16 @@ class DataExplorer:
                                                                                         colorbar=dict(title='Value Range',
                                                                                                       tickvals=['0', '1', '2', '3'],
                                                                                                       ticktext=['Valid', 'Missing', 'Invariant', 'Duplicate']
-                                                                                                      )
+                                                                                                      ),
+                                                                                        layout={}
                                                                                         )
                                                                             ),
                               'Data Health Check Summary': dict(data=_summary,
                                                                 features=[],
                                                                 plot_type='table',
-                                                                kwargs=dict(index_title='Attributes of Data Health')
+                                                                kwargs=dict(index_title='Attributes of Data Health',
+                                                                            layout={}
+                                                                            )
                                                                 )
                               })
             DataVisualizer(title='Data Health Check',
@@ -874,7 +868,7 @@ class DataExplorer:
                            render=True if self.file_path is None else False,
                            file_path=self.file_path
                            ).run()
-        del _results_after_cleaning
+            del _results_after_cleaning
         return dict(cases=list(set(_cases)), features=list(set(__features)))
 
     def data_typing(self) -> dict:
