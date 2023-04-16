@@ -764,8 +764,7 @@ class DataVisualizer:
                             else:
                                 self.subplots[plot]['kwargs'].update({'layout': {}})
                         else:
-                            self.subplots[plot].update({'kwargs': {}})
-                            self.subplots[plot]['kwargs'].update({'layout': {}})
+                            self.subplots[plot].update({'kwargs': {'layout': {}}})
                     else:
                         raise DataVisualizerException('Subplots dictionary should contain dictionaries'.format(self.subplots))
             else:
